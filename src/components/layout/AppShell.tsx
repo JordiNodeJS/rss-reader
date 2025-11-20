@@ -7,7 +7,7 @@ import { Menu, Rss, Plus, Trash2, Inbox } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useFeeds } from '@/hooks/useFeeds';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Feed } from '@/lib/db';
@@ -67,6 +67,11 @@ function SidebarContent({ feeds, selectedFeedId, setSelectedFeedId, removeFeed, 
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Feed</DialogTitle>
+              <VisuallyHidden>
+                <DialogDescription>
+                  Add a new RSS feed by selecting from presets or entering a custom URL
+                </DialogDescription>
+              </VisuallyHidden>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">

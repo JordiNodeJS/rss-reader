@@ -39,8 +39,24 @@ export function useFeeds() {
     try {
       // 1. Fetch feed data via proxy
       const res = await fetch(`/api/rss?url=${encodeURIComponent(url)}`);
-      if (!res.ok) throw new Error('Failed to fetch feed');
-      const data = await res.json();
+      
+      // Check if response is JSON before parsing
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned an invalid response. Please try again.');
+      }
+      
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        throw new Error('Failed to parse server response');
+      }
+      
+      if (!res.ok) {
+        const errorMsg = data.details || data.error || 'Failed to fetch feed';
+        throw new Error(errorMsg);
+      }
 
       // 2. Save feed to DB
       const newFeed: Omit<Feed, 'id'> = {
@@ -75,7 +91,8 @@ export function useFeeds() {
       if (!selectedFeedId) await refreshArticles(); // Refresh all if viewing all
     } catch (error) {
       console.error(error);
-      toast.error('Failed to add feed');
+      const errorMsg = error instanceof Error ? error.message : 'Failed to add feed';
+      toast.error(`Failed to add feed: ${errorMsg}`);
     } finally {
       setIsLoading(false);
     }
@@ -88,14 +105,6 @@ export function useFeeds() {
     if (selectedFeedId === id) setSelectedFeedId(null);
     await refreshArticles();
   };
-
-  const scrapeArticle = async (articleId: number, url: string) => {
-    try {
-      toast.info('Scraping article...');
-      const res = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`);
-      if (!res.ok) throw new Error('Failed to scrape');
-      const data = await res.json();
-      
       if (data.content) {
         await updateArticleScrapedContent(articleId, data.content);
         // Update local state immediately
@@ -106,7 +115,8 @@ export function useFeeds() {
       }
     } catch (error) {
       console.error(error);
-      toast.error('Failed to scrape article');
+      const errorMsg = error instanceof Error ? error.message : 'Failed to scrape article';
+      toast.error(`Failed to scrape article: ${errorMsg}`);
     }
   };
 

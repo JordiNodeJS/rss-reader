@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
 interface ArticleViewProps {
   article: Article | null;
@@ -30,7 +31,12 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
           <DialogTitle className="text-2xl font-bold leading-tight mb-3">
             {article.title}
           </DialogTitle>
-          <DialogDescription className="flex items-center gap-2">
+          <VisuallyHidden>
+            <DialogDescription>
+              Article content from {new Date(article.pubDate).toLocaleDateString()}
+            </DialogDescription>
+          </VisuallyHidden>
+          <div className="flex items-center gap-2">
             <a 
               href={article.link} 
               target="_blank" 
@@ -39,7 +45,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
             >
               Visit Original <ExternalLink className="w-3 h-3" />
             </a>
-          </DialogDescription>
+          </div>
         </DialogHeader>
         
         <ScrollArea className="flex-1 min-h-0">

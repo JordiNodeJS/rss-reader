@@ -22,8 +22,14 @@ export async function GET(request: NextRequest) {
     // Block unnecessary resources to improve performance
     await page.route('**/*.{png,jpg,jpeg,gif,webp,svg,css,woff,woff2}', route => route.abort());
 
-    // Navigate to the URL
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    // Navigate to the URL with better error handling
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    } catch (navError) {
+      const errorMsg = navError instanceof Error ? navError.message : 'Navigation failed';
+      console.error('Navigation error:', { url, error: errorMsg });
+      throw new Error(`Failed to load page: ${errorMsg}`);
+    }
 
     // Get the HTML content
     const html = await page.content();
@@ -60,6 +66,11 @@ export async function GET(request: NextRequest) {
         content = body.html() || '';
     }
 
+    // Check if we actually got content
+    if (!content || content.trim().length < 100) {
+      throw new Error('No substantial content found on the page');
+    }
+
     // Sanitize HTML but preserve formatting tags
     const cleanContent = DOMPurify.sanitize(content, {
       ALLOWED_TAGS: [
@@ -73,13 +84,24 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ content: cleanContent });
-  } catch (error) {
-    console.error('Error scraping URL:', error);
-    return NextResponse.json({ error: 'Failed to scrape URL' }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error scraping URL:', {
+      url,
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return NextResponse.json({ 
+      error: 'Failed to scrape URL',
+      details: errorMessage,
+      url 
+    }, { status: 500 });
   } finally {
     if (browser) {
         await browser.close();
     }
   }
 }
+
 
