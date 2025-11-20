@@ -78,16 +78,31 @@ export async function GET(request: NextRequest) {
     // Basic heuristic to find article content
     let content = "";
 
-    // Try to find the main article content
-    const selectors = [
-      "article",
-      '[role="main"]',
-      ".article-body",
-      ".content",
-      ".post-content",
-      ".entry-content",
-      "main",
-    ];
+    // Try to find the main article content with site-specific selectors
+    const hostname = new URL(url).hostname;
+    let selectors: string[] = [];
+
+    if (hostname.includes("eldiario.es")) {
+      // Specific selectors for eldiario.es
+      selectors = [
+        ".article-page__body-row",
+        ".article-content",
+        "[itemprop='articleBody']",
+        "article.article-page",
+        ".article-body",
+      ];
+    } else {
+      // Generic selectors for other sites
+      selectors = [
+        "article",
+        '[role="main"]',
+        ".article-body",
+        ".content",
+        ".post-content",
+        ".entry-content",
+        "main",
+      ];
+    }
 
     for (const selector of selectors) {
       const element = $(selector);
@@ -95,7 +110,7 @@ export async function GET(request: NextRequest) {
         // Remove unwanted elements
         element
           .find(
-            "script, style, nav, header, footer, .ad, .advertisement, .social-share, iframe, noscript"
+            "script, style, nav, header, footer, .ad, .advertisement, .social-share, iframe, noscript, .item__content__image"
           )
           .remove();
         content = element.html() || "";
