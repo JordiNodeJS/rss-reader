@@ -120,3 +120,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom styles for article content images */
+.prose img {
+  @apply my-6 rounded-lg;
+}
+
+.prose figure {
+  @apply my-6;
+}
+
+.prose figcaption {
+  @apply mt-2 text-sm text-muted-foreground;
+}

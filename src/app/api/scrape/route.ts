@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { chromium } from 'playwright';
+import DOMPurify from 'isomorphic-dompurify';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
         const element = $(selector);
         if (element.length > 0) {
             // Remove unwanted elements
-            element.find('script, style, nav, header, footer, .ad, .advertisement, .social-share').remove();
+            element.find('script, style, nav, header, footer, .ad, .advertisement, .social-share, iframe, noscript').remove();
             content = element.html() || '';
             if (content.length > 500) break; // Found substantial content
         }
@@ -55,11 +56,23 @@ export async function GET(request: NextRequest) {
     // Fallback to body if nothing found
     if (!content) {
         const body = $('body');
-        body.find('script, style, nav, header, footer').remove();
+        body.find('script, style, nav, header, footer, iframe, noscript').remove();
         content = body.html() || '';
     }
 
-    return NextResponse.json({ content });
+    // Sanitize HTML but preserve formatting tags
+    const cleanContent = DOMPurify.sanitize(content, {
+      ALLOWED_TAGS: [
+        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a', 'ul', 'ol', 'li', 
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre',
+        'div', 'span', 'img', 'figure', 'figcaption', 'table', 'thead', 'tbody', 
+        'tr', 'th', 'td', 'hr', 'del', 'ins', 'sup', 'sub'
+      ],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'class'],
+      ALLOW_DATA_ATTR: false,
+    });
+
+    return NextResponse.json({ content: cleanContent });
   } catch (error) {
     console.error('Error scraping URL:', error);
     return NextResponse.json({ error: 'Failed to scrape URL' }, { status: 500 });
@@ -69,3 +82,4 @@ export async function GET(request: NextRequest) {
     }
   }
 }
+

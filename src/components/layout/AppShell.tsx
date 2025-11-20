@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, Rss, Plus, Trash2, Inbox } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Feed } from '@/lib/db';
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -166,6 +167,11 @@ export function AppShell({ children, feedState }: AppShellProps) {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-64">
+          <SheetHeader>
+            <VisuallyHidden>
+              <SheetTitle>Navigation Menu</SheetTitle>
+            </VisuallyHidden>
+          </SheetHeader>
           <SidebarContent 
             feeds={feeds}
             selectedFeedId={selectedFeedId}
