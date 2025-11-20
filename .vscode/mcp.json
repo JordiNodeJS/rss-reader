@@ -4,14 +4,7 @@
             "command": "npx",
             "args": [
                 "-y",
-                "chrome-devtools-mcp@latest"
-            ]
-        },
-        "shadcn": {
-            "command": "npx",
-            "args": [
-                "shadcn@latest",
-                "mcp"
+                "chrome-devtools-mcp"
             ]
         },
         "next-devtools": {
@@ -20,6 +13,78 @@
                 "-y",
                 "next-devtools-mcp@latest"
             ]
+        },
+        "Context7": {
+            "url": "https://mcp.context7.com/mcp",
+            "type": "http"
+        },
+        "playwright": {
+            "command": "npx",
+            "args": [
+                "@playwright/mcp@latest"
+            ],
+            "type": "stdio"
+        },
+        "shadcn": {
+            "command": "npx",
+            "args": [
+                "shadcn@latest",
+                "mcp"
+            ]
+        },
+        "postgres": {
+            "command": "npx",
+            "args": [
+                "@modelcontextprotocol/server-postgres",
+                "postgres://neondb_owner:npg_DrZzsX2Lhc9q@ep-icy-base-aba2rryb-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
+            ],
+            "type": "stdio"
+        },
+        "github-mpc": {
+            "url": "https://api.githubcopilot.com/mcp/",
+            "type": "http"
+        },
+        "notion": {
+            "url": "https://mcp.notion.com/mcp",
+            "type": "http"
+        },
+    },
+    "inputs": [
+        {
+            "id": "memory_file_path",
+            "type": "promptString",
+            "description": "Path to the memory storage file",
+            "password": false
+        },
+        {
+            "id": "browser_url",
+            "type": "promptString",
+            "description": "Optional: connect to an already-running Chrome (remote debugging / port-forward). Example: http://127.0.0.1:9222",
+            "password": false
+        },
+        {
+            "id": "headless",
+            "type": "promptString",
+            "description": "Run Chrome headless (true/false). Default: false",
+            "password": false
+        },
+        {
+            "id": "chrome_executable_path",
+            "type": "promptString",
+            "description": "Path to a specific Chrome/Chromium binary.",
+            "password": false
+        },
+        {
+            "id": "isolated",
+            "type": "promptString",
+            "description": "Use a temporary user-data-dir (true/false). Default: false",
+            "password": false
+        },
+        {
+            "id": "chrome_channel",
+            "type": "promptString",
+            "description": "Chrome channel: stable | canary | beta | dev (default: stable).",
+            "password": false
         }
-    }
+    ]
 }
