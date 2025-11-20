@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { chromium } from "playwright";
 import sanitizeHtml from "sanitize-html";
+import sharp from "sharp";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -41,11 +42,24 @@ export async function GET(request: NextRequest) {
     });
     const page = await context.newPage();
 
-    // Block unnecessary resources to improve performance
-    await page.route(
-      "**/*.{png,jpg,jpeg,gif,webp,svg,css,woff,woff2}",
-      (route) => route.abort()
-    );
+    // Block CSS and fonts to improve performance, but allow images
+    await page.route("**/*.{css,woff,woff2}", (route) => route.abort());
+
+    // Block ads and tracking scripts
+    await page.route("**/*", (route) => {
+      const url = route.request().url();
+      if (
+        url.includes("doubleclick") ||
+        url.includes("google-analytics") ||
+        url.includes("googletagmanager") ||
+        url.includes("facebook.com/tr") ||
+        url.includes("/ads/")
+      ) {
+        route.abort();
+      } else {
+        route.continue();
+      }
+    });
 
     // Navigate to the URL with better error handling
     try {
@@ -102,6 +116,75 @@ export async function GET(request: NextRequest) {
     if (!content || content.trim().length < 100) {
       throw new Error("No substantial content found on the page");
     }
+
+    // Optimize images: download and convert to WebP
+    const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+    let match;
+    const imagePromises: Promise<void>[] = [];
+    const imageMap = new Map<string, string>();
+
+    while ((match = imgRegex.exec(content)) !== null) {
+      const imgUrl = match[1];
+
+      // Skip data URLs and already optimized images
+      if (imgUrl.startsWith("data:") || imgUrl.includes(".webp")) {
+        continue;
+      }
+
+      // Resolve relative URLs
+      let absoluteUrl = imgUrl;
+      if (!imgUrl.startsWith("http")) {
+        const baseUrl = new URL(url);
+        absoluteUrl = new URL(imgUrl, baseUrl.origin).href;
+      }
+
+      imagePromises.push(
+        (async () => {
+          try {
+            const imgResponse = await fetch(absoluteUrl, {
+              headers: {
+                "User-Agent":
+                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              },
+            });
+
+            if (!imgResponse.ok) return;
+
+            const arrayBuffer = await imgResponse.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            // Optimize and convert to WebP
+            const optimized = await sharp(buffer)
+              .resize(1200, 1200, {
+                fit: "inside",
+                withoutEnlargement: true,
+              })
+              .webp({ quality: 80 })
+              .toBuffer();
+
+            // Convert to base64 data URL
+            const base64 = optimized.toString("base64");
+            const dataUrl = `data:image/webp;base64,${base64}`;
+
+            imageMap.set(imgUrl, dataUrl);
+          } catch (error) {
+            console.warn(`Failed to optimize image: ${absoluteUrl}`, error);
+            // Keep original URL if optimization fails
+          }
+        })()
+      );
+    }
+
+    // Wait for all images to be processed
+    await Promise.all(imagePromises);
+
+    // Replace image URLs in content with optimized versions
+    imageMap.forEach((dataUrl, originalUrl) => {
+      content = content.replace(
+        new RegExp(originalUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+        dataUrl
+      );
+    });
 
     // Sanitize HTML but preserve formatting tags
     const cleanContent = sanitizeHtml(content, {
