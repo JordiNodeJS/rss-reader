@@ -99,6 +99,7 @@ export function useFeeds() {
             title: item.title,
             link: item.link,
             pubDate: item.pubDate || new Date().toISOString(),
+            image: extractImage(item),
             content: item.content,
             contentSnippet: item.contentSnippet,
             isRead: false,
@@ -182,6 +183,20 @@ export function useFeeds() {
     }
   };
 
+  const clearCache = async () => {
+    try {
+      const { clearAllData } = await import("@/lib/db");
+      await clearAllData();
+      setFeeds([]);
+      setArticles([]);
+      setSelectedFeedId(null);
+      toast.success("Cache cleared successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to clear cache");
+    }
+  };
+
   return {
     feeds,
     articles,
@@ -191,5 +206,35 @@ export function useFeeds() {
     selectedFeedId,
     setSelectedFeedId,
     scrapeArticle,
+    clearCache,
   };
+}
+
+function extractImage(item: any): string | undefined {
+  // 1. Check enclosure
+  if (item.enclosure && item.enclosure.url && item.enclosure.type?.startsWith('image/')) {
+    return item.enclosure.url;
+  }
+  
+  // 2. Check media:content
+  if (item['media:content'] && item['media:content'].url) {
+    return item['media:content'].url;
+  } else if (item['media:content'] && item['media:content']['$'] && item['media:content']['$'].url) {
+    return item['media:content']['$'].url;
+  }
+
+  // 3. Check itunes:image
+  if (item['itunes:image'] && item['itunes:image'].href) {
+    return item['itunes:image'].href;
+  }
+
+  // 4. Try to find first image in content
+  if (item.content) {
+    const imgMatch = item.content.match(/<img[^>]+src="([^">]+)"/);
+    if (imgMatch) {
+      return imgMatch[1];
+    }
+  }
+
+  return undefined;
 }

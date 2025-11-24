@@ -18,7 +18,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Fetch the RSS feed with error handling
     const feed = await parser.parseURL(url);
+    
+    // Validate that we got valid feed data
+    if (!feed || !feed.title) {
+      throw new Error('Invalid RSS feed: Missing required fields');
+    }
     
     const response = NextResponse.json(feed);
     response.headers.set('Access-Control-Allow-Origin', '*');
@@ -28,14 +34,29 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Enhanced error logging
     console.error('Error parsing RSS feed:', {
       url,
       error: errorMessage,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
       stack: error instanceof Error ? error.stack : undefined
     });
     
+    // Provide more user-friendly error messages
+    let userMessage = 'Failed to parse RSS feed';
+    if (errorMessage.includes('Invalid XML') || errorMessage.includes('Attribute without value')) {
+      userMessage = 'The RSS feed contains invalid XML. The feed may be malformed or temporarily unavailable.';
+    } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+      userMessage = 'Request timed out. The feed server may be slow or unavailable.';
+    } else if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
+      userMessage = 'Feed URL not found. Please check the URL is correct.';
+    } else if (errorMessage.includes('Invalid RSS feed')) {
+      userMessage = errorMessage;
+    }
+    
     return NextResponse.json({ 
-      error: 'Failed to parse RSS feed',
+      error: userMessage,
       details: errorMessage,
       url 
     }, { status: 500 });

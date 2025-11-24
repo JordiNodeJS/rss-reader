@@ -25,7 +25,7 @@
      ```
 2. Install Playwright browsers (required by server scraper):
      ```bash
-     npx playwright install chromium
+     pnpm dlx playwright install chromium
      ```
 3. Run dev server:
      ```bash
@@ -35,46 +35,79 @@
 
 Notes: `sharp` is a native module — if install errors occur on Windows, ensure a supported Node version (current LTS) and run `npm rebuild sharp` or follow platform instructions.
 
-# Architecture & data flow (short)
+<!-- Copilot / AI agent instructions for rss-reader-antigravity -->
 
-- Client-only state and UI live under `src/app` & `src/components` and are marked `"use client"` when needed.
-- Feeds and articles are stored in the browser IndexedDB via `src/lib/db.ts` (IDB wrapper). Use the exported functions instead of direct IDB usage.
-- Feed parsing is proxied server-side (`/api/rss`) to avoid CORS & parser inconsistencies.
-- Complex page scraping is handled server-side (`/api/scrape`) using Playwright to load pages, then `cheerio` to extract content and `sanitize-html` to sanitize. `sharp` optimizes images and embeds them as base64 webp data URLs.
+# Summary
 
-# Conventions & important patterns
+Minimal, offline-capable RSS reader built with Next.js (App Router, Next 16+) + React 19.
+Client persists feeds & articles in IndexedDB; the server exposes two helper APIs:
 
-- Client vs server: Keep direct DOM-accessing or browser-only APIs (IndexedDB) in client components (`use client`). Server code must remain in `app/api` route handlers.
-- Use typed interfaces `Feed` & `Article` from `src/lib/db.ts` for cross-file consistency.
-- API responses return JSON with `error` & `details` fields on error; client uses `content-type` checks to guard parsing.
-- Persist full sanitized HTML in `Article.scrapedContent`. The reader uses `dangerouslySetInnerHTML` — only accept sanitized content.
-- Use the `cn` helper from `src/lib/utils.ts` to compose Tailwind classnames.
+- `/api/rss?url=` — server-side RSS parsing (uses `rss-parser`) to avoid CORS and parser differences.
+- `/api/scrape?url=` — server-side scraping using Playwright, `cheerio` + `sanitize-html`, and image processing with `sharp`.
 
-# Workflow tips for AI coding agents
+# Quick start (commands)
 
-- Adding a new feed source: update `DEFAULT_FEEDS` in `AppShell.tsx` for UI presets; `useFeeds.addNewFeed` handles actually saving.
-- Adding server scraping changes: modify `src/app/api/scrape/route.ts` — update selectors or sanitization list carefully. Because scraped HTML is stored and displayed with `dangerouslySetInnerHTML`, add unit testing or manual review for XSS risks.
-- If changing image optimization: follow the `imageMap` conversion to base64 in `scrape/route.ts` — maintain a fallback to original URLs.
-- To update the offline storage schema (IDB): edit `DB_VERSION` in `src/lib/db.ts` and implement `upgrade` logic to migrate existing indexes.
-- To debug scraping issues locally: run dev server and `curl` the API (or use Chrome network tools) to inspect `/api/scrape?url=...` responses; ensure Playwright browsers are installed.
+```bash
+pnpm install
+npx playwright install chromium
+pnpm dev
+# Build: pnpm build
+# Lint: pnpm lint
+```
 
-# Build, test, and CI notes
+Windows note: `sharp` is native — if install fails run `npm rebuild sharp` and use a supported Node LTS.
 
-- Dev: `pnpm dev` or `npm run dev`.
-- Build: `pnpm build` or `npm run build`.
-- Lint: `npm run lint` (ESLint). There is no `test` script yet.
-- CI: Playwright & `sharp` may require additional setup (install browsers and runtime deps). For CI runs, add `npx playwright install chromium` and ensure native dependencies for `sharp` are available for the OS.
+# Key files to read first
 
-# Common pitfalls & gotchas
+- `src/app/page.tsx` — app entry and top-level layout.
+- `src/components/layout/AppShell.tsx` — sidebar, feed list, `DEFAULT_FEEDS` presets.
+- `src/components/BrandingBanner.tsx` — header with status badge and theme toggle (scroll behavior).
+- `src/hooks/useFeeds.ts` — client feed API, persistence calls to `src/lib/db.ts` and calls to server APIs.
+- `src/lib/db.ts` — IndexedDB schema, `DB_VERSION`, and helper functions (use these — do not access IDB directly).
+- `src/app/api/scrape/route.ts` — Playwright scraping flow, `imageMap` base64 conversion, sanitization rules.
+- `src/app/api/rss/route.ts` — RSS parsing proxy.
 
-- Playwright on serverless platforms (Vercel, etc.) may fail — the route `src/app/api/scrape/route.ts` includes a helpful error message and suggests running `npx playwright install chromium`.
-- All sanitization & user-visible HTML changes touch XSS risk — always validate sanitized results.
-- IDB uniqueness constraints: articles use `guid` as a unique index — updates to feed items may need careful deduplication logic.
+# Architecture & patterns (concise)
 
-# Where to look for improvements
+- Client-only UI/components live under `src/app` / `src/components` and use `"use client"` where needed.
+- Persisted data model: `Feed` and `Article` typed in `src/lib/db.ts`. Articles use `guid` as a uniqueness key.
+- Server responsibilities: heavy lifting that needs Node APIs or avoids CORS (RSS parsing, scraping, image processing).
+- Security: scraped HTML is sanitized and stored in `Article.scrapedContent` and later rendered with `dangerouslySetInnerHTML` — treat sanitization carefully.
+- Styling: Tailwind utility classes + a `cn` helper in `src/lib/utils.ts` are used for conditional classnames.
 
-- Add `tests` and a `test` script (Jest or Playwright) to validate scraping & UI flows.
-- Add a small e2e test to validate `add feed` → `list articles` → `scrape article` flow (Playwright test can run in CI if you add browser install step).
+# Common developer tasks & where to make changes
 
----
-If anything is unclear, tell me which file or workflow you want clarified and I’ll expand this doc or add examples/tests.
+- Add a default feed shown in the UI: edit `DEFAULT_FEEDS` in `src/components/layout/AppShell.tsx`.
+- Add / tune scraping selectors or sanitization: edit `src/app/api/scrape/route.ts` (keep `cheerio` selectors minimal and update allowed tags in `sanitize-html`).
+- Change offline DB schema: bump `DB_VERSION` in `src/lib/db.ts` and implement upgrade logic there.
+- Image handling: `src/app/api/scrape/route.ts` builds an `imageMap` that converts images to base64 webp; maintain a fallback to original URLs.
+
+# Debugging & run-time checks
+
+- If scraping fails locally, first confirm Playwright browsers are installed: `npx playwright install chromium`.
+- Use `curl` or browser devtools to inspect responses from `/api/scrape?url=...` and `/api/rss?url=...` (the routes return `{ error, details }` on failure).
+- Playwright errors surface in server logs; check the dev server terminal for stack traces.
+
+# CI / deployment notes
+
+- CI must install Playwright browsers and provide native build support for `sharp`. Add `npx playwright install chromium` to CI and ensure `sharp` native deps are available.
+- Serverless platforms (Vercel) may restrict Playwright — check `src/app/api/scrape/route.ts` for its runtime checks and error guidance.
+
+# Quick examples
+
+- Add a feed preset: edit `DEFAULT_FEEDS` in `src/components/layout/AppShell.tsx`.
+- Run a scrape locally: start dev server then:
+     `curl "http://localhost:3000/api/scrape?url=https://example.com/article"`
+
+# Safety & review points for AI agents
+
+- Always preserve or surface sanitization rules when modifying `scrape/route.ts` — any change here affects XSS risk.
+- When touching `db.ts`, keep migration logic and `DB_VERSION` changes explicit and backward-compatible.
+
+# Where to look next (developer orientation)
+
+- `src/hooks/useFeeds.ts` — central place connecting UI actions to persistence and server APIs.
+- `src/components/articles/ArticleView.tsx` — how stored HTML is rendered to the user.
+- `src/components/BrandingBanner.tsx` — example of polished UI interactions (scroll-driven state + transitions).
+
+If you want, I can shorten any section, add command snippets for CI, or expand migration examples (DB upgrade code sample). Please tell me which area to expand.

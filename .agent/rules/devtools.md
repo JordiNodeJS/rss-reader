@@ -1,0 +1,5 @@
+---
+trigger: always_on
+---
+
+Inspecciona la web con Chrome DevTools en el navegador para validar el diseño, responsividad y funcionalidad. Usa Next DevTools para detectar y resolver errores específicos de Next.js 16. Vigila problemas de hidratación.

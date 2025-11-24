@@ -16,6 +16,7 @@ export interface Article {
   title: string;
   link: string;
   pubDate: string;
+  image?: string; // Article thumbnail/featured image
   content?: string;
   contentSnippet?: string;
   scrapedContent?: string; // Full HTML content from scraping
@@ -116,3 +117,13 @@ export const updateArticleScrapedContent = async (id: number, content: string) =
   article.scrapedContent = content;
   await db.put('articles', article);
 };
+
+// Clear all data
+export const clearAllData = async () => {
+  const db = await getDB();
+  const tx = db.transaction(['feeds', 'articles'], 'readwrite');
+  await tx.objectStore('feeds').clear();
+  await tx.objectStore('articles').clear();
+  await tx.done;
+};
+
