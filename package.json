@@ -10,7 +10,7 @@
     "postinstall": "npx playwright install chromium --with-deps || true"
   },
   "engines": {
-    "node": "18.x"
+    "node": "22.x"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
