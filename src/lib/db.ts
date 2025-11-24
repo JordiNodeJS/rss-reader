@@ -1,9 +1,10 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { openDB, DBSchema, IDBPDatabase } from "idb";
 
 export interface Feed {
   id?: number;
   url: string;
   title: string;
+  customTitle?: string; // User-defined title override
   description?: string;
   icon?: string;
   addedAt: number;
@@ -29,16 +30,16 @@ interface RSSDB extends DBSchema {
   feeds: {
     key: number;
     value: Feed;
-    indexes: { 'by-url': string };
+    indexes: { "by-url": string };
   };
   articles: {
     key: number;
     value: Article;
-    indexes: { 'by-feed': number; 'by-guid': string; 'by-link': string };
+    indexes: { "by-feed": number; "by-guid": string; "by-link": string };
   };
 }
 
-const DB_NAME = 'rss-reader-db';
+const DB_NAME = "rss-reader-db";
 const DB_VERSION = 1;
 
 let dbPromise: Promise<IDBPDatabase<RSSDB>>;
@@ -48,17 +49,23 @@ export const getDB = () => {
     dbPromise = openDB<RSSDB>(DB_NAME, DB_VERSION, {
       upgrade(db) {
         // Feeds store
-        if (!db.objectStoreNames.contains('feeds')) {
-          const feedStore = db.createObjectStore('feeds', { keyPath: 'id', autoIncrement: true });
-          feedStore.createIndex('by-url', 'url', { unique: true });
+        if (!db.objectStoreNames.contains("feeds")) {
+          const feedStore = db.createObjectStore("feeds", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+          feedStore.createIndex("by-url", "url", { unique: true });
         }
 
         // Articles store
-        if (!db.objectStoreNames.contains('articles')) {
-          const articleStore = db.createObjectStore('articles', { keyPath: 'id', autoIncrement: true });
-          articleStore.createIndex('by-feed', 'feedId');
-          articleStore.createIndex('by-guid', 'guid', { unique: true });
-          articleStore.createIndex('by-link', 'link', { unique: false }); // Some feeds might duplicate links
+        if (!db.objectStoreNames.contains("articles")) {
+          const articleStore = db.createObjectStore("articles", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+          articleStore.createIndex("by-feed", "feedId");
+          articleStore.createIndex("by-guid", "guid", { unique: true });
+          articleStore.createIndex("by-link", "link", { unique: false }); // Some feeds might duplicate links
         }
       },
     });
@@ -67,22 +74,22 @@ export const getDB = () => {
 };
 
 // Feed Operations
-export const addFeed = async (feed: Omit<Feed, 'id'>) => {
+export const addFeed = async (feed: Omit<Feed, "id">) => {
   const db = await getDB();
-  return db.add('feeds', feed);
+  return db.add("feeds", feed);
 };
 
 export const getAllFeeds = async () => {
   const db = await getDB();
-  return db.getAll('feeds');
+  return db.getAll("feeds");
 };
 
 export const deleteFeed = async (id: number) => {
   const db = await getDB();
-  await db.delete('feeds', id);
+  await db.delete("feeds", id);
   // Also delete related articles
-  const tx = db.transaction('articles', 'readwrite');
-  const index = tx.store.index('by-feed');
+  const tx = db.transaction("articles", "readwrite");
+  const index = tx.store.index("by-feed");
   let cursor = await index.openCursor(IDBKeyRange.only(id));
   while (cursor) {
     await cursor.delete();
@@ -92,38 +99,53 @@ export const deleteFeed = async (id: number) => {
 };
 
 // Article Operations
-export const addArticle = async (article: Omit<Article, 'id'>) => {
+export const addArticle = async (article: Omit<Article, "id">) => {
   const db = await getDB();
   // Check if exists by guid
-  const existing = await db.getFromIndex('articles', 'by-guid', article.guid);
+  const existing = await db.getFromIndex("articles", "by-guid", article.guid);
   if (existing) return existing.id;
-  return db.add('articles', article);
+  return db.add("articles", article);
 };
 
 export const getArticlesByFeed = async (feedId: number) => {
   const db = await getDB();
-  return db.getAllFromIndex('articles', 'by-feed', feedId);
+  return db.getAllFromIndex("articles", "by-feed", feedId);
 };
 
 export const getAllArticles = async () => {
   const db = await getDB();
-  return db.getAll('articles');
+  return db.getAll("articles");
 };
 
-export const updateArticleScrapedContent = async (id: number, content: string) => {
+export const updateArticleScrapedContent = async (
+  id: number,
+  content: string
+) => {
   const db = await getDB();
-  const article = await db.get('articles', id);
-  if (!article) throw new Error('Article not found');
+  const article = await db.get("articles", id);
+  if (!article) throw new Error("Article not found");
   article.scrapedContent = content;
-  await db.put('articles', article);
+  await db.put("articles", article);
 };
 
 // Clear all data
 export const clearAllData = async () => {
   const db = await getDB();
-  const tx = db.transaction(['feeds', 'articles'], 'readwrite');
-  await tx.objectStore('feeds').clear();
-  await tx.objectStore('articles').clear();
+  const tx = db.transaction(["feeds", "articles"], "readwrite");
+  await tx.objectStore("feeds").clear();
+  await tx.objectStore("articles").clear();
   await tx.done;
 };
 
+// Update feed (e.g., custom title)
+export const updateFeed = async (
+  id: number,
+  updates: Partial<Omit<Feed, "id">>
+) => {
+  const db = await getDB();
+  const feed = await db.get("feeds", id);
+  if (!feed) throw new Error("Feed not found");
+  const updatedFeed = { ...feed, ...updates };
+  await db.put("feeds", updatedFeed);
+  return updatedFeed;
+};

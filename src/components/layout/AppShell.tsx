@@ -9,7 +9,7 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Rss, Plus, Trash2, Inbox, Trash } from "lucide-react";
+import { Menu, Rss, Plus, Trash2, Inbox, Trash, Pencil } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useFeeds } from "@/hooks/useFeeds";
@@ -62,7 +62,8 @@ interface SidebarContentProps {
   selectedFeedId: number | null;
   setSelectedFeedId: (id: number | null) => void;
   removeFeed: (id: number) => void;
-  addNewFeed: (url: string) => Promise<void>;
+  addNewFeed: (url: string, customTitle?: string) => Promise<void>;
+  updateFeedTitle: (id: number, customTitle: string) => Promise<void>;
   clearCache: () => Promise<void>;
   isLoading: boolean;
 }
@@ -73,21 +74,43 @@ function SidebarContent({
   setSelectedFeedId,
   removeFeed,
   addNewFeed,
+  updateFeedTitle,
   clearCache,
   isLoading,
 }: SidebarContentProps) {
   const [newFeedUrl, setNewFeedUrl] = useState("");
+  const [newFeedTitle, setNewFeedTitle] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingFeed, setEditingFeed] = useState<Feed | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
   const handleAddFeed = async () => {
     if (!newFeedUrl) return;
-    await addNewFeed(newFeedUrl);
+    await addNewFeed(newFeedUrl, newFeedTitle || undefined);
     setNewFeedUrl("");
+    setNewFeedTitle("");
     setIsAddDialogOpen(false);
   };
 
   const handleAddDefault = (url: string) => {
     setNewFeedUrl(url);
+    // Auto-fill title from preset
+    const preset = DEFAULT_FEEDS.find((f) => f.url === url);
+    if (preset) {
+      setNewFeedTitle(preset.name);
+    }
+  };
+
+  const handleEditFeed = async () => {
+    if (!editingFeed?.id) return;
+    await updateFeedTitle(editingFeed.id, editTitle);
+    setEditingFeed(null);
+    setEditTitle("");
+  };
+
+  const openEditDialog = (feed: Feed) => {
+    setEditingFeed(feed);
+    setEditTitle(feed.customTitle || feed.title);
   };
 
   return (
@@ -140,6 +163,16 @@ function SidebarContent({
                   onChange={(e) => setNewFeedUrl(e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Custom Title (optional)
+                </label>
+                <Input
+                  placeholder="My Custom Feed Name"
+                  value={newFeedTitle}
+                  onChange={(e) => setNewFeedTitle(e.target.value)}
+                />
+              </div>
               <Button onClick={handleAddFeed} disabled={isLoading}>
                 {isLoading ? "Adding..." : "Add Feed"}
               </Button>
@@ -169,7 +202,20 @@ function SidebarContent({
                 className="w-full justify-start truncate text-sm font-normal"
                 onClick={() => setSelectedFeedId(feed.id!)}
               >
-                <span className="truncate">{feed.title}</span>
+                <span className="truncate">
+                  {feed.customTitle || feed.title}
+                </span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEditDialog(feed);
+                }}
+              >
+                <Pencil className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -215,6 +261,39 @@ function SidebarContent({
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+      {/* Edit Feed Dialog */}
+      <Dialog
+        open={!!editingFeed}
+        onOpenChange={(open) => !open && setEditingFeed(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Feed</DialogTitle>
+            <VisuallyHidden>
+              <DialogDescription>
+                Change the display name for this feed
+              </DialogDescription>
+            </VisuallyHidden>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Feed Title</label>
+              <Input
+                placeholder="Custom feed name"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">
+                Original: {editingFeed?.title}
+              </label>
+            </div>
+            <Button onClick={handleEditFeed}>Save Changes</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -226,6 +305,7 @@ export function AppShell({ children, feedState }: AppShellProps) {
     feeds,
     addNewFeed,
     removeFeed,
+    updateFeedTitle,
     selectedFeedId,
     setSelectedFeedId,
     clearCache,
@@ -284,6 +364,7 @@ export function AppShell({ children, feedState }: AppShellProps) {
             setSelectedFeedId={setSelectedFeedId}
             removeFeed={removeFeed}
             addNewFeed={addNewFeed}
+            updateFeedTitle={updateFeedTitle}
             clearCache={clearCache}
             isLoading={isLoading}
           />
@@ -321,6 +402,7 @@ export function AppShell({ children, feedState }: AppShellProps) {
               setSelectedFeedId={setSelectedFeedId}
               removeFeed={removeFeed}
               addNewFeed={addNewFeed}
+              updateFeedTitle={updateFeedTitle}
               clearCache={clearCache}
               isLoading={isLoading}
             />

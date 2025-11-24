@@ -2,40 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
 import sharp from "sharp";
+import { Readability } from "@mozilla/readability";
+import { JSDOM } from "jsdom";
 
-// Check if Playwright is available (won't work on Vercel serverless)
-let playwrightAvailable = false;
-let chromium: typeof import("playwright").chromium | null = null;
-
-async function checkPlaywright() {
-  try {
-    const pw = await import("playwright");
-    chromium = pw.chromium;
-    // Try to actually launch to verify it works
-    const browser = await chromium.launch({ headless: true });
-    await browser.close();
-    playwrightAvailable = true;
-    console.log("Playwright is available and working");
-  } catch {
-    playwrightAvailable = false;
-    chromium = null;
-    console.log("Playwright not available, using fetch fallback");
-  }
-}
-
-// Check on module load
-const playwrightCheck = checkPlaywright();
-
-// Fetch-based scraping fallback (works on Vercel)
-async function scrapeWithFetch(url: string): Promise<string> {
+// Fetch HTML from URL with browser-like headers
+async function fetchHtml(url: string): Promise<string> {
   const response = await fetch(url, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       Accept:
         "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.5",
+      "Accept-Language": "es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7",
       "Cache-Control": "no-cache",
+      Referer: new URL(url).origin,
     },
     signal: AbortSignal.timeout(30000),
   });
@@ -47,63 +27,120 @@ async function scrapeWithFetch(url: string): Promise<string> {
   return await response.text();
 }
 
-// Playwright-based scraping (for local dev or platforms that support it)
-async function scrapeWithPlaywright(url: string): Promise<string> {
-  if (!chromium) throw new Error("Playwright not available");
-
-  const browser = await chromium.launch({ headless: true });
+// Extract article content using Mozilla Readability (same algorithm as Firefox Reader View)
+function extractWithReadability(html: string, url: string): string | null {
   try {
-    const context = await browser.newContext({
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    });
-    const page = await context.newPage();
+    const dom = new JSDOM(html, { url });
+    const reader = new Readability(dom.window.document);
+    const article = reader.parse();
 
-    // Block CSS and fonts to improve performance, but allow images
-    await page.route("**/*.{css,woff,woff2}", (route) => route.abort());
-
-    // Block ads and tracking scripts
-    await page.route("**/*", (route) => {
-      const reqUrl = route.request().url();
-      if (
-        reqUrl.includes("doubleclick") ||
-        reqUrl.includes("google-analytics") ||
-        reqUrl.includes("googletagmanager") ||
-        reqUrl.includes("facebook.com/tr") ||
-        reqUrl.includes("/ads/")
-      ) {
-        route.abort();
-      } else {
-        route.continue();
-      }
-    });
-
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-    return await page.content();
-  } finally {
-    await browser.close();
+    if (article?.content && article.content.length > 200) {
+      return article.content;
+    }
+    return null;
+  } catch (error) {
+    console.warn("Readability extraction failed:", error);
+    return null;
   }
 }
 
-// Extract article content from HTML
-function extractContent(html: string, url: string): string {
+// Fallback: Extract article content from HTML using Cheerio with site-specific selectors
+function extractWithCheerio(html: string, url: string): string {
   const $ = cheerio.load(html);
 
-  // Basic heuristic to find article content
   let content = "";
 
-  // Try to find the main article content with site-specific selectors
+  // Site-specific selectors for Spanish news sites
   const hostname = new URL(url).hostname;
   let selectors: string[] = [];
 
   if (hostname.includes("eldiario.es")) {
-    // Specific selectors for eldiario.es
     selectors = [
       ".article-page__body-row",
       ".article-content",
       "[itemprop='articleBody']",
       "article.article-page",
       ".article-body",
+    ];
+  } else if (hostname.includes("publico.es")) {
+    selectors = [
+      ".article-text",
+      ".article__body",
+      "[itemprop='articleBody']",
+      ".story-body",
+      "article",
+    ];
+  } else if (hostname.includes("infolibre.es")) {
+    selectors = [
+      ".article-body",
+      ".article__content",
+      "[itemprop='articleBody']",
+      ".body-content",
+      "article",
+    ];
+  } else if (hostname.includes("lamarea.com")) {
+    selectors = [
+      ".entry-content",
+      ".post-content",
+      ".article-content",
+      "article .content",
+      "article",
+    ];
+  } else if (hostname.includes("elsaltodiario.com")) {
+    selectors = [
+      ".article-content",
+      ".post-content",
+      ".entry-content",
+      "[itemprop='articleBody']",
+      "article",
+    ];
+  } else if (hostname.includes("ctxt.es")) {
+    selectors = [
+      ".article-body",
+      ".article-content",
+      ".post-content",
+      ".entry-content",
+      "article",
+    ];
+  } else if (hostname.includes("newtral.es")) {
+    selectors = [
+      ".article-content",
+      ".post-content",
+      ".entry-content",
+      "[itemprop='articleBody']",
+      "article",
+    ];
+  } else if (hostname.includes("cuartopoder.es")) {
+    selectors = [
+      ".entry-content",
+      ".post-content",
+      ".article-content",
+      "article .content",
+      "article",
+    ];
+  } else if (hostname.includes("kaosenlared.net")) {
+    selectors = [
+      ".entry-content",
+      ".post-content",
+      ".article-content",
+      "article .content",
+      "article",
+    ];
+  } else if (hostname.includes("nuevatribuna.es")) {
+    selectors = [
+      ".article-body",
+      ".article-content",
+      "[itemprop='articleBody']",
+      ".story-body",
+      "article",
+    ];
+  } else if (hostname.includes("lavanguardia.com")) {
+    selectors = [
+      ".article-modules",
+      ".article-body",
+      "[itemprop='articleBody']",
+      ".story-body__inner",
+      "article",
     ];
   } else if (hostname.includes("medium.com")) {
     selectors = ["article", ".postArticle-content", "section"];
@@ -132,7 +169,7 @@ function extractContent(html: string, url: string): string {
       // Remove unwanted elements
       element
         .find(
-          "script, style, nav, header, footer, .ad, .advertisement, .social-share, iframe, noscript, .item__content__image, .related-posts, .comments, .sidebar"
+          "script, style, nav, header, footer, .ad, .advertisement, .social-share, iframe, noscript, .item__content__image, .related-posts, .comments, .sidebar, .newsletter, .subscription, .paywall"
         )
         .remove();
       content = element.html() || "";
@@ -186,6 +223,7 @@ async function processImages(
             headers: {
               "User-Agent":
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              Referer: baseUrl,
             },
             signal: AbortSignal.timeout(10000),
           });
@@ -296,32 +334,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Wait for Playwright check to complete
-    await playwrightCheck;
+    console.log(`Scraping with fetch + Readability: ${url}`);
 
-    let html: string;
+    // Fetch HTML
+    const html = await fetchHtml(url);
 
-    // Try Playwright first if available, otherwise use fetch
-    if (playwrightAvailable && chromium) {
-      try {
-        console.log(`Scraping with Playwright: ${url}`);
-        html = await scrapeWithPlaywright(url);
-      } catch (pwError) {
-        console.warn("Playwright failed, falling back to fetch:", pwError);
-        html = await scrapeWithFetch(url);
-      }
-    } else {
-      console.log(`Scraping with fetch (Playwright not available): ${url}`);
-      html = await scrapeWithFetch(url);
+    // Try Readability first (best article extraction), fall back to Cheerio
+    let content = extractWithReadability(html, url);
+    const method = content ? "readability" : "cheerio";
+
+    if (!content) {
+      console.log("Readability failed, using Cheerio fallback");
+      content = extractWithCheerio(html, url);
     }
-
-    // Extract article content
-    let content = extractContent(html, url);
 
     // Check if we actually got content
     if (!content || content.trim().length < 100) {
       throw new Error(
-        "No substantial content found on the page. The site may require JavaScript rendering which is not available in this environment."
+        "No substantial content found on the page. The site may require JavaScript rendering or may be blocking automated requests."
       );
     }
 
@@ -333,7 +363,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       content: cleanContent,
-      method: playwrightAvailable ? "playwright" : "fetch",
+      method,
     });
   } catch (error: unknown) {
     const errorMessage =
@@ -349,9 +379,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to scrape URL",
         details: errorMessage,
         url,
-        hint: playwrightAvailable
-          ? undefined
-          : "Running in fetch-only mode. Some JavaScript-heavy sites may not work correctly.",
+        hint: "This scraper uses fetch + Readability. Some JavaScript-heavy sites or sites with anti-bot protection may not work correctly.",
       },
       { status: 500 }
     );

@@ -11,6 +11,7 @@ import {
   getArticlesByFeed,
   getAllArticles,
   updateArticleScrapedContent,
+  updateFeed,
 } from "@/lib/db";
 import { toast } from "sonner";
 
@@ -54,7 +55,7 @@ export function useFeeds() {
     refreshArticles();
   }, [refreshArticles]);
 
-  const addNewFeed = async (url: string) => {
+  const addNewFeed = async (url: string, customTitle?: string) => {
     setIsLoading(true);
     try {
       // 1. Fetch feed data via proxy
@@ -84,6 +85,7 @@ export function useFeeds() {
       const newFeed: Omit<Feed, "id"> = {
         url,
         title: data.title || url,
+        customTitle: customTitle || undefined,
         description: data.description,
         icon: data.image?.url,
         addedAt: Date.now(),
@@ -128,6 +130,17 @@ export function useFeeds() {
     await refreshFeeds();
     if (selectedFeedId === id) setSelectedFeedId(null);
     await refreshArticles();
+  };
+
+  const updateFeedTitle = async (id: number, customTitle: string) => {
+    try {
+      await updateFeed(id, { customTitle: customTitle || undefined });
+      toast.success("Feed title updated");
+      await refreshFeeds();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update feed title");
+    }
   };
 
   const scrapeArticle = async (articleId: number, url: string) => {
@@ -203,6 +216,7 @@ export function useFeeds() {
     isLoading,
     addNewFeed,
     removeFeed,
+    updateFeedTitle,
     selectedFeedId,
     setSelectedFeedId,
     scrapeArticle,
@@ -211,26 +225,65 @@ export function useFeeds() {
 }
 
 function extractImage(item: any): string | undefined {
-  // 1. Check enclosure
-  if (item.enclosure && item.enclosure.url && item.enclosure.type?.startsWith('image/')) {
-    return item.enclosure.url;
-  }
-  
-  // 2. Check media:content
-  if (item['media:content'] && item['media:content'].url) {
-    return item['media:content'].url;
-  } else if (item['media:content'] && item['media:content']['$'] && item['media:content']['$'].url) {
-    return item['media:content']['$'].url;
+  // 1. Check enclosure (with or without type)
+  if (item.enclosure?.url) {
+    // If type exists, verify it's an image; if no type, assume it might be an image
+    if (!item.enclosure.type || item.enclosure.type.startsWith("image/")) {
+      return item.enclosure.url;
+    }
   }
 
-  // 3. Check itunes:image
-  if (item['itunes:image'] && item['itunes:image'].href) {
-    return item['itunes:image'].href;
+  // 2. Check media:content (various formats)
+  const mediaContent = item["media:content"];
+  if (mediaContent) {
+    if (mediaContent.url) {
+      return mediaContent.url;
+    } else if (mediaContent["$"]?.url) {
+      return mediaContent["$"].url;
+    } else if (Array.isArray(mediaContent) && mediaContent[0]?.url) {
+      return mediaContent[0].url;
+    } else if (Array.isArray(mediaContent) && mediaContent[0]?.["$"]?.url) {
+      return mediaContent[0]["$"].url;
+    }
   }
 
-  // 4. Try to find first image in content
+  // 3. Check media:thumbnail
+  const mediaThumbnail = item["media:thumbnail"];
+  if (mediaThumbnail) {
+    if (mediaThumbnail.url) {
+      return mediaThumbnail.url;
+    } else if (mediaThumbnail["$"]?.url) {
+      return mediaThumbnail["$"].url;
+    } else if (Array.isArray(mediaThumbnail) && mediaThumbnail[0]?.url) {
+      return mediaThumbnail[0].url;
+    }
+  }
+
+  // 4. Check itunes:image
+  if (item["itunes:image"]?.href) {
+    return item["itunes:image"].href;
+  }
+
+  // 5. Try to find first image in content:encoded (common in RSS 2.0)
+  const contentEncoded = item["content:encoded"];
+  if (contentEncoded) {
+    const imgMatch = contentEncoded.match(/<img[^>]+src=["']([^"'>]+)["']/i);
+    if (imgMatch) {
+      return imgMatch[1];
+    }
+  }
+
+  // 6. Try to find first image in content
   if (item.content) {
-    const imgMatch = item.content.match(/<img[^>]+src="([^">]+)"/);
+    const imgMatch = item.content.match(/<img[^>]+src=["']([^"'>]+)["']/i);
+    if (imgMatch) {
+      return imgMatch[1];
+    }
+  }
+
+  // 7. Check for image in description
+  if (item.description) {
+    const imgMatch = item.description.match(/<img[^>]+src=["']([^"'>]+)["']/i);
     if (imgMatch) {
       return imgMatch[1];
     }
