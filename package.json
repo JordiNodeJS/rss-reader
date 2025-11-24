@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "npx playwright install chromium --with-deps || true"
+    "postinstall:local": "npx playwright install chromium --with-deps || true"
   },
   "engines": {
     "node": "22.x"
