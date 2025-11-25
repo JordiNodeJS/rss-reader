@@ -3,6 +3,7 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { ArticleList } from "@/components/articles/ArticleList";
 import { ArticleView } from "@/components/articles/ArticleView";
+import { Footer } from "@/components/Footer";
 import { useFeeds } from "@/hooks/useFeeds";
 import { useState, useMemo } from "react";
 import { Article } from "@/lib/db";
@@ -109,6 +110,7 @@ export default function Home() {
         onClose={() => setViewingArticle(null)}
       />
 
+      <Footer />
       <Toaster />
     </>
   );
