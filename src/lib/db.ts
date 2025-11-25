@@ -13,6 +13,7 @@ export interface Feed {
 export interface Article {
   id?: number;
   feedId: number;
+  feedTitle?: string; // Cached feed title for display
   guid: string;
   title: string;
   link: string;
@@ -21,6 +22,7 @@ export interface Article {
   content?: string;
   contentSnippet?: string;
   scrapedContent?: string; // Full HTML content from scraping
+  categories?: string[]; // Article categories/tags from RSS
   isRead: boolean;
   isSaved: boolean; // Explicitly saved by user
   fetchedAt: number;
@@ -148,4 +150,10 @@ export const updateFeed = async (
   const updatedFeed = { ...feed, ...updates };
   await db.put("feeds", updatedFeed);
   return updatedFeed;
+};
+
+// Get feed by ID
+export const getFeedById = async (id: number): Promise<Feed | undefined> => {
+  const db = await getDB();
+  return db.get("feeds", id);
 };

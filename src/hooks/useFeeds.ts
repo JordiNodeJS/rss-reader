@@ -91,6 +91,7 @@ export function useFeeds() {
       }
 
       // 2. Save feed to DB
+      const feedTitle = customTitle || data.title || url;
       const newFeed: Omit<Feed, "id"> = {
         url,
         title: data.title || url,
@@ -109,6 +110,7 @@ export function useFeeds() {
           try {
             await addArticle({
               feedId: Number(feedId),
+              feedTitle: feedTitle,
               guid: item.guid || item.link || item.title,
               title: item.title,
               link: item.link,
@@ -116,6 +118,7 @@ export function useFeeds() {
               image: extractImage(item),
               content: item.content,
               contentSnippet: item.contentSnippet,
+              categories: extractCategories(item),
               isRead: false,
               isSaved: false,
               fetchedAt: Date.now(),
@@ -382,4 +385,47 @@ function extractFirstImageFromHtml(html: string): string | undefined {
   }
 
   return undefined;
+}
+
+// Extract categories from RSS item
+function extractCategories(item: any): string[] | undefined {
+  const categories: string[] = [];
+  
+  // 1. Check direct categories array (most common in RSS 2.0)
+  if (item.categories && Array.isArray(item.categories)) {
+    for (const cat of item.categories) {
+      if (typeof cat === 'string') {
+        categories.push(cat);
+      } else if (cat?._ || cat?.$?.term) {
+        // Atom format: { _: "Category Name" } or { $: { term: "Category" } }
+        categories.push(cat._ || cat.$.term);
+      }
+    }
+  }
+  
+  // 2. Check single category field
+  if (item.category) {
+    if (typeof item.category === 'string') {
+      categories.push(item.category);
+    } else if (Array.isArray(item.category)) {
+      categories.push(...item.category.filter((c: any) => typeof c === 'string'));
+    }
+  }
+  
+  // 3. Check media:keywords (used by eldiario.es, etc.)
+  if (item['media:keywords']) {
+    const keywords = typeof item['media:keywords'] === 'string' 
+      ? item['media:keywords'] 
+      : item['media:keywords']?._ || item['media:keywords']?.$?.['#text'];
+    if (keywords) {
+      // Keywords are usually comma-separated
+      const keywordArray = keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+      categories.push(...keywordArray);
+    }
+  }
+  
+  // 4. Deduplicate and limit to most relevant (first 5)
+  const uniqueCategories = [...new Set(categories)].slice(0, 5);
+  
+  return uniqueCategories.length > 0 ? uniqueCategories : undefined;
 }

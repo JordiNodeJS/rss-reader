@@ -18,6 +18,8 @@ const parser = new Parser({
       ["media:group", "media:group"],
       ["enclosure", "enclosure"],
       ["content:encoded", "content:encoded"],
+      ["media:keywords", "media:keywords"],
+      ["category", "categories", { keepArray: true }],
     ],
   },
 });

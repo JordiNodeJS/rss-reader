@@ -96,6 +96,7 @@ export default function Home() {
 
           <ArticleList
             articles={filteredArticles}
+            feeds={feedState.feeds}
             onScrape={feedState.scrapeArticle}
             onView={setViewingArticle}
           />
