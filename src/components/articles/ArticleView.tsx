@@ -37,13 +37,40 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [size, setSize] = useState({ width: 900, height: 600 });
   const [isResizing, setIsResizing] = useState(false);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">(
-    "loading"
-  );
+  // "checking" = verifying headers before iframe load, "loading" = iframe is loading
+  const [loadState, setLoadState] = useState<
+    "checking" | "loading" | "loaded" | "error" | "blocked"
+  >("checking");
+  const [blockReason, setBlockReason] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const startPos = useRef({ x: 0, y: 0 });
   const startSize = useRef({ width: 0, height: 0 });
+
+  // Pre-check if the URL allows iframe embedding BEFORE rendering the iframe
+  useEffect(() => {
+    const checkIframeAllowed = async () => {
+      try {
+        const response = await fetch(
+          `/api/check-iframe?url=${encodeURIComponent(url)}`
+        );
+        const data = await response.json();
+
+        if (data.blocked) {
+          setBlockReason(data.reason);
+          setLoadState("blocked");
+        } else {
+          // Only allow iframe to render after check passes
+          setLoadState("loading");
+        }
+      } catch {
+        // If check fails, proceed with trying to load the iframe
+        setLoadState("loading");
+      }
+    };
+
+    checkIframeAllowed();
+  }, [url]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -100,6 +127,93 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+
+  // Faster error detection: check multiple times in the first few seconds
+  useEffect(() => {
+    if (loadState !== "loading") return;
+
+    const checkIframeStatus = () => {
+      const iframe = iframeRef.current;
+      if (!iframe) return false;
+
+      try {
+        const iframeWindow = iframe.contentWindow;
+        if (iframeWindow) {
+          try {
+            const href = iframeWindow.location.href;
+            // Detect error pages - can only access href for same-origin or error pages
+            if (
+              href === "about:blank" ||
+              href.includes("chrome-error") ||
+              href.includes("blocked")
+            ) {
+              setLoadState("error");
+              return true; // Stop checking
+            }
+
+            // If we CAN access the href and it's not the expected URL,
+            // it might be an error page rendered by the browser
+            // Error pages are same-origin (chrome-error://) so we can access them
+            if (!href.startsWith("http")) {
+              setLoadState("error");
+              return true;
+            }
+
+            // Try to check document body - error pages often have specific content
+            try {
+              const body = iframeWindow.document?.body;
+              if (body) {
+                const text = body.innerText?.toLowerCase() || "";
+                // Common error page text patterns
+                if (
+                  text.includes("refused") ||
+                  text.includes("rechazado") ||
+                  text.includes("blocked") ||
+                  text.includes("connection") ||
+                  text.includes("conexión")
+                ) {
+                  setLoadState("error");
+                  return true;
+                }
+              }
+            } catch {
+              // Can't access body - this is fine for cross-origin
+            }
+
+            // If we got here and can access href, something is wrong
+            // Normal cross-origin pages should throw when accessing location
+            setLoadState("error");
+            return true;
+          } catch {
+            // Cross-origin error = page loaded successfully (we can't access it)
+            // This is the expected case for properly loaded external pages
+            setLoadState("loaded");
+            return true; // Stop checking
+          }
+        }
+      } catch {
+        // Ignore errors during check
+      }
+      return false; // Keep checking
+    };
+
+    // Check quickly at first, then slow down
+    const intervals = [300, 500, 1000, 1500, 2000];
+    const timeouts: NodeJS.Timeout[] = [];
+
+    let cumulativeDelay = 0;
+    for (const delay of intervals) {
+      cumulativeDelay += delay;
+      const t = setTimeout(() => {
+        if (loadState === "loading") {
+          checkIframeStatus();
+        }
+      }, cumulativeDelay);
+      timeouts.push(t);
+    }
+
+    return () => timeouts.forEach(clearTimeout);
+  }, [loadState]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -158,18 +272,22 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
 
         {/* Iframe */}
         <div className="flex-1 min-h-0 relative">
-          {/* Loading state */}
-          {loadState === "loading" && (
+          {/* Checking/Loading state */}
+          {(loadState === "checking" || loadState === "loading") && (
             <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
               <div className="flex flex-col items-center gap-3 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin" />
-                <span className="text-sm">Loading article...</span>
+                <span className="text-sm">
+                  {loadState === "checking"
+                    ? "Checking if page can be embedded..."
+                    : "Loading article..."}
+                </span>
               </div>
             </div>
           )}
 
           {/* Error state */}
-          {loadState === "error" && (
+          {(loadState === "error" || loadState === "blocked") && (
             <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
               <div className="flex flex-col items-center gap-4 text-center p-6 max-w-md">
                 <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -177,12 +295,19 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
-                    Cannot load this page
+                    {loadState === "blocked"
+                      ? "Page cannot be embedded"
+                      : "Cannot load this page"}
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     This website doesn&apos;t allow embedding in iframes for
                     security reasons. This is a common restriction on many
                     websites.
+                    {blockReason && (
+                      <span className="block mt-2 text-xs font-mono text-muted-foreground/70">
+                        ({blockReason})
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -201,50 +326,87 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
             </div>
           )}
 
-          <iframe
-            ref={iframeRef}
-            src={url}
-            className={`w-full h-full border-0 ${
-              loadState !== "loaded" ? "invisible" : ""
-            }`}
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation allow-popups-to-escape-sandbox allow-downloads allow-modals"
-            title="Article content"
-            onLoad={() => {
-              // For cross-origin iframes, we can't reliably detect if they loaded correctly
-              // Many sites block iframes with X-Frame-Options or CSP
-              // We'll check if we can access the iframe content
-              const iframe = iframeRef.current;
-              if (!iframe) return;
+          {/* Only render iframe after check passes (loading or loaded state) */}
+          {(loadState === "loading" || loadState === "loaded") && (
+            <iframe
+              ref={iframeRef}
+              src={url}
+              className={`w-full h-full border-0 ${
+                loadState !== "loaded" ? "invisible" : ""
+              }`}
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation allow-popups-to-escape-sandbox allow-downloads allow-modals"
+              title="Article content"
+              onLoad={() => {
+                // For cross-origin iframes, we can't reliably detect if they loaded correctly
+                // Many sites block iframes with X-Frame-Options or CSP
+                // Key insight: if we CAN access the iframe's location/content, it's likely an error page
+                // because cross-origin pages should block our access
+                const iframe = iframeRef.current;
+                if (!iframe) return;
 
-              try {
-                // Try to access iframe location - will throw for blocked pages
-                const iframeWindow = iframe.contentWindow;
-                if (iframeWindow) {
-                  // If we can access the href and it's about:blank or chrome-error, it failed
+                // Small delay to allow error pages to render
+                setTimeout(() => {
                   try {
-                    const href = iframeWindow.location.href;
-                    if (
-                      href === "about:blank" ||
-                      href.includes("chrome-error")
-                    ) {
-                      setLoadState("error");
-                      return;
+                    const iframeWindow = iframe.contentWindow;
+                    if (iframeWindow) {
+                      try {
+                        // Try to access location - this should FAIL for legitimate cross-origin pages
+                        const href = iframeWindow.location.href;
+
+                        // If we can access the href, it's likely an error page
+                        // Chrome error pages are same-origin and accessible
+                        if (
+                          href === "about:blank" ||
+                          href.includes("chrome-error") ||
+                          href.includes("blocked") ||
+                          !href.startsWith("http")
+                        ) {
+                          setLoadState("error");
+                          return;
+                        }
+
+                        // Try to check body content for error messages
+                        try {
+                          const body = iframeWindow.document?.body;
+                          if (body) {
+                            const text = body.innerText?.toLowerCase() || "";
+                            if (
+                              text.includes("refused") ||
+                              text.includes("rechazado") ||
+                              text.includes("blocked") ||
+                              text.includes("connection") ||
+                              text.includes("conexión") ||
+                              text.includes("error")
+                            ) {
+                              setLoadState("error");
+                              return;
+                            }
+                          }
+                        } catch {
+                          // Can't access body for cross-origin - this is actually good
+                        }
+
+                        // If we got here and could access href, something is wrong
+                        // Real cross-origin pages should throw
+                        setLoadState("error");
+                        return;
+                      } catch {
+                        // Cross-origin - can't access location, which is actually good
+                        // It means the page loaded (even if we can't interact with it)
+                        setLoadState("loaded");
+                        return;
+                      }
                     }
-                  } catch {
-                    // Cross-origin - can't access location, which is actually good
-                    // It means the page loaded (even if we can't interact with it)
                     setLoadState("loaded");
-                    return;
+                  } catch {
+                    // If we can't access anything, assume it loaded
+                    setLoadState("loaded");
                   }
-                }
-                setLoadState("loaded");
-              } catch {
-                // If we can't access anything, assume it loaded
-                setLoadState("loaded");
-              }
-            }}
-            onError={() => setLoadState("error")}
-          />
+                }, 300); // Give time for chrome-error pages to fully load
+              }}
+              onError={() => setLoadState("error")}
+            />
+          )}
           {/* Overlay to prevent iframe from capturing mouse during resize */}
           {isResizing && <div className="absolute inset-0 z-10" />}
         </div>
