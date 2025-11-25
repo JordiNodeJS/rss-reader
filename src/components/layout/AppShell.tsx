@@ -49,12 +49,21 @@ interface AppShellProps {
 }
 
 const DEFAULT_FEEDS = [
+  // Medios verificados que funcionan
   { name: "El Diario", url: "https://www.eldiario.es/rss/" },
+  { name: "La Marea", url: "https://www.lamarea.com/feed/" },
+  { name: "Newtral", url: "https://www.newtral.es/feed/" },
+  { name: "Cuarto Poder", url: "https://www.cuartopoder.es/feed/" },
+  { name: "Kaos en la Red", url: "https://kaosenlared.net/feed/" },
   { name: "La Vanguardia", url: "https://www.lavanguardia.com/rss/home.xml" },
   {
     name: "El País",
     url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
   },
+  // Medios internacionales
+  { name: "BBC Mundo", url: "https://feeds.bbci.co.uk/mundo/rss.xml" },
+  { name: "DW en Español", url: "https://rss.dw.com/xml/rss-sp-top" },
+  { name: "Euronews Español", url: "https://es.euronews.com/rss" },
 ];
 
 interface SidebarContentProps {
