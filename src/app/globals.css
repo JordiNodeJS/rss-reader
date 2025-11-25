@@ -74,6 +74,7 @@
 @import '../styles/themes/amethyst-haze.css';
 @import '../styles/themes/claude.css';
 @import '../styles/themes/sage-garden.css';
+@import '../styles/themes/tangerine.css';
 
 /* Default theme fallback (Retro Arcade) for :root and .dark when no theme class is applied */
 :root,

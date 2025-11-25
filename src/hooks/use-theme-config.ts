@@ -8,7 +8,8 @@ export type ThemeName =
   | 'mocha-mousse'
   | 'amethyst-haze'
   | 'claude'
-  | 'sage-garden';
+  | 'sage-garden'
+  | 'tangerine';
 
 export interface ThemeConfig {
   id: ThemeName;
@@ -41,6 +42,11 @@ export const AVAILABLE_THEMES: ThemeConfig[] = [
     id: 'sage-garden',
     name: 'Sage Garden',
     colors: ['#7ba876', '#a8c798', '#8fb88b'], // Various greens
+  },
+  {
+    id: 'tangerine',
+    name: 'Tangerine',
+    colors: ['#e05d38', '#f3f4f6', '#d6e4f0'], // Orange, Gray, Blue-ish
   },
 ];
 
