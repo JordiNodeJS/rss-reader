@@ -10,7 +10,8 @@ export type ThemeName =
   | "amethyst-haze"
   | "claude"
   | "sage-garden"
-  | "tangerine";
+  | "tangerine"
+  | "candyland";
 
 export interface ThemeConfig {
   id: ThemeName;
@@ -48,6 +49,11 @@ export const AVAILABLE_THEMES: ThemeConfig[] = [
     id: "tangerine",
     name: "Tangerine",
     colors: ["#e05d38", "#f3f4f6", "#d6e4f0"], // Orange, Gray, Blue-ish
+  },
+  {
+    id: "candyland",
+    name: "Candyland",
+    colors: ["#ffc0cb", "#87ceeb", "#ffff00"], // Pink, Sky Blue, Yellow
   },
 ];
 

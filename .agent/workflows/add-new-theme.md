@@ -4,7 +4,23 @@ description: How to add a new shadcn theme to the multi-theme system
 
 # Adding a New Theme from Tweakcn.com
 
-This project uses a **multi-theme system** where multiple shadcn themes coexist without overwriting each other. Follow these steps exactly when the user asks to add a new theme.
+This project uses a **multi-theme system** with **dynamic CSS loading**. Theme CSS files are loaded on-demand when selected, reducing initial bundle size. Follow these steps exactly when the user asks to add a new theme.
+
+## Architecture Overview
+
+```
+public/styles/themes/          ← Theme CSS files (loaded dynamically via <link>)
+├── retro-arcade.css
+├── mocha-mousse.css
+├── amethyst-haze.css
+├── claude.css
+├── sage-garden.css
+└── tangerine.css
+
+src/hooks/use-theme-config.ts  ← Theme registry and state management
+src/lib/theme-loader.ts        ← Dynamic CSS loader with swap strategy
+src/app/layout.tsx             ← Initial theme loading (blocking script)
+```
 
 ## Example User Requests
 
@@ -37,20 +53,23 @@ Run the shadcn command to install the theme:
 pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/sunset-horizon.json
 ```
 
-- Confirm with `y` when prompted to overwrite CSS variables
-- This will temporarily update `src/app/globals.css`
+- Confirm with \`y\` when prompted to overwrite CSS variables
+- This will temporarily update \`src/app/globals.css\`
 
 ### Step 2: Extract Theme Variables
-After installation, open `src/app/globals.css` and **copy** the generated CSS variables from:
-- The `:root` section (light mode variables)
-- The `.dark` section (dark mode variables)
+After installation, open \`src/app/globals.css\` and **copy** the generated CSS variables from:
+- The \`:root\` section (light mode variables)
+- The \`.dark\` section (dark mode variables)
 
 ### Step 3: Create Theme File
-Create a new file in `src/styles/themes/` with the theme name:
+Create a new file in \`public/styles/themes/\` with the theme name:
 
 ```
-src/styles/themes/sunset-horizon.css
+public/styles/themes/sunset-horizon.css
 ```
+
+> ⚠️ **IMPORTANT:** Theme files go in \`public/styles/themes/\` (NOT \`src/styles/themes/\`)
+> This enables dynamic loading at runtime without bundling.
 
 ### Step 4: Convert to Theme Class
 Paste the copied variables and **transform** them:
@@ -87,25 +106,12 @@ Paste the copied variables and **transform** them:
 ```
 
 **Key changes:**
-- Replace `:root` with `.theme-{theme-name}`
-- Replace `.dark` with `.theme-{theme-name}.dark`
+- Replace \`:root\` with \`.theme-{theme-name}\`
+- Replace \`.dark\` with \`.theme-{theme-name}.dark\`
 - Use kebab-case for the theme name
 
-### Step 5: Import Theme in globals.css
-Open `src/app/globals.css` and add the import with the other theme imports:
-
-```css
-/* Import all theme CSS files */
-@import '../styles/themes/retro-arcade.css';
-@import '../styles/themes/mocha-mousse.css';
-@import '../styles/themes/amethyst-haze.css';
-@import '../styles/themes/claude.css';
-@import '../styles/themes/sage-garden.css';
-@import '../styles/themes/sunset-horizon.css'; /* NEW THEME */
-```
-
-### Step 6: Register Theme in Hook
-Open `src/hooks/use-theme-config.ts` and:
+### Step 5: Register Theme in Hook
+Open \`src/hooks/use-theme-config.ts\` and:
 
 1. **Add to TypeScript type:**
 ```typescript
@@ -115,6 +121,7 @@ export type ThemeName =
   | 'amethyst-haze'
   | 'claude'
   | 'sage-garden'
+  | 'tangerine'
   | 'sunset-horizon'; // NEW
 ```
 
@@ -131,9 +138,26 @@ export const AVAILABLE_THEMES: ThemeConfig[] = [
 ```
 
 **To find preview colors:**
-- Look at `--primary`, `--secondary`, and `--accent` in the theme file
+- Look at \`--primary\`, \`--secondary\`, and \`--accent\` in the theme file
 - Convert oklch() values to hex (use a color picker or browser devtools)
 - Add 3 representative colors
+
+### Step 6: Restore globals.css (Important!)
+**Undo the shadcn changes to globals.css** - the theme should NOT be in globals.css.
+
+Either:
+- Git restore: \`git checkout src/app/globals.css\`
+- Or manually remove the \`:root\` and \`.dark\` sections that shadcn added
+
+> ⚠️ globals.css should only contain \`@import "tailwindcss"\`, \`@theme inline\`, and base styles.
+> Individual themes are NOT imported here - they load dynamically.
+
+### Step 7: Test
+1. Start the dev server: \`pnpm dev\`
+2. Open the sidebar
+3. Check that the new theme button appears in the "Color Theme" section
+4. Click it to verify the theme applies correctly
+5. Check Network tab - theme CSS should load on-demand
 
 ---
 
@@ -144,21 +168,23 @@ Use this method when the user provides theme CSS code directly (not a URL).
 ### Step 1: Identify Theme Name
 Ask the user for the theme name if not provided, or extract it from context.
 
-Example: If they say "add tangerine theme", the name is `tangerine`.
+Example: If they say "add tangerine theme", the name is \`tangerine\`.
 
 ### Step 2: Extract Variables from Provided Code
 The user will provide CSS code containing:
-- `:root { ... }` - Light mode variables
-- `.dark { ... }` - Dark mode variables  
-- `@theme inline { ... }` - **IGNORE THIS** (it's Tailwind v4 config, already in globals.css)
+- \`:root { ... }\` - Light mode variables
+- \`.dark { ... }\` - Dark mode variables  
+- \`@theme inline { ... }\` - **IGNORE THIS** (it's Tailwind v4 config, already in globals.css)
 
-**Important:** Only use the `:root` and `.dark` sections. Discard `@theme inline`.
+**Important:** Only use the \`:root\` and \`.dark\` sections. Discard \`@theme inline\`.
 
 ### Step 3: Create Theme File
-Create `src/styles/themes/tangerine.css` (use kebab-case name)
+Create \`public/styles/themes/tangerine.css\` (use kebab-case name)
+
+> ⚠️ **IMPORTANT:** File goes in \`public/styles/themes/\` for dynamic loading!
 
 ### Step 4: Transform to Theme Classes
-Take the provided `:root` and `.dark` content and transform:
+Take the provided \`:root\` and \`.dark\` content and transform:
 
 **From (provided code):**
 ```css
@@ -195,18 +221,11 @@ Take the provided `:root` and `.dark` content and transform:
 }
 ```
 
-### Step 5: Import in globals.css
-Add to `src/app/globals.css` with other imports:
+### Step 5: Register in Hook
+Same as METHOD A Step 5:
 
-```css
-@import '../styles/themes/tangerine.css';
-```
-
-### Step 6: Register in Hook
-Same as METHOD A Step 6:
-
-1. Add `'tangerine'` to `ThemeName` type
-2. Add to `AVAILABLE_THEMES`:
+1. Add \`'tangerine'\` to \`ThemeName\` type
+2. Add to \`AVAILABLE_THEMES\`:
    ```typescript
    {
      id: 'tangerine',
@@ -215,75 +234,102 @@ Same as METHOD A Step 6:
    }
    ```
 
-### Step 7: Test
-Run `pnpm dev` and verify the theme appears and works correctly.
+### Step 6: Test
+Run \`pnpm dev\` and verify the theme appears and works correctly.
 
 ---
 
-## Common Steps (Both Methods)
+## How Dynamic Loading Works
 
-### Step 7 (METHOD A) / Step 8 (METHOD B): Restore Original Theme (Optional)
-If you want to restore the previous default theme in `globals.css`:
+The theme system uses a **swap strategy** to avoid flash of unstyled content:
 
-```bash
-pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/retro-arcade.json
-```
+1. **Initial Load** (\`src/app/layout.tsx\`):
+   - A blocking \`<script>\` reads the saved theme from localStorage
+   - Creates a \`<link id="dynamic-theme-link">\` pointing to the theme CSS
+   - Applies theme classes to \`<html>\` before React hydrates
 
-This restores retro-arcade to `:root` (though it's not strictly necessary since themes use classes now).
+2. **Theme Change** (\`src/lib/theme-loader.ts\`):
+   - Creates a NEW \`<link>\` element with the new theme
+   - Waits for it to fully load (onload event)
+   - Only THEN removes the old \`<link>\` and updates classes
+   - This prevents the "flash" between themes
 
-### Step 8: Test
-1. Start the dev server: `pnpm dev`
-2. Open the sidebar
-3. Check that the new theme button appears in the "Color Theme" section
-4. Click it to verify the theme applies correctly
+3. **State Management** (\`src/hooks/use-theme-config.ts\`):
+   - Zustand store with \`persist\` middleware
+   - Only \`currentTheme\` is persisted (not \`isLoading\`)
+   - \`partialize\` option excludes transient state from localStorage
+
+---
 
 ## Important Notes
 
 ⚠️ **DO NOT:**
-- Manually edit the `:root` or `.dark` sections in `globals.css` after adding themes
-- Delete the theme files in `src/styles/themes/` - they're all needed
+- Put theme files in \`src/styles/themes/\` (old location, no longer used)
+- Import theme CSS files in \`globals.css\` (they load dynamically now)
+- Manually edit \`:root\` or \`.dark\` sections in globals.css
+- Delete the theme files in \`public/styles/themes/\`
 - Forget to add BOTH light and dark mode variables
 
 ✅ **DO:**
-- Keep theme files organized in `src/styles/themes/`
+- Keep theme files in \`public/styles/themes/\`
 - Use descriptive preview colors that represent the theme
 - Test in both light and dark mode
-- Follow the exact naming convention: `theme-{kebab-case-name}`
+- Follow the exact naming convention: \`theme-{kebab-case-name}\`
+- Verify theme loads in Network tab (should see CSS request)
 
 ## Quick Reference
 
-**Theme name format:** `sunset-horizon` (kebab-case, all lowercase)  
-**CSS class:** `.theme-sunset-horizon`  
-**File location:** `src/styles/themes/sunset-horizon.css`  
-**Display name:** `Sunset Horizon` (Title Case for UI)
+**Theme name format:** \`sunset-horizon\` (kebab-case, all lowercase)  
+**CSS class:** \`.theme-sunset-horizon\`  
+**File location:** \`public/styles/themes/sunset-horizon.css\`  
+**Display name:** \`Sunset Horizon\` (Title Case for UI)
 
 ## Example Complete Flow
 
 ```bash
-# 1. Install theme
+# 1. Install theme (temporary)
 pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/sunset-horizon.json
 
-# 2. Copy variables from src/app/globals.css
-# 3. Create src/styles/themes/sunset-horizon.css
-# 4. Transform :root → .theme-sunset-horizon
-# 5. Add import to globals.css
-# 6. Add to use-theme-config.ts types and array
-# 7. Test in browser
+# 2. Copy variables from src/app/globals.css (the :root and .dark sections)
+
+# 3. Create public/styles/themes/sunset-horizon.css
+#    Transform :root → .theme-sunset-horizon
+#    Transform .dark → .theme-sunset-horizon.dark
+
+# 4. Add to src/hooks/use-theme-config.ts:
+#    - ThemeName type
+#    - AVAILABLE_THEMES array
+
+# 5. Restore globals.css (undo shadcn changes)
+git checkout src/app/globals.css
+
+# 6. Test in browser - verify dynamic loading in Network tab
+pnpm dev
 ```
 
 ## Troubleshooting
 
 **Theme doesn't appear in UI:**
-- Check that you added it to `AVAILABLE_THEMES` array
-- Verify the `ThemeName` type includes the new theme
+- Check that you added it to \`AVAILABLE_THEMES\` array
+- Verify the \`ThemeName\` type includes the new theme
 - Check browser console for errors
 
 **Theme doesn't apply:**
-- Verify CSS class name matches: `.theme-{name}` and `.theme-{name}.dark`
-- Check that the import in `globals.css` is correct
-- Clear browser cache and restart dev server
+- Verify CSS file exists in \`public/styles/themes/\`
+- Check CSS class name matches: \`.theme-{name}\` and \`.theme-{name}.dark\`
+- Look at Network tab - is the CSS file loading?
+- Check for 404 errors
 
 **Colors look wrong:**
-- Make sure you copied ALL variables from both `:root` and `.dark`
-- Verify you didn't miss any `--font-*` or `--shadow-*` variables
+- Make sure you copied ALL variables from both \`:root\` and \`.dark\`
+- Verify you didn't miss any \`--font-*\` or \`--shadow-*\` variables
 - Check for typos in variable names
+
+**Flash of unstyled content:**
+- The swap strategy should prevent this
+- Check that \`layout.tsx\` has the blocking script
+- Verify \`theme-loader.ts\` is using the swap strategy
+
+**Theme buttons stay disabled:**
+- Clear localStorage: \`localStorage.removeItem('rss-reader-theme-config')\`
+- The \`partialize\` option should prevent \`isLoading\` from being persisted

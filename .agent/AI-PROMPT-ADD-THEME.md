@@ -1,17 +1,23 @@
-# 🎨 AI PROMPT: Instalar Nuevo Tema Shadcn en Sistema Multi-Tema
+# ��� AI PROMPT: Instalar Nuevo Tema Shadcn en Sistema Multi-Tema
 
 Cuando el usuario pida instalar un tema de tweakcn.com, sigue este proceso:
 
 ## CONTEXTO
-Este proyecto usa un sistema multi-tema donde cada tema tiene su propia clase CSS (`.theme-nombre`) en lugar de sobrescribir `:root`. Los temas coexisten y se cambian dinámicamente.
+Este proyecto usa un sistema multi-tema con **carga dinámica de CSS**:
+- Los temas están en `public/styles/themes/` (NO en src/)
+- Se cargan bajo demanda cuando el usuario los selecciona
+- NO se importan en globals.css
+- Usa estrategia "swap" para evitar flash de contenido sin estilos
 
-## 🔀 MÉTODO A o B
+## ��� MÉTODO A o B
 
 **¿Cómo te dan el tema?**
-- 📦 **URL de tweakcn.com** → Usa MÉTODO A  
-- 📝 **Código CSS directo** → Usa MÉTODO B
+- ��� **URL de tweakcn.com** → Usa MÉTODO A  
+- ��� **Código CSS directo** → Usa MÉTODO B
 
-## 📋 MÉTODO A: Desde URL de Tweakcn.com
+---
+
+## ��� MÉTODO A: Desde URL de Tweakcn.com
 
 ### 1️⃣ Instalar el tema temporalmente
 ```bash
@@ -25,7 +31,9 @@ Copiar TODO el contenido de:
 - Sección `.dark { ... }`
 
 ### 3️⃣ Crear archivo de tema
-Crear: `src/styles/themes/NOMBRE-TEMA.css`
+��� **Ubicación:** `public/styles/themes/NOMBRE-TEMA.css`
+
+> ⚠️ **IMPORTANTE:** Los temas van en `public/` para carga dinámica, NO en `src/`
 
 Pegar las variables copiadas pero TRANSFORMARLAS:
 ```css
@@ -39,20 +47,17 @@ Pegar las variables copiadas pero TRANSFORMARLAS:
 }
 ```
 
-### 4️⃣ Importar en `src/app/globals.css`
-Añadir al inicio con los otros imports:
-```css
-@import '../styles/themes/nombre-tema.css';
-```
-
-### 5️⃣ Registrar en `src/hooks/use-theme-config.ts`
+### 4️⃣ Registrar en `src/hooks/use-theme-config.ts`
 
 **A) Añadir al type:**
 ```typescript
 export type ThemeName = 
   | 'retro-arcade'
   | 'mocha-mousse'
-  | /* ... otros */
+  | 'amethyst-haze'
+  | 'claude'
+  | 'sage-garden'
+  | 'tangerine'
   | 'nombre-tema'; // ← NUEVO
 ```
 
@@ -65,14 +70,23 @@ export type ThemeName =
 },
 ```
 
+### 5️⃣ Restaurar globals.css
+**IMPORTANTE:** Deshacer los cambios que shadcn hizo a globals.css:
+```bash
+git checkout src/app/globals.css
+```
+↳ Los temas NO deben estar en globals.css (se cargan dinámicamente)
+
 ### 6️⃣ Verificar
 ```bash
 pnpm dev
 ```
+- Abrir sidebar → "Color Theme" → Nuevo tema debe aparecer
+- Verificar en Network tab que el CSS se carga al hacer clic
 
 ---
 
-## 📝 MÉTODO B: Desde Código CSS Directo
+## ��� MÉTODO B: Desde Código CSS Directo
 
 Usa este método cuando te dan el CSS directamente (no URL).
 
@@ -90,7 +104,7 @@ Pregunta al usuario si no está claro. Ejemplo: "tangerine"
 **⚠️ IMPORTANTE:** Descarta completamente la sección `@theme inline` (ya existe en globals.css)
 
 ### 3️⃣ Crear archivo de tema
-Crear: `src/styles/themes/tangerine.css`
+��� **Ubicación:** `public/styles/themes/tangerine.css`
 
 Transformar el código proporcionado:
 ```css
@@ -110,12 +124,7 @@ Transformar el código proporcionado:
 }
 ```
 
-### 4️⃣ Importar en `src/app/globals.css`
-```css
-@import '../styles/themes/tangerine.css';
-```
-
-### 5️⃣ Registrar en `src/hooks/use-theme-config.ts`
+### 4️⃣ Registrar en `src/hooks/use-theme-config.ts`
 
 **A) Añadir al type:**
 ```typescript
@@ -131,11 +140,12 @@ Transformar el código proporcionado:
 }
 ```
 
-### 6️⃣ Verificar
+### 5️⃣ Verificar
 ```bash
 pnpm dev
 ```
-Abrir sidebar → "Color Theme" → El nuevo tema debe aparecer y funcionar
+- Abrir sidebar → "Color Theme" → El nuevo tema debe aparecer y funcionar
+- Verificar en Network tab que carga dinámicamente
 
 ---
 
@@ -145,58 +155,93 @@ Abrir sidebar → "Color Theme" → El nuevo tema debe aparecer y funcionar
 
 **Tú haces:**
 1. `pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/sunset-horizon.json`
-2. Copiar vars de `globals.css`
-3. Crear `src/styles/themes/sunset-horizon.css`:
+2. Copiar vars de `globals.css` (secciones `:root` y `.dark`)
+3. Crear `public/styles/themes/sunset-horizon.css`:
    ```css
    .theme-sunset-horizon { /* vars de :root */ }
    .theme-sunset-horizon.dark { /* vars de .dark */ }
    ```
-4. Importar en `globals.css`: `@import '../styles/themes/sunset-horizon.css';`
-5. Añadir a `use-theme-config.ts`:
+4. Añadir a `src/hooks/use-theme-config.ts`:
    - Type: `'sunset-horizon'`
    - Array: `{ id: 'sunset-horizon', name: 'Sunset Horizon', colors: [...] }`
-6. Testear
-
-### Ejemplo MÉTODO B: Código CSS Directo
-
-**Usuario dice:** "Añade el tema tangerine con este código: [pega CSS]"
-
-**Tú haces:**
-1. Identificar que el código tiene `:root` y `.dark` (ignorar `@theme inline`)
-2. Crear `src/styles/themes/tangerine.css`
-3. Transformar:
-   ```css
-   .theme-tangerine { /* copiar :root */ }
-   .theme-tangerine.dark { /* copiar .dark */ }
-   ```
-4. Importar en `globals.css`: `@import '../styles/themes/tangerine.css';`
-5. Añadir a `use-theme-config.ts`:
-   - Type: `'tangerine'`
-   - Array: `{ id: 'tangerine', name: 'Tangerine', colors: ['#e05d38', '#f3f4f6', '#d6e4f0'] }`
+5. Restaurar globals.css: `git checkout src/app/globals.css`
 6. Testear
 
 ---
 
-## 🚨 REGLAS IMPORTANTES
+## ��� REGLAS IMPORTANTES
 
-✅ USAR kebab-case: `sunset-horizon` NO `sunsetHorizon`  
-✅ COPIAR **todas** las variables CSS (incluye fonts, shadows, spacing)  
-✅ TRANSFORMAR `:root` → `.theme-nombre` y `.dark` → `.theme-nombre.dark`  
-✅ AÑADIR a ambos: TypeScript type Y array AVAILABLE_THEMES  
-✅ Si hay `@theme inline` en el código: **IGNORARLO completamente**
+### ✅ HACER:
+- Usar kebab-case: `sunset-horizon` NO `sunsetHorizon`
+- Guardar temas en `public/styles/themes/` (carga dinámica)
+- Copiar **todas** las variables CSS (incluye fonts, shadows, spacing)
+- Transformar `:root` → `.theme-nombre` y `.dark` → `.theme-nombre.dark`
+- Añadir a **ambos**: TypeScript type Y array AVAILABLE_THEMES
+- Restaurar globals.css después de instalar con shadcn
+- Verificar carga dinámica en Network tab del navegador
 
-❌ NO editar manualmente `:root` o `.dark` en globals.css  
-❌ NO olvidar la versión `.dark` del tema  
-❌ NO usar espacios en el nombre del tema (usar guiones)
-❌ NO copiar la sección `@theme inline` a los archivos de temas
+### ❌ NO HACER:
+- Guardar temas en `src/styles/themes/` (ubicación antigua)
+- Importar temas en globals.css (ya no se usa `@import`)
+- Editar manualmente `:root` o `.dark` en globals.css
+- Olvidar la versión `.dark` del tema
+- Usar espacios en el nombre del tema (usar guiones)
+- Copiar la sección `@theme inline` a los archivos de temas
 
-## 💡 NOTAS
+---
+
+## ��� ARQUITECTURA DEL SISTEMA
+
+```
+public/styles/themes/           ← CSS de temas (carga dinámica via <link>)
+├── retro-arcade.css
+├── mocha-mousse.css
+├── amethyst-haze.css
+├── claude.css
+├── sage-garden.css
+└── tangerine.css
+
+src/hooks/use-theme-config.ts   ← Registro de temas + estado (Zustand)
+src/lib/theme-loader.ts         ← Cargador dinámico con estrategia swap
+src/app/layout.tsx              ← Script bloqueante para carga inicial
+```
+
+### Cómo funciona la carga dinámica:
+1. **Carga inicial:** Script en `layout.tsx` lee tema de localStorage y crea `<link>`
+2. **Cambio de tema:** `theme-loader.ts` crea nuevo `<link>`, espera carga, elimina anterior
+3. **Estrategia swap:** Nuevo CSS carga ANTES de eliminar el viejo (evita flash)
+
+---
+
+## ��� NOTAS
 
 - Los warnings de `@custom-variant`, `@theme`, `@apply` en globals.css son normales (Tailwind v4)
-- El tema se guarda automáticamente en LocalStorage
+- El tema se guarda automáticamente en LocalStorage (key: `rss-reader-theme-config`)
+- Solo se persiste `currentTheme`, NO `isLoading` (gracias a `partialize`)
 - Cada tema funciona con light/dark mode independientemente
 - Los cambios son instantáneos (no requiere reload)
 
 ---
 
-**RESUMEN:** Instalar → Copiar → Transformar a clase → Importar → Registrar → Testear
+## ��� TROUBLESHOOTING
+
+**Tema no aparece en UI:**
+- Verificar que está en `AVAILABLE_THEMES` array
+- Verificar que el type `ThemeName` incluye el nuevo tema
+
+**Tema no se aplica:**
+- Verificar que el archivo está en `public/styles/themes/`
+- Verificar nombres de clase: `.theme-{name}` y `.theme-{name}.dark`
+- Revisar Network tab por errores 404
+
+**Botones de tema deshabilitados:**
+- Limpiar localStorage: `localStorage.removeItem('rss-reader-theme-config')`
+- El estado `isLoading` no debería persistirse
+
+**Flash de contenido sin estilos:**
+- La estrategia swap debería prevenirlo
+- Verificar que `layout.tsx` tiene el script bloqueante
+
+---
+
+**RESUMEN:** Instalar → Copiar → Crear en public/ → Transformar a clase → Registrar → Restaurar globals → Testear
