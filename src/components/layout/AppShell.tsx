@@ -9,7 +9,7 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Rss, Plus, Trash2, Inbox, Trash, Pencil } from "lucide-react";
+import { Menu, Plus, Trash2, Inbox, Trash, Pencil } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useFeeds } from "@/hooks/useFeeds";
@@ -25,7 +25,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -48,23 +50,336 @@ interface AppShellProps {
   feedState: ReturnType<typeof useFeeds>;
 }
 
-const DEFAULT_FEEDS = [
-  // Medios verificados que funcionan
-  { name: "El Diario", url: "https://www.eldiario.es/rss/" },
-  { name: "La Marea", url: "https://www.lamarea.com/feed/" },
-  { name: "Newtral", url: "https://www.newtral.es/feed/" },
-  { name: "Cuarto Poder", url: "https://www.cuartopoder.es/feed/" },
-  { name: "Kaos en la Red", url: "https://kaosenlared.net/feed/" },
-  { name: "La Vanguardia", url: "https://www.lavanguardia.com/rss/home.xml" },
+// Estructura de feeds organizada por medio y secciones
+interface FeedSection {
+  name: string;
+  url: string;
+}
+
+interface FeedSource {
+  name: string;
+  sections: FeedSection[];
+}
+
+interface FeedCategory {
+  category: string;
+  sources: FeedSource[];
+}
+
+const ORGANIZED_FEEDS: FeedCategory[] = [
   {
-    name: "El País",
-    url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
+    category: "🇪🇸 Medios Españoles",
+    sources: [
+      {
+        name: "El País",
+        sections: [
+          {
+            name: "Portada",
+            url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
+          },
+          {
+            name: "España",
+            url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/espana/portada",
+          },
+          {
+            name: "Internacional",
+            url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada",
+          },
+          {
+            name: "Economía",
+            url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/economia/portada",
+          },
+          {
+            name: "Tecnología",
+            url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/tecnologia/portada",
+          },
+          {
+            name: "Cultura",
+            url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada",
+          },
+          {
+            name: "Deportes",
+            url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/deportes/portada",
+          },
+        ],
+      },
+      {
+        name: "La Vanguardia",
+        sections: [
+          { name: "Portada", url: "https://www.lavanguardia.com/rss/home.xml" },
+          {
+            name: "Política",
+            url: "https://www.lavanguardia.com/rss/politica.xml",
+          },
+          {
+            name: "Internacional",
+            url: "https://www.lavanguardia.com/rss/internacional.xml",
+          },
+          {
+            name: "Economía",
+            url: "https://www.lavanguardia.com/rss/economia.xml",
+          },
+          {
+            name: "Tecnología",
+            url: "https://www.lavanguardia.com/rss/tecnologia.xml",
+          },
+          {
+            name: "Cultura",
+            url: "https://www.lavanguardia.com/rss/cultura.xml",
+          },
+          {
+            name: "Deportes",
+            url: "https://www.lavanguardia.com/rss/deportes.xml",
+          },
+        ],
+      },
+      {
+        name: "El Diario",
+        sections: [
+          { name: "Portada", url: "https://www.eldiario.es/rss/" },
+          { name: "Política", url: "https://www.eldiario.es/politica/rss/" },
+          { name: "Economía", url: "https://www.eldiario.es/economia/rss/" },
+          { name: "Sociedad", url: "https://www.eldiario.es/sociedad/rss/" },
+          {
+            name: "Internacional",
+            url: "https://www.eldiario.es/internacional/rss/",
+          },
+          { name: "Cultura", url: "https://www.eldiario.es/cultura/rss/" },
+          {
+            name: "Tecnología",
+            url: "https://www.eldiario.es/tecnologia/rss/",
+          },
+        ],
+      },
+      {
+        name: "20 Minutos",
+        sections: [
+          { name: "Portada", url: "https://www.20minutos.es/rss/" },
+          { name: "Nacional", url: "https://www.20minutos.es/rss/nacional/" },
+          {
+            name: "Internacional",
+            url: "https://www.20minutos.es/rss/internacional/",
+          },
+          { name: "Economía", url: "https://www.20minutos.es/rss/economia/" },
+          { name: "Deportes", url: "https://www.20minutos.es/rss/deportes/" },
+          {
+            name: "Tecnología",
+            url: "https://www.20minutos.es/rss/tecnologia/",
+          },
+        ],
+      },
+      {
+        name: "Público",
+        sections: [{ name: "Portada", url: "https://www.publico.es/rss/" }],
+      },
+      {
+        name: "La Marea",
+        sections: [{ name: "Portada", url: "https://www.lamarea.com/feed/" }],
+      },
+      {
+        name: "Newtral",
+        sections: [{ name: "Portada", url: "https://www.newtral.es/feed/" }],
+      },
+      {
+        name: "Cuarto Poder",
+        sections: [
+          { name: "Portada", url: "https://www.cuartopoder.es/feed/" },
+        ],
+      },
+      {
+        name: "CTXT Contexto",
+        sections: [{ name: "Portada", url: "https://ctxt.es/es/rss/ctxt.xml" }],
+      },
+      {
+        name: "Kaos en la Red",
+        sections: [{ name: "Portada", url: "https://kaosenlared.net/feed/" }],
+      },
+      {
+        name: "RTVE Noticias",
+        sections: [
+          { name: "Portada", url: "https://www.rtve.es/noticias/rss.xml" },
+        ],
+      },
+    ],
   },
-  // Medios internacionales
-  { name: "BBC Mundo", url: "https://feeds.bbci.co.uk/mundo/rss.xml" },
-  { name: "DW en Español", url: "https://rss.dw.com/xml/rss-sp-top" },
-  { name: "Euronews Español", url: "https://es.euronews.com/rss" },
+  {
+    category: "🌍 Medios Internacionales (Español)",
+    sources: [
+      {
+        name: "BBC Mundo",
+        sections: [
+          { name: "Portada", url: "https://feeds.bbci.co.uk/mundo/rss.xml" },
+        ],
+      },
+      {
+        name: "DW en Español",
+        sections: [
+          { name: "Portada", url: "https://rss.dw.com/xml/rss-sp-top" },
+        ],
+      },
+      {
+        name: "Euronews Español",
+        sections: [{ name: "Portada", url: "https://es.euronews.com/rss" }],
+      },
+      {
+        name: "France24 Español",
+        sections: [{ name: "Portada", url: "https://www.france24.com/es/rss" }],
+      },
+    ],
+  },
+  {
+    category: "🇬🇧 Medios Internacionales (Inglés)",
+    sources: [
+      {
+        name: "The Guardian",
+        sections: [
+          { name: "World", url: "https://www.theguardian.com/world/rss" },
+          { name: "UK News", url: "https://www.theguardian.com/uk-news/rss" },
+          { name: "US News", url: "https://www.theguardian.com/us-news/rss" },
+          {
+            name: "Technology",
+            url: "https://www.theguardian.com/uk/technology/rss",
+          },
+          { name: "Science", url: "https://www.theguardian.com/science/rss" },
+          {
+            name: "Environment",
+            url: "https://www.theguardian.com/environment/rss",
+          },
+        ],
+      },
+      {
+        name: "BBC News",
+        sections: [
+          { name: "World", url: "https://feeds.bbci.co.uk/news/world/rss.xml" },
+          { name: "UK", url: "https://feeds.bbci.co.uk/news/uk/rss.xml" },
+          {
+            name: "Technology",
+            url: "https://feeds.bbci.co.uk/news/technology/rss.xml",
+          },
+          {
+            name: "Science",
+            url: "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+          },
+        ],
+      },
+      {
+        name: "NPR",
+        sections: [
+          { name: "World News", url: "https://feeds.npr.org/1004/rss.xml" },
+        ],
+      },
+      {
+        name: "Vox",
+        sections: [{ name: "All", url: "https://www.vox.com/rss/index.xml" }],
+      },
+      {
+        name: "The Independent",
+        sections: [
+          { name: "World", url: "http://www.independent.co.uk/news/world/rss" },
+        ],
+      },
+      {
+        name: "Al Jazeera",
+        sections: [
+          { name: "All", url: "https://www.aljazeera.com/xml/rss/all.xml" },
+        ],
+      },
+      {
+        name: "Der Spiegel International",
+        sections: [
+          {
+            name: "International",
+            url: "https://www.spiegel.de/international/index.rss",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    category: "💻 Tecnología",
+    sources: [
+      {
+        name: "Ars Technica",
+        sections: [
+          {
+            name: "All",
+            url: "https://feeds.arstechnica.com/arstechnica/index",
+          },
+        ],
+      },
+      {
+        name: "The Verge",
+        sections: [
+          { name: "All", url: "https://www.theverge.com/rss/index.xml" },
+        ],
+      },
+      {
+        name: "Wired",
+        sections: [{ name: "All", url: "https://www.wired.com/feed/rss" }],
+      },
+      {
+        name: "Xataka",
+        sections: [
+          { name: "All", url: "https://www.xataka.com/feedburner.xml" },
+        ],
+      },
+      {
+        name: "Genbeta",
+        sections: [
+          { name: "All", url: "https://www.genbeta.com/feedburner.xml" },
+        ],
+      },
+    ],
+  },
+  {
+    category: "📚 Cultura y Sociedad",
+    sources: [
+      {
+        name: "Le Monde Diplomatique ES",
+        sections: [
+          {
+            name: "All",
+            url: "https://mondiplo.com/local/cache-rss/local.xml",
+          },
+        ],
+      },
+      {
+        name: "The Conversation",
+        sections: [
+          {
+            name: "World News",
+            url: "https://theconversation.com/topics/world-news-156028/articles.atom",
+          },
+        ],
+      },
+      {
+        name: "Global Issues",
+        sections: [
+          { name: "News", url: "https://www.globalissues.org/news/feed" },
+        ],
+      },
+      {
+        name: "Alternet",
+        sections: [
+          { name: "World", url: "https://www.alternet.org/feeds/world.rss" },
+        ],
+      },
+    ],
+  },
 ];
+
+// Flatten for backwards compatibility where needed
+const DEFAULT_FEEDS = ORGANIZED_FEEDS.flatMap((category) =>
+  category.sources.flatMap((source) =>
+    source.sections.map((section) => ({
+      name:
+        source.sections.length > 1
+          ? `${source.name} - ${section.name}`
+          : source.name,
+      url: section.url,
+    }))
+  )
+);
 
 interface SidebarContentProps {
   feeds: Feed[];
@@ -126,6 +441,7 @@ function SidebarContent({
     <div className="flex flex-col h-full py-4">
       <div className="px-4 mb-6">
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.svg" alt="Logo" className="w-8 h-8" />
           Reader
         </h1>
@@ -153,13 +469,39 @@ function SidebarContent({
                 <label className="text-sm font-medium">Preset Feeds</label>
                 <Select onValueChange={handleAddDefault}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a popular feed" />
+                    <SelectValue placeholder="Select a feed source" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {DEFAULT_FEEDS.map((feed) => (
-                      <SelectItem key={feed.url} value={feed.url}>
-                        {feed.name}
-                      </SelectItem>
+                  <SelectContent className="max-h-80">
+                    {ORGANIZED_FEEDS.map((category) => (
+                      <SelectGroup key={category.category}>
+                        <SelectLabel className="font-bold text-primary">
+                          {category.category}
+                        </SelectLabel>
+                        {category.sources.map((source) =>
+                          source.sections.length === 1 ? (
+                            <SelectItem
+                              key={source.sections[0].url}
+                              value={source.sections[0].url}
+                            >
+                              {source.name}
+                            </SelectItem>
+                          ) : (
+                            source.sections.map((section) => (
+                              <SelectItem
+                                key={section.url}
+                                value={section.url}
+                                className="pl-6"
+                              >
+                                <span className="text-muted-foreground">
+                                  {source.name}
+                                </span>
+                                <span className="mx-1">›</span>
+                                <span>{section.name}</span>
+                              </SelectItem>
+                            ))
+                          )
+                        )}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>

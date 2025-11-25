@@ -4,9 +4,15 @@ import { useEffect, useState } from "react";
 import { Rss } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
+import {
+  useActivityStatus,
+  ACTIVITY_CONFIG,
+} from "@/contexts/ActivityStatusContext";
 
 export function BrandingBanner() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const { activity } = useActivityStatus();
+  const activityConfig = ACTIVITY_CONFIG[activity.status];
 
   useEffect(() => {
     // Prefer the explicit scroll container id, fallback to `main > div.overflow-y-auto`, otherwise listen on window
@@ -124,14 +130,21 @@ export function BrandingBanner() {
                   isScrolled ? "gap-0" : "gap-2"
                 )}
               >
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+                <span
+                  className={cn(
+                    "w-2 h-2 rounded-full shrink-0 transition-colors duration-300",
+                    activityConfig.color,
+                    activity.status !== "idle" && "animate-pulse"
+                  )}
+                  title={activity.message || activityConfig.label}
+                />
                 <span
                   className={cn(
                     "text-sm font-bold text-foreground/80 transition-all duration-500 ease-in-out overflow-hidden",
                     isScrolled ? "w-0 opacity-0" : "w-auto opacity-100"
                   )}
                 >
-                  ONLINE
+                  {activityConfig.label}
                 </span>
               </div>
             </div>

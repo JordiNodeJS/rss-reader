@@ -14,12 +14,14 @@ import {
   updateFeed,
 } from "@/lib/db";
 import { toast } from "sonner";
+import { useActivityStatus } from "@/contexts/ActivityStatusContext";
 
 export function useFeeds() {
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null);
+  const { setActivity, clearActivity } = useActivityStatus();
 
   const refreshFeeds = useCallback(async () => {
     const loadedFeeds = await getAllFeeds();
@@ -57,6 +59,7 @@ export function useFeeds() {
 
   const addNewFeed = async (url: string, customTitle?: string) => {
     setIsLoading(true);
+    setActivity("fetching-rss", `Fetching ${customTitle || url}`);
     try {
       // 1. Fetch feed data via proxy
       const res = await fetch(`/api/rss?url=${encodeURIComponent(url)}`);
@@ -91,6 +94,7 @@ export function useFeeds() {
       }
 
       // 2. Save feed to DB
+      setActivity("saving", "Saving feed to database");
       const feedTitle = customTitle || data.title || url;
       const newFeed: Omit<Feed, "id"> = {
         url,
@@ -149,9 +153,14 @@ export function useFeeds() {
       toast.error(errorMsg, {
         duration: 6000, // Show longer for detailed errors
       });
+      setActivity("error", errorMsg);
+      // Clear error status after a delay
+      setTimeout(() => clearActivity(), 3000);
+      return; // Exit early on error
     } finally {
       setIsLoading(false);
     }
+    clearActivity();
   };
 
   const removeFeed = async (id: number) => {
@@ -174,6 +183,7 @@ export function useFeeds() {
   };
 
   const scrapeArticle = async (articleId: number, url: string) => {
+    setActivity("scraping", "Scraping article content");
     try {
       toast.info("Scraping article...");
       const res = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`);
@@ -207,6 +217,7 @@ export function useFeeds() {
       }
 
       if (data.content) {
+        setActivity("saving", "Saving article offline");
         await updateArticleScrapedContent(articleId, data.content);
         // Update local state immediately
         setArticles((prev) =>
@@ -215,14 +226,18 @@ export function useFeeds() {
           )
         );
         toast.success("Article scraped and saved offline");
+        clearActivity();
       } else {
         toast.warning("No content found to scrape");
+        clearActivity();
       }
     } catch (error) {
       console.error(error);
       const errorMsg =
         error instanceof Error ? error.message : "Failed to scrape article";
       toast.error(`Failed to scrape article: ${errorMsg}`);
+      setActivity("error", errorMsg);
+      setTimeout(() => clearActivity(), 3000);
     }
   };
 

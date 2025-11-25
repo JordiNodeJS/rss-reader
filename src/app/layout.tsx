@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ActivityStatusProvider } from "@/contexts/ActivityStatusContext";
 
 const outfit = Outfit({
   variable: "--font-sans",
@@ -35,7 +36,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <ActivityStatusProvider>{children}</ActivityStatusProvider>
         </ThemeProvider>
       </body>
     </html>
