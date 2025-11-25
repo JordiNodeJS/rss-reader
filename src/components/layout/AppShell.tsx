@@ -441,184 +441,186 @@ function SidebarContent({
   };
 
   return (
-    <div className="flex flex-col h-full py-4">
-      <div className="px-4 mb-6">
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Logo" className="w-8 h-8" />
-          Reader
-        </h1>
-      </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      <ScrollArea className="h-full">
+        <div className="py-4">
+          <div className="px-4 mb-6">
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.svg" alt="Logo" className="w-8 h-8" />
+              Reader
+            </h1>
+          </div>
 
-      <div className="px-4 mb-4">
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full gap-2" size="sm">
-              <Plus className="w-4 h-4" /> Add Feed
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Feed</DialogTitle>
-              <VisuallyHidden>
-                <DialogDescription>
-                  Add a new RSS feed by selecting from presets or entering a
-                  custom URL
-                </DialogDescription>
-              </VisuallyHidden>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Preset Feeds</label>
-                <Select onValueChange={handleAddDefault}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a feed source" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-80">
-                    {ORGANIZED_FEEDS.map((category) => (
-                      <SelectGroup key={category.category}>
-                        <SelectLabel className="font-bold text-primary">
-                          {category.category}
-                        </SelectLabel>
-                        {category.sources.map((source) =>
-                          source.sections.length === 1 ? (
-                            <SelectItem
-                              key={source.sections[0].url}
-                              value={source.sections[0].url}
-                            >
-                              {source.name}
-                            </SelectItem>
-                          ) : (
-                            source.sections.map((section) => (
-                              <SelectItem
-                                key={section.url}
-                                value={section.url}
-                                className="pl-6"
-                              >
-                                <span className="text-muted-foreground">
+          <div className="px-4 mb-4">
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full gap-2" size="sm">
+                  <Plus className="w-4 h-4" /> Add Feed
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Feed</DialogTitle>
+                  <VisuallyHidden>
+                    <DialogDescription>
+                      Add a new RSS feed by selecting from presets or entering a
+                      custom URL
+                    </DialogDescription>
+                  </VisuallyHidden>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Preset Feeds</label>
+                    <Select onValueChange={handleAddDefault}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a feed source" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-80">
+                        {ORGANIZED_FEEDS.map((category) => (
+                          <SelectGroup key={category.category}>
+                            <SelectLabel className="font-bold text-primary">
+                              {category.category}
+                            </SelectLabel>
+                            {category.sources.map((source) =>
+                              source.sections.length === 1 ? (
+                                <SelectItem
+                                  key={source.sections[0].url}
+                                  value={source.sections[0].url}
+                                >
                                   {source.name}
-                                </span>
-                                <span className="mx-1">›</span>
-                                <span>{section.name}</span>
-                              </SelectItem>
-                            ))
-                          )
-                        )}
-                      </SelectGroup>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Feed URL</label>
-                <Input
-                  placeholder="https://example.com/rss"
-                  value={newFeedUrl}
-                  onChange={(e) => setNewFeedUrl(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Custom Title (optional)
-                </label>
-                <Input
-                  placeholder="My Custom Feed Name"
-                  value={newFeedTitle}
-                  onChange={(e) => setNewFeedTitle(e.target.value)}
-                />
-              </div>
-              <Button onClick={handleAddFeed} disabled={isLoading}>
-                {isLoading ? "Adding..." : "Add Feed"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+                                </SelectItem>
+                              ) : (
+                                source.sections.map((section) => (
+                                  <SelectItem
+                                    key={section.url}
+                                    value={section.url}
+                                    className="pl-6"
+                                  >
+                                    <span className="text-muted-foreground">
+                                      {source.name}
+                                    </span>
+                                    <span className="mx-1">›</span>
+                                    <span>{section.name}</span>
+                                  </SelectItem>
+                                ))
+                              )
+                            )}
+                          </SelectGroup>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Feed URL</label>
+                    <Input
+                      placeholder="https://example.com/rss"
+                      value={newFeedUrl}
+                      onChange={(e) => setNewFeedUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Custom Title (optional)
+                    </label>
+                    <Input
+                      placeholder="My Custom Feed Name"
+                      value={newFeedTitle}
+                      onChange={(e) => setNewFeedTitle(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={handleAddFeed} disabled={isLoading}>
+                    {isLoading ? "Adding..." : "Add Feed"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-      <ScrollArea className="flex-1 px-2">
-        <div className="space-y-1 p-2">
-          <Button
-            variant={selectedFeedId === null ? "secondary" : "ghost"}
-            className="w-full justify-start gap-2"
-            onClick={() => setSelectedFeedId(null)}
-          >
-            <Inbox className="w-4 h-4" />
-            All Articles
-          </Button>
-          <Separator className="my-2" />
-          <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-            Your Feeds
-          </h3>
-          {feeds.map((feed) => (
-            <div key={feed.id} className="group flex items-center gap-1">
-              <Button
-                variant={selectedFeedId === feed.id ? "secondary" : "ghost"}
-                className="w-full justify-start truncate text-sm font-normal"
-                onClick={() => setSelectedFeedId(feed.id!)}
-              >
-                <span className="truncate">
-                  {feed.customTitle || feed.title}
-                </span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openEditDialog(feed);
-                }}
-              >
-                <Pencil className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (feed.id) removeFeed(feed.id);
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          ))}
+          <div className="space-y-1 px-2 py-2">
+            <Button
+              variant={selectedFeedId === null ? "secondary" : "ghost"}
+              className="w-full justify-start gap-2"
+              onClick={() => setSelectedFeedId(null)}
+            >
+              <Inbox className="w-4 h-4" />
+              All Articles
+            </Button>
+            <Separator className="my-2" />
+            <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
+              Your Feeds
+            </h3>
+            {feeds.map((feed) => (
+              <div key={feed.id} className="group flex items-center gap-1">
+                <Button
+                  variant={selectedFeedId === feed.id ? "secondary" : "ghost"}
+                  className="w-full justify-start truncate text-sm font-normal"
+                  onClick={() => setSelectedFeedId(feed.id!)}
+                >
+                  <span className="truncate">
+                    {feed.customTitle || feed.title}
+                  </span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditDialog(feed);
+                  }}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (feed.id) removeFeed(feed.id);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="px-4 py-4 border-t space-y-4 mt-4">
+            {/* Theme Switcher */}
+            <ThemeSwitcher />
+
+            {/* Clear Cache Button */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full gap-2" size="sm">
+                  <Trash className="w-4 h-4" />
+                  Clear Cache
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear all cached data?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all your RSS feeds and articles
+                    from the local cache. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={clearCache}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Clear Cache
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </ScrollArea>
-
-      <div className="px-4 py-4 border-t space-y-4">
-        {/* Theme Switcher */}
-        <ThemeSwitcher />
-        
-        {/* Clear Cache Button */}
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline" className="w-full gap-2" size="sm">
-              <Trash className="w-4 h-4" />
-              Clear Cache
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Clear all cached data?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete all your RSS feeds and articles
-                from the local cache. This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={clearCache}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Clear Cache
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
 
       {/* Edit Feed Dialog */}
       <Dialog
@@ -749,22 +751,25 @@ export function AppShell({ children, feedState }: AppShellProps) {
               <Menu className="w-5 h-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64">
-            <SheetHeader>
-              <VisuallyHidden>
-                <SheetTitle>Navigation Menu</SheetTitle>
-              </VisuallyHidden>
+          <SheetContent
+            side="left"
+            className="p-0 w-64 flex flex-col overflow-hidden"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation Menu</SheetTitle>
             </SheetHeader>
-            <SidebarContent
-              feeds={feeds}
-              selectedFeedId={selectedFeedId}
-              setSelectedFeedId={setSelectedFeedId}
-              removeFeed={removeFeed}
-              addNewFeed={addNewFeed}
-              updateFeedTitle={updateFeedTitle}
-              clearCache={clearCache}
-              isLoading={isLoading}
-            />
+            <div className="flex-1 overflow-hidden">
+              <SidebarContent
+                feeds={feeds}
+                selectedFeedId={selectedFeedId}
+                setSelectedFeedId={setSelectedFeedId}
+                removeFeed={removeFeed}
+                addNewFeed={addNewFeed}
+                updateFeedTitle={updateFeedTitle}
+                clearCache={clearCache}
+                isLoading={isLoading}
+              />
+            </div>
           </SheetContent>
         </Sheet>
 
