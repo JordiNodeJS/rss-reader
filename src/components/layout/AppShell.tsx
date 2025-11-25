@@ -1,5 +1,8 @@
 "use client";
 
+// Created by webcode.es
+// Contact: info@webcode.es
+
 import { useEffect, useState } from "react";
 import {
   Sheet,
@@ -584,7 +587,11 @@ function SidebarContent({
         </div>
       </ScrollArea>
 
-      <div className="px-4 py-4 border-t">
+      <div className="px-4 py-4 border-t space-y-4">
+        {/* Theme Switcher */}
+        <ThemeSwitcher />
+        
+        {/* Clear Cache Button */}
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" className="w-full gap-2" size="sm">
@@ -650,6 +657,7 @@ function SidebarContent({
 }
 
 import { BrandingBanner } from "@/components/BrandingBanner";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export function AppShell({ children, feedState }: AppShellProps) {
   const {
@@ -765,6 +773,23 @@ export function AppShell({ children, feedState }: AppShellProps) {
           {children}
         </main>
       </div>
+
+      <footer className="border-t bg-background/5 text-sm text-center py-2">
+        <div className="max-w-screen-lg mx-auto px-4">
+          <a
+            href="https://webcode.es"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            Creado por webcode.es
+          </a>
+          <span className="mx-2">·</span>
+          <a href="mailto:info@webcode.es" className="underline">
+            info@webcode.es
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }

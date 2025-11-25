@@ -68,3 +68,7 @@ For detailed technical analysis and implementation insights, see our [Learning R
 ## License
 
 MIT
+
+## Credits
+
+Esta aplicación fue creada por [webcode.es](https://webcode.es). Para consultas o soporte, contacta a: <info@webcode.es>.
