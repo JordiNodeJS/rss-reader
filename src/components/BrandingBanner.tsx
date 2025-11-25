@@ -80,7 +80,7 @@ export function BrandingBanner() {
             : "opacity-100 translate-y-0"
         )}
       >
-        <ThemeCarousel />
+        <ThemeCarousel isPaused={isScrolled} />
       </div>
 
       <div className="container mx-auto px-4 h-full flex items-start pt-3 md:pt-4 justify-between relative z-10">

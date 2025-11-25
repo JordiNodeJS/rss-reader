@@ -36,6 +36,9 @@
   --font-sans: Poppins, sans-serif;
   --font-serif: Lora, serif;
   --font-mono: Fira Code, monospace;
+  --spacing: 0.25rem;
+  --letter-spacing: 0em;
+  --tracking-normal: 0em;
   --shadow-2xs: 3px 3px 0px 0px hsl(325.78 58.18% 56.86% / 0.5);
   --shadow-xs: 3px 3px 0px 0px hsl(325.78 58.18% 56.86% / 0.5);
   --shadow-sm: 3px 3px 0px 0px hsl(325.78 58.18% 56.86% / 1),
@@ -88,6 +91,9 @@
   --font-sans: Poppins, sans-serif;
   --font-serif: Lora, serif;
   --font-mono: Fira Code, monospace;
+  --spacing: 0.25rem;
+  --letter-spacing: 0em;
+  --tracking-normal: 0em;
   --shadow-2xs: 3px 3px 0px 0px hsl(206.1538 28.0576% 27.2549% / 0.5);
   --shadow-xs: 3px 3px 0px 0px hsl(206.1538 28.0576% 27.2549% / 0.5);
   --shadow-sm: 3px 3px 0px 0px hsl(206.1538 28.0576% 27.2549% / 1),

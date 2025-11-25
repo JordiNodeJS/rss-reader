@@ -1,7 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import { AVAILABLE_THEMES, useThemeConfig } from "@/hooks/use-theme-config";
 import { cn } from "@/lib/utils";
+
+interface ThemeCarouselProps {
+  /** When true, animation is paused to save CPU/GPU */
+  isPaused?: boolean;
+}
 
 interface ThemeButtonProps {
   theme: (typeof AVAILABLE_THEMES)[number];
@@ -9,7 +15,11 @@ interface ThemeButtonProps {
   isActive?: boolean;
 }
 
-function ThemeButton({ theme, onClick, isActive }: ThemeButtonProps) {
+const ThemeButton = memo(function ThemeButton({
+  theme,
+  onClick,
+  isActive,
+}: ThemeButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -35,9 +45,9 @@ function ThemeButton({ theme, onClick, isActive }: ThemeButtonProps) {
       <span>{theme.name}</span>
     </button>
   );
-}
+});
 
-export function ThemeCarousel() {
+export function ThemeCarousel({ isPaused = false }: ThemeCarouselProps) {
   const { currentTheme, setTheme } = useThemeConfig();
   const themes = AVAILABLE_THEMES;
 
@@ -52,8 +62,14 @@ export function ThemeCarousel() {
       }}
     >
       <div
-        className="flex gap-2 animate-marquee hover:[animation-play-state:paused]"
-        style={{ animationDuration: "60s" }}
+        className={cn(
+          "flex gap-2 hover:[animation-play-state:paused]",
+          isPaused ? "" : "animate-marquee"
+        )}
+        style={{
+          animationDuration: "120s",
+          willChange: isPaused ? "auto" : "transform",
+        }}
       >
         {/* Duplicate themes multiple times for seamless loop */}
         {[...themes, ...themes, ...themes, ...themes].map((theme, i) => (
