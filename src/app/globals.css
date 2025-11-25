@@ -68,20 +68,43 @@
   --color-destructive-foreground: var(--destructive-foreground);
 }
 
-/* Import all theme CSS files */
-@import '../styles/themes/retro-arcade.css';
-@import '../styles/themes/mocha-mousse.css';
-@import '../styles/themes/amethyst-haze.css';
-@import '../styles/themes/claude.css';
-@import '../styles/themes/sage-garden.css';
-@import '../styles/themes/tangerine.css';
+/* 
+ * TEMAS DINÁMICOS: Los CSS de temas se cargan bajo demanda desde /styles/themes/
+ * Ver: src/lib/theme-loader.ts para la lógica de carga dinámica
+ * Esto reduce el bundle inicial al no incluir los ~600 líneas de CSS de temas
+ */
 
-/* Default theme fallback (Retro Arcade) for :root and .dark when no theme class is applied */
-:root,
-.dark {
-  /* Theme variables will be overridden by .theme-* classes */
-  /* These serve as fallback values only */
+/* Default theme fallback - valores base para evitar flash antes de cargar el tema */
+:root {
   --radius: 0.25rem;
+  /* Colores por defecto (neutros) - se sobrescriben cuando carga el tema */
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.2 0 0);
+  --card: oklch(0.96 0 0);
+  --card-foreground: oklch(0.2 0 0);
+  --popover: oklch(0.96 0 0);
+  --popover-foreground: oklch(0.2 0 0);
+  --primary: oklch(0.5 0.15 250);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.6 0.1 180);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.7 0 0);
+  --muted-foreground: oklch(0.4 0 0);
+  --accent: oklch(0.55 0.15 40);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.8 0 0);
+  --input: oklch(0.8 0 0);
+  --ring: oklch(0.5 0.15 250);
+  --sidebar: oklch(0.98 0 0);
+  --sidebar-foreground: oklch(0.2 0 0);
+  --sidebar-primary: oklch(0.5 0.15 250);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.6 0.1 180);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(0.8 0 0);
+  --sidebar-ring: oklch(0.5 0.15 250);
 }
 
 @layer base {
