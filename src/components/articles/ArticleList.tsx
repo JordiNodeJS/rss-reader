@@ -10,56 +10,87 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, BookOpen, CheckCircle, Clock, Newspaper, Tag } from "lucide-react";
+import {
+  Download,
+  BookOpen,
+  CheckCircle,
+  Clock,
+  Newspaper,
+  Tag,
+} from "lucide-react";
 import { DateTime } from "luxon";
 
 // Map common category names to display colors
 const CATEGORY_COLORS: Record<string, string> = {
   // Geographic/Regional
-  'internacional': 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20',
-  'españa': 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20',
-  'américa': 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
-  'latinoamérica': 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
-  'europa': 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20',
-  'mundo': 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20',
-  
+  internacional:
+    "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20",
+  españa: "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20",
+  américa:
+    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
+  latinoamérica:
+    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
+  europa:
+    "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20",
+  mundo: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20",
+
   // Topics
-  'política': 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20',
-  'economía': 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
-  'sociedad': 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20',
-  'cultura': 'bg-pink-500/10 text-pink-700 dark:text-pink-300 border-pink-500/20',
-  'deportes': 'bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20',
-  'tecnología': 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20',
-  'ciencia': 'bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20',
-  'opinión': 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20',
-  'justicia': 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20',
-  
+  política:
+    "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20",
+  economía:
+    "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20",
+  sociedad:
+    "bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20",
+  cultura: "bg-pink-500/10 text-pink-700 dark:text-pink-300 border-pink-500/20",
+  deportes:
+    "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20",
+  tecnología:
+    "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20",
+  ciencia:
+    "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20",
+  opinión:
+    "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20",
+  justicia:
+    "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20",
+
   // Default
-  'default': 'bg-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/20',
+  default: "bg-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/20",
 };
 
 function getCategoryColor(category: string): string {
   const normalizedCategory = category.toLowerCase().trim();
-  return CATEGORY_COLORS[normalizedCategory] || CATEGORY_COLORS['default'];
+  return CATEGORY_COLORS[normalizedCategory] || CATEGORY_COLORS["default"];
 }
 
 // Get the most relevant category to display (prioritize topics over names)
 function getDisplayCategory(categories?: string[]): string | null {
   if (!categories || categories.length === 0) return null;
-  
+
   // Priority categories (topics we want to highlight)
   const priorityKeywords = [
-    'internacional', 'españa', 'política', 'economía', 'sociedad', 
-    'cultura', 'deportes', 'tecnología', 'ciencia', 'opinión', 
-    'justicia', 'américa', 'europa', 'mundo', 'latinoamérica'
+    "internacional",
+    "españa",
+    "política",
+    "economía",
+    "sociedad",
+    "cultura",
+    "deportes",
+    "tecnología",
+    "ciencia",
+    "opinión",
+    "justicia",
+    "américa",
+    "europa",
+    "mundo",
+    "latinoamérica",
   ];
-  
+
   // Find the first matching priority category
   for (const keyword of priorityKeywords) {
-    const found = categories.find(c => c.toLowerCase().includes(keyword));
+    const found = categories.find((c) => c.toLowerCase().includes(keyword));
     if (found) return found;
   }
-  
+
   // Return first category if no priority match
   return categories[0];
 }
@@ -77,17 +108,22 @@ interface ArticleListProps {
 function getFeedTitle(article: Article, feeds: Feed[]): string | null {
   // First check if article has cached feedTitle
   if (article.feedTitle) return article.feedTitle;
-  
+
   // Otherwise look up from feeds array
-  const feed = feeds.find(f => f.id === article.feedId);
+  const feed = feeds.find((f) => f.id === article.feedId);
   if (feed) {
     return feed.customTitle || feed.title;
   }
-  
+
   return null;
 }
 
-export function ArticleList({ articles, feeds, onScrape, onView }: ArticleListProps) {
+export function ArticleList({
+  articles,
+  feeds,
+  onScrape,
+  onView,
+}: ArticleListProps) {
   if (articles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
@@ -138,8 +174,8 @@ export function ArticleList({ articles, feeds, onScrape, onView }: ArticleListPr
                 const feedTitle = getFeedTitle(article, feeds);
                 if (feedTitle) {
                   return (
-                    <Badge 
-                      variant="outline" 
+                    <Badge
+                      variant="outline"
                       className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 border-primary/20 text-primary font-medium"
                     >
                       <Newspaper className="w-3 h-3 mr-1" />
@@ -153,9 +189,11 @@ export function ArticleList({ articles, feeds, onScrape, onView }: ArticleListPr
                 const displayCategory = getDisplayCategory(article.categories);
                 if (displayCategory) {
                   return (
-                    <Badge 
+                    <Badge
                       variant="outline"
-                      className={`text-[10px] px-1.5 py-0 h-5 font-medium border ${getCategoryColor(displayCategory)}`}
+                      className={`text-[10px] px-1.5 py-0 h-5 font-medium border ${getCategoryColor(
+                        displayCategory
+                      )}`}
                     >
                       <Tag className="w-3 h-3 mr-1" />
                       {displayCategory}
@@ -165,7 +203,7 @@ export function ArticleList({ articles, feeds, onScrape, onView }: ArticleListPr
                 return null;
               })()}
             </div>
-            
+
             <div className="flex justify-between items-start gap-2">
               <CardTitle className="text-lg font-bold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                 {article.title}

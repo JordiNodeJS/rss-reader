@@ -390,11 +390,11 @@ function extractFirstImageFromHtml(html: string): string | undefined {
 // Extract categories from RSS item
 function extractCategories(item: any): string[] | undefined {
   const categories: string[] = [];
-  
+
   // 1. Check direct categories array (most common in RSS 2.0)
   if (item.categories && Array.isArray(item.categories)) {
     for (const cat of item.categories) {
-      if (typeof cat === 'string') {
+      if (typeof cat === "string") {
         categories.push(cat);
       } else if (cat?._ || cat?.$?.term) {
         // Atom format: { _: "Category Name" } or { $: { term: "Category" } }
@@ -402,30 +402,36 @@ function extractCategories(item: any): string[] | undefined {
       }
     }
   }
-  
+
   // 2. Check single category field
   if (item.category) {
-    if (typeof item.category === 'string') {
+    if (typeof item.category === "string") {
       categories.push(item.category);
     } else if (Array.isArray(item.category)) {
-      categories.push(...item.category.filter((c: any) => typeof c === 'string'));
+      categories.push(
+        ...item.category.filter((c: any) => typeof c === "string")
+      );
     }
   }
-  
+
   // 3. Check media:keywords (used by eldiario.es, etc.)
-  if (item['media:keywords']) {
-    const keywords = typeof item['media:keywords'] === 'string' 
-      ? item['media:keywords'] 
-      : item['media:keywords']?._ || item['media:keywords']?.$?.['#text'];
+  if (item["media:keywords"]) {
+    const keywords =
+      typeof item["media:keywords"] === "string"
+        ? item["media:keywords"]
+        : item["media:keywords"]?._ || item["media:keywords"]?.$?.["#text"];
     if (keywords) {
       // Keywords are usually comma-separated
-      const keywordArray = keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+      const keywordArray = keywords
+        .split(",")
+        .map((k: string) => k.trim())
+        .filter(Boolean);
       categories.push(...keywordArray);
     }
   }
-  
+
   // 4. Deduplicate and limit to most relevant (first 5)
   const uniqueCategories = [...new Set(categories)].slice(0, 5);
-  
+
   return uniqueCategories.length > 0 ? uniqueCategories : undefined;
 }
