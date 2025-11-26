@@ -1,0 +1,38 @@
+
+> rss-reader-antigravity@0.1.0 build G:\DEV\tmp\rss-reader-antigravity
+> next build
+
+   ▲ Next.js 16.0.3 (Turbopack)
+
+   Creating an optimized production build ...
+Turbopack build encountered 1 warnings:
+./node_modules/.pnpm/sanitize-html@2.17.0/node_modules/sanitize-html
+Package postcss can't be external
+The request postcss matches serverExternalPackages (or the default list).
+The request could not be resolved by Node.js from the project directory.
+Packages that should be external need to be installed in the project directory, so they can be resolved from the output files.
+Try to install it into the project directory by running npm install postcss from the project directory.
+
+
+ ✓ Compiled successfully in 2.5s
+   Running TypeScript ...
+   Collecting page data using 15 workers ...
+   Generating static pages using 15 workers (0/7) ...
+   Generating static pages using 15 workers (1/7) 
+   Generating static pages using 15 workers (3/7) 
+   Generating static pages using 15 workers (5/7) 
+ ✓ Generating static pages using 15 workers (7/7) in 1424.2ms
+   Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/check-iframe
+├ ƒ /api/rss
+├ ƒ /api/scrape
+└ ○ /icon.png
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

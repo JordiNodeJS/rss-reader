@@ -1,0 +1,27 @@
+{
+    // Visual customization for the *Status Bar only* — Blood-red & black
+    "workbench.colorCustomizations": {
+        // Main status bar
+        "statusBar.background": "#000000",
+        // Rosado / soft pink foreground so it looks pink instead of error red
+        "statusBar.foreground": "#ffb0c9",
+        "statusBar.border": "#330000",
+        // No-folder status bar (when no workspace/folder is open)
+        "statusBar.noFolderBackground": "#000000",
+        "statusBar.noFolderForeground": "#f09ab9",
+        // Debugging: inverted to highlight an active debug session (blood-red bg)
+        "statusBar.debuggingBackground": "#7a1944",
+        "statusBar.debuggingForeground": "#ffffff",
+        "statusBar.debuggingBorder": "#6b1439",
+        // Status bar items (hover/active) using deep red tones
+        "statusBarItem.hoverBackground": "#61102a",
+        "statusBarItem.activeBackground": "#87223f",
+        "statusBarItem.prominentBackground": "#ff8bb3",
+        "statusBarItem.prominentForeground": "#ffffff",
+        // Some additional related tokens to keep a cohesive red/black look
+        "statusBar.borderTop": "#3a0f14",
+        "statusBarItem.focusBorder": "#5b1025"
+    },
+    // Prefer a dark theme to match the black background; this will not override a user's installed custom theme
+    "workbench.preferredDarkColorTheme": "Default Dark+"
+}
