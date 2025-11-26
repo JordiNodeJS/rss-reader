@@ -25,7 +25,7 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   const filteredArticles = useMemo(() => {
-    let result = [...feedState.articles];
+    let result = [...(feedState.articles || [])];
 
     // Filter by search query
     if (searchQuery) {

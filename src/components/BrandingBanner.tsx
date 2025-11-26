@@ -222,10 +222,10 @@ export function BrandingBanner() {
           <div
             ref={iconRef}
             id="rss-icon-container"
-            className="bg-background/80 p-3 md:p-4 rounded-xl backdrop-blur-md shadow-2xl border border-border/50"
+            className="bg-background/80 p-2 md:p-3 rounded-xl backdrop-blur-md shadow-2xl border border-border/50"
             style={{ willChange: "transform" }}
           >
-            <Rss className="text-primary w-8 h-8 md:w-10 md:h-10" />
+            <Rss className="text-primary w-7 h-7 md:w-9 md:h-9" />
           </div>
           <div className="flex flex-col">
             <h1

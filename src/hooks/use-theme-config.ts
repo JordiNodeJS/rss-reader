@@ -326,6 +326,10 @@ export const useThemeConfig = create<ThemeStore>()(
 
           // Load the theme CSS
           loadTheme(state.currentTheme);
+          
+          // Explicitly reset isLoading after hydration
+          // This prevents the loading spinner from showing during initial mount
+          state.isLoading = false;
         }
       },
     }

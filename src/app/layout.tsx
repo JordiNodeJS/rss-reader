@@ -90,18 +90,39 @@ export default function RootLayout({
         
         // Precargar el CSS del tema para evitar flash
         var link = document.createElement('link');
-        link.rel = 'stylesheet';
+        link.rel = 'preload';
+        link.as = 'style';
         link.href = '/styles/themes/' + theme + '.css';
         link.id = 'dynamic-theme-link';
+        link.onload = function() {
+          this.onload = null;
+          this.rel = 'stylesheet';
+        };
         document.head.appendChild(link);
+        // Fallback: convert to stylesheet immediately for browsers that don't support onload
+        setTimeout(function() {
+          if (link.rel !== 'stylesheet') {
+            link.rel = 'stylesheet';
+          }
+        }, 0);
       } catch (e) {
         document.documentElement.classList.add('theme-retro-arcade');
         loadFonts(themeFonts['retro-arcade']);
         var link = document.createElement('link');
-        link.rel = 'stylesheet';
+        link.rel = 'preload';
+        link.as = 'style';
         link.href = '/styles/themes/retro-arcade.css';
         link.id = 'dynamic-theme-link';
+        link.onload = function() {
+          this.onload = null;
+          this.rel = 'stylesheet';
+        };
         document.head.appendChild(link);
+        setTimeout(function() {
+          if (link.rel !== 'stylesheet') {
+            link.rel = 'stylesheet';
+          }
+        }, 0);
       }
     })()
   `;

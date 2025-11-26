@@ -112,7 +112,7 @@ function getDisplayCategory(categories?: string[]): string | null {
 import { Feed } from "@/lib/db";
 
 interface ArticleListProps {
-  articles: Article[];
+  articles?: Article[] | null;
   feeds: Feed[];
   onScrape: (id: number, url: string, withTranslation?: boolean) => void;
   onView: (article: Article) => void;
@@ -154,6 +154,8 @@ export function ArticleList({
   onScrape,
   onView,
 }: ArticleListProps) {
+  // Ensure articles is always an array to avoid runtime errors
+  const safeArticles = Array.isArray(articles) ? articles : [];
   // State for save dialog
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [articleToSave, setArticleToSave] = useState<Article | null>(null);
@@ -197,7 +199,7 @@ export function ArticleList({
     setSaveDialogOpen(false);
     setArticleToSave(null);
   };
-  if (articles.length === 0) {
+  if (safeArticles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
         <img
@@ -218,7 +220,7 @@ export function ArticleList({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 md:p-6 pb-20">
-      {articles.map((article) => (
+      {safeArticles.map((article) => (
         <Card
           key={article.id || article.guid}
           className="flex flex-col h-full hover:shadow-lg transition-all duration-200 border-muted/60 overflow-hidden group"

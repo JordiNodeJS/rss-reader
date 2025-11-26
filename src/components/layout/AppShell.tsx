@@ -389,7 +389,7 @@ const DEFAULT_FEEDS = ORGANIZED_FEEDS.flatMap((category) =>
   (category.sources || []).flatMap((source) =>
     (source.sections || []).map((section) => ({
       name:
-        source.sections.length > 1
+        (source.sections || []).length > 1
           ? `${source.name} - ${section.name}`
           : source.name,
       url: section.url,
@@ -516,10 +516,10 @@ function SidebarContent({
                               {category.category}
                             </SelectLabel>
                             {(category.sources || []).map((source) =>
-                              source.sections.length === 1 ? (
+                              (source.sections || []).length === 1 ? (
                                 <SelectItem
-                                  key={source.sections[0].url}
-                                  value={source.sections[0].url}
+                                  key={source.sections?.[0]?.url}
+                                  value={source.sections?.[0]?.url || ""}
                                 >
                                   {source.name}
                                 </SelectItem>
@@ -759,8 +759,21 @@ export function AppShell({ children, feedState }: AppShellProps) {
     isLoading,
   } = feedState;
   const [menuTop, setMenuTop] = useState<number | null>(null);
+  // Default to 256px at render-time so server and initial client render match.
+  // Read from localStorage in a client-only effect to avoid hydration mismatches.
+  const [sidebarWidth, setSidebarWidth] = useState<number>(256);
+  const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
+    // On mount, load persisted value from localStorage (client-only).
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sidebar-width");
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!Number.isNaN(parsed)) setSidebarWidth(parsed);
+      }
+    }
+
     const computeTop = () => {
       const rss = document.getElementById("rss-icon-container");
       if (rss) {
@@ -799,12 +812,55 @@ export function AppShell({ children, feedState }: AppShellProps) {
     };
   }, []);
 
+  // Resize handler
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = e.clientX;
+      // Constrain width between 200px and 600px
+      const constrainedWidth = Math.min(Math.max(newWidth, 200), 600);
+      setSidebarWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      // Save to localStorage
+      localStorage.setItem("sidebar-width", sidebarWidth.toString());
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    // Add cursor style to body during resize
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing, sidebarWidth]);
+
+  const handleResizeStart = () => {
+    setIsResizing(true);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       <BrandingBanner />
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:block w-64 min-w-[256px] max-w-[256px] border-r bg-muted/10 h-full overflow-hidden relative group">
+        <aside
+          className="hidden md:block border-r bg-muted/10 h-full overflow-hidden relative group"
+          style={{
+            width: `${sidebarWidth}px`,
+            minWidth: `${sidebarWidth}px`,
+            maxWidth: `${sidebarWidth}px`,
+          }}
+        >
           <SidebarContent
             feeds={feeds}
             selectedFeedId={selectedFeedId}
@@ -816,12 +872,15 @@ export function AppShell({ children, feedState }: AppShellProps) {
             isLoading={isLoading}
           />
           {/* Resize Indicator */}
-          <div 
-            className="absolute right-0 top-0 h-full w-1 cursor-ew-resize z-10 flex items-center justify-center transition-all duration-200"
+          <div
+            className="absolute right-0 top-0 h-full w-1 cursor-ew-resize z-10 flex items-center justify-center transition-all duration-200 hover:w-2"
             aria-label="Resize sidebar"
+            onMouseDown={handleResizeStart}
+            role="separator"
+            aria-orientation="vertical"
           >
             {/* Visible indicator line */}
-            <div className="h-12 w-1 rounded-full bg-primary/20 group-hover:bg-primary/40 group-hover:h-16 transition-all duration-200 shadow-sm" />
+            <div className="h-12 w-1 rounded-full bg-primary/20 group-hover:bg-primary/40 group-hover:h-16 transition-all duration-200 shadow-sm pointer-events-none" />
           </div>
         </aside>
 
