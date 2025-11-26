@@ -64,6 +64,7 @@ import { toast } from "sonner";
 interface AppShellProps {
   children: React.ReactNode;
   feedState: ReturnType<typeof useFeeds>;
+  initialSidebarWidth?: number;
 }
 
 // Estructura de feeds organizada por medio y secciones
@@ -747,7 +748,11 @@ function SidebarContent({
 import { BrandingBanner } from "@/components/BrandingBanner";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 
-export function AppShell({ children, feedState }: AppShellProps) {
+export function AppShell({
+  children,
+  feedState,
+  initialSidebarWidth,
+}: AppShellProps) {
   const {
     feeds,
     addNewFeed,
@@ -761,16 +766,27 @@ export function AppShell({ children, feedState }: AppShellProps) {
   const [menuTop, setMenuTop] = useState<number | null>(null);
   // Default to 256px at render-time so server and initial client render match.
   // Read from localStorage in a client-only effect to avoid hydration mismatches.
-  const [sidebarWidth, setSidebarWidth] = useState<number>(256);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(
+    () => initialSidebarWidth ?? 256
+  );
   const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
-    // On mount, load persisted value from localStorage (client-only).
+    // On mount, read cookie first (server uses cookie to render initial width),
+    // fall back to localStorage if cookie is not present.
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("sidebar-width");
-      if (saved) {
-        const parsed = parseInt(saved, 10);
-        if (!Number.isNaN(parsed)) setSidebarWidth(parsed);
+      const cookieMatch = document.cookie.match(
+        /(^|;)\s*sidebar-width=([^;]+)/
+      );
+      const cookieValue = cookieMatch ? parseInt(cookieMatch[2], 10) : NaN;
+      if (!Number.isNaN(cookieValue)) {
+        setSidebarWidth(Math.min(Math.max(cookieValue, 200), 600));
+      } else {
+        const saved = localStorage.getItem("sidebar-width");
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!Number.isNaN(parsed)) setSidebarWidth(parsed);
+        }
       }
     }
 
@@ -827,6 +843,14 @@ export function AppShell({ children, feedState }: AppShellProps) {
       setIsResizing(false);
       // Save to localStorage
       localStorage.setItem("sidebar-width", sidebarWidth.toString());
+      // Also persist via cookie so server can render the same width on first paint
+      try {
+        document.cookie = `sidebar-width=${sidebarWidth}; path=/; max-age=${
+          60 * 60 * 24 * 365
+        }; SameSite=Lax`;
+      } catch (e) {
+        /* ignore cookie write failures */
+      }
     };
 
     document.addEventListener("mousemove", handleMouseMove);

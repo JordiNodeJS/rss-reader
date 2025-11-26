@@ -2,10 +2,10 @@
 > rss-reader-antigravity@0.1.0 dev G:\DEV\tmp\rss-reader-antigravity
 > next dev
 
- ⚠ Port 3000 is in use by process 33468, using available port 3001 instead.
+ ⚠ Port 3000 is in use by process 19876, using available port 3002 instead.
    ▲ Next.js 16.0.3 (Turbopack)
-   - Local:         http://localhost:3001
-   - Network:       http://192.168.0.24:3001
+   - Local:         http://localhost:3002
+   - Network:       http://192.168.0.24:3002
 
  ✓ Starting...
  ⨯ Unable to acquire lock at G:\DEV\tmp\rss-reader-antigravity\.next\dev\lock, is another instance of next dev running?
