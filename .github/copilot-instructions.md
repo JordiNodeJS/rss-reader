@@ -1,112 +1,57 @@
-<!-- Copilot / AI agent instructions for rss-reader-antigravity -->
+# Copilot / AI agent quick instructions
 
-# Quick context
+Summary: Next.js 16 App Router + React 19 offline RSS reader. Client persists data in IndexedDB; server exposes `/api/rss` and `/api/scrape` for feed parsing and article scraping. Use the Next.js / Chrome DevTools MCP for runtime debugging and scraping validation.
 
-- Root framework: Next.js (App Router, Next.js 16+) + React 19.
-- Purpose: Minimal offline-capable RSS reader. Client persists feeds & articles in IndexedDB; server provides two APIs:
-  - `/api/rss?url=` parses RSS feeds (uses `rss-parser`).
-    - `/api/scrape?url=` scrapes pages with server-side scraping (Readability/Cheerio) + `sanitize-html` + `sharp` for images; use the Next.js / Chrome DevTools MCP for runtime debugging and scraping validation.
+Essentials:
 
-# Important files to inspect
+- Key files:
 
-- `src/app/page.tsx` — main client page; mounts `AppShell` and the article UI.
-- `src/components/layout/AppShell.tsx` — sidebar, feed management, and add feed UI.
-- `src/components/articles/ArticleList.tsx` / `ArticleView.tsx` — list/reader UI; scraping & reading flows.
-- `src/hooks/useFeeds.ts` — central client-side state & actions (add feed, remove feed, scrape article) using `lib/db`.
-- `src/lib/db.ts` — IndexedDB wrappers and schemas for `Feed` and `Article`.
-- `src/app/api/rss/route.ts` — server RSS parsing proxy (rss-parser).
-  -- `src/app/api/scrape/route.ts` — server-side scraper, image optimization (sharp) and HTML sanitization.
+  - `src/hooks/useFeeds.ts` — client actions for feeds & scraping; central to UI flows.
+  - `src/lib/db.ts` — IndexedDB helpers, types, `DB_VERSION`, and migration logic. Use these functions; do not access IndexedDB directly elsewhere.
+  - `src/app/api/scrape/route.ts` — server-side scraping (Cheerio, Readability), sanitization (`sanitize-html`) and image processing (`sharp`). Changes here must be security-reviewed. Validate runtime scraping workflows using the Next.js / Chrome DevTools MCP.
+  - `src/app/api/rss/route.ts` — server-side RSS parsing proxy (rss-parser).
+  - `src/components/layout/AppShell.tsx` — default feeds; UI entry points like `DEFAULT_FEEDS`.
 
-# Quick start (dev machine recommendations)
+- Quick commands:
+- Install: `pnpm install`
+- Dev: `pnpm dev`
+- Debugging / runtime checks: use Next.js MCP / Chrome DevTools MCP (`.vscode/mcp.json`) to inspect server-side scraping and runtime logs (see Next.js MCP docs).
+- Build: `pnpm build`
+- Lint: `pnpm lint`
 
-1. Install deps:
-   - pnpm (recommended), npm or bun is fine. Example:
-     ```bash
-     pnpm install
-     ```
-2. Use the Next.js / Chrome DevTools Model Context Protocol (MCP) to validate and debug server-side scraping routines (avoid local Playwright installs when debugging).
-3. Run dev server:
-   ```bash
-   pnpm dev
-   # or npm run dev
-   ```
+- Patterns & constraints:
+- Server vs Client: Anything that uses Node or native modules (e.g., `sharp`) must live under `src/app/api/*` (server side). Use the `use client` directive only in client components. Use the Next.js MCP and browser devtools to validate server-side scraping flows rather than requiring local headless browser installs.
+- IndexedDB: Use `src/lib/db.ts` helpers—do not read IDB directly. When modifying schema, bump `DB_VERSION` and implement upgrade logic.
+- Scraping & Security: `scrape/route.ts` sanitizes HTML. Avoid changing allowed tags or attributes without tests and a security review—sanitization changes increase XSS risk.
+- Images: Scraper builds `imageMap` with base64 WebP in `scrapedContent`; maintain original URL fallback.
 
-Notes: `sharp` is a native module — if install errors occur on Windows, ensure a supported Node version (current LTS) and run `npm rebuild sharp` or follow platform instructions.
+- Debug & testing:
+- Use the Next.js MCP / Chrome DevTools MCP integration to verify routes, server-side rendering, and to collect runtime logs. Check server logs for stack traces and any thrown errors.
+- Inspect API endpoints with `curl`:
+  - `curl "http://localhost:3000/api/rss?url=https://example.com/feed"`
+  - `curl "http://localhost:3000/api/scrape?url=https://example.com/article"`
+- Windows: `sharp` is native. If install fails, run `npm rebuild sharp` or ensure Node LTS is used.
 
-<!-- Copilot / AI agent instructions for rss-reader-antigravity -->
+CI & deployment:
 
-# Summary
+- CI must support native modules (e.g., `sharp`) and provide any required headless browsers in the CI environment if integration/acceptance tests rely on them (not required for MCP-based local debugging).
+- Serverless platforms like Vercel may block headless browsers—prefer MCP testing, self-hosted scrapers, or runtime fallbacks.
 
-Minimal, offline-capable RSS reader built with Next.js (App Router, Next 16+) + React 19.
-Client persists feeds & articles in IndexedDB; the server exposes two helper APIs:
+What to change and where:
 
-- `/api/rss?url=` — server-side RSS parsing (uses `rss-parser`) to avoid CORS and parser differences.
-- `/api/scrape?url=` — server-side scraping using `cheerio` + `sanitize-html` and image processing with `sharp`.
+- Add default feeds: update `DEFAULT_FEEDS` in `src/components/layout/AppShell.tsx`.
+- Tweak scraping selectors: update `src/app/api/scrape/route.ts` and sanitize rules if needed.
+- DB migrations: bump `DB_VERSION` in `src/lib/db.ts` and implement migrator to convert old records.
 
-# Quick start (commands)
+Safety and review points:
 
-```bash
-pnpm install
-pnpm dev
-# Build: pnpm build
-# Lint: pnpm lint
-```
+- Scraped/sanitized HTML is rendered with `dangerouslySetInnerHTML` in `src/components/articles/ArticleView.tsx` — preserve `sanitize-html` config and add tests for any changes.
+- Avoid adding headless browser references or usage in client files; scraping is server-side.
 
-Windows note: `sharp` is native — if install fails run `npm rebuild sharp` and use a supported Node LTS.
+Where to look next:
 
-# Key files to read first
+- `src/hooks/useFeeds.ts` — core UI flow and persistence.
+- `src/components/articles/ArticleView.tsx` — rendering scraped HTML.
+- `src/app/api/scrape/route.ts` — primary place for scraping logic and images.
 
-- `src/app/page.tsx` — app entry and top-level layout.
-- `src/components/layout/AppShell.tsx` — sidebar, feed list, `DEFAULT_FEEDS` presets.
-- `src/components/BrandingBanner.tsx` — header with status badge and theme toggle (scroll behavior).
-- `src/hooks/useFeeds.ts` — client feed API, persistence calls to `src/lib/db.ts` and calls to server APIs.
-- `src/lib/db.ts` — IndexedDB schema, `DB_VERSION`, and helper functions (use these — do not access IDB directly).
-  -- `src/app/api/scrape/route.ts` — server-side scraping flow, `imageMap` base64 conversion, sanitization rules.
-- `src/app/api/rss/route.ts` — RSS parsing proxy.
-
-# Architecture & patterns (concise)
-
-- Client-only UI/components live under `src/app` / `src/components` and use `"use client"` where needed.
-- Persisted data model: `Feed` and `Article` typed in `src/lib/db.ts`. Articles use `guid` as a uniqueness key.
-- Server responsibilities: heavy lifting that needs Node APIs or avoids CORS (RSS parsing, scraping, image processing).
-- Security: scraped HTML is sanitized and stored in `Article.scrapedContent` and later rendered with `dangerouslySetInnerHTML` — treat sanitization carefully.
-- Styling: Tailwind utility classes + a `cn` helper in `src/lib/utils.ts` are used for conditional classnames.
-
-# Common developer tasks & where to make changes
-
-- Add a default feed shown in the UI: edit `DEFAULT_FEEDS` in `src/components/layout/AppShell.tsx`.
-- Add / tune scraping selectors or sanitization: edit `src/app/api/scrape/route.ts` (keep `cheerio` selectors minimal and update allowed tags in `sanitize-html`).
-- Change offline DB schema: bump `DB_VERSION` in `src/lib/db.ts` and implement upgrade logic there.
-- Image handling: `src/app/api/scrape/route.ts` builds an `imageMap` that converts images to base64 webp; maintain a fallback to original URLs.
-
-# Debugging & run-time checks
-
--- If scraping fails locally, use the Next.js / Chrome DevTools MCP to inspect runtime and server logs; verify server logs for stack traces.
-
-- Use `curl` or browser devtools to inspect responses from `/api/scrape?url=...` and `/api/rss?url=...` (the routes return `{ error, details }` on failure).
-  -- Server-side scraping errors surface in server logs; check the dev server terminal for stack traces.
-
-# CI / deployment notes
-
--- CI must provide native build support for `sharp`. If your CI needs to run headless browser-based scraping tests, install and configure headless browsers or use dedicated test runners; otherwise prefer MCP-based validation.
-
-- Serverless platforms (Vercel) may restrict headless browsers — check `src/app/api/scrape/route.ts` for its runtime checks and error guidance and prefer MCP or hosted scraping services.
-
-# Quick examples
-
-- Add a feed preset: edit `DEFAULT_FEEDS` in `src/components/layout/AppShell.tsx`.
-- Run a scrape locally: start dev server then:
-  `curl "http://localhost:3000/api/scrape?url=https://example.com/article"`
-
-# Safety & review points for AI agents
-
-- Always preserve or surface sanitization rules when modifying `scrape/route.ts` — any change here affects XSS risk.
-- When touching `db.ts`, keep migration logic and `DB_VERSION` changes explicit and backward-compatible.
-
-# Where to look next (developer orientation)
-
-- `src/hooks/useFeeds.ts` — central place connecting UI actions to persistence and server APIs.
-- `src/components/articles/ArticleView.tsx` — how stored HTML is rendered to the user.
-- `src/components/BrandingBanner.tsx` — example of polished UI interactions (scroll-driven state + transitions).
-
-If you want, I can shorten any section, add command snippets for CI, or expand migration examples (DB upgrade code sample). Please tell me which area to expand.
+If you want, I can replace the existing `.github/copilot-instructions.md` with this shorter version, or integrate parts of the original document into this condensed format—tell me your preference.
