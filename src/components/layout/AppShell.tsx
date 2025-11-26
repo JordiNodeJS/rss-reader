@@ -24,6 +24,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useFeeds } from "@/hooks/useFeeds";
+import { getDBEvents, clearDBEvents } from "@/lib/db-monitor";
 import {
   Dialog,
   DialogContent,
@@ -56,10 +57,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  clearTranslationModelCache,
-  getTranslationCacheSize,
-} from "@/lib/translation";
+import { clearTranslationModelCache } from "@/lib/translation";
 import { toast } from "sonner";
 
 interface AppShellProps {
@@ -155,17 +153,17 @@ const ORGANIZED_FEEDS: FeedCategory[] = [
         name: "El Diario",
         sections: [
           { name: "Portada", url: "https://www.eldiario.es/rss/" },
-          { name: "Política", url: "https://www.eldiario.es/politica/rss/" },
-          { name: "Economía", url: "https://www.eldiario.es/economia/rss/" },
-          { name: "Sociedad", url: "https://www.eldiario.es/sociedad/rss/" },
+          { name: "Política", url: "https://www.eldiario.es/rss/politica/" },
+          { name: "Economía", url: "https://www.eldiario.es/rss/economia/" },
+          { name: "Sociedad", url: "https://www.eldiario.es/rss/sociedad/" },
           {
             name: "Internacional",
-            url: "https://www.eldiario.es/internacional/rss/",
+            url: "https://www.eldiario.es/rss/internacional/",
           },
-          { name: "Cultura", url: "https://www.eldiario.es/cultura/rss/" },
+          { name: "Cultura", url: "https://www.eldiario.es/rss/cultura/" },
           {
             name: "Tecnología",
-            url: "https://www.eldiario.es/tecnologia/rss/",
+            url: "https://www.eldiario.es/rss/tecnologia/",
           },
         ],
       },
@@ -215,7 +213,10 @@ const ORGANIZED_FEEDS: FeedCategory[] = [
       {
         name: "RTVE Noticias",
         sections: [
-          { name: "Portada", url: "https://www.rtve.es/noticias/rss.xml" },
+          {
+            name: "Portada",
+            url: "https://www.rtve.es/rss/temas_noticias.xml",
+          },
         ],
       },
     ],
@@ -494,7 +495,7 @@ function SidebarContent({
                   <Plus className="w-4 h-4" /> Add Feed
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+                <DialogContent id="dialog-add-feed">
                 <DialogHeader>
                   <DialogTitle>Add New Feed</DialogTitle>
                   <VisuallyHidden>
@@ -511,7 +512,7 @@ function SidebarContent({
                       <SelectTrigger>
                         <SelectValue placeholder="Select a feed source" />
                       </SelectTrigger>
-                      <SelectContent className="max-h-80">
+                                <SelectContent id="select-addfeed-presets" className="max-h-80">
                         {ORGANIZED_FEEDS.map((category) => (
                           <SelectGroup key={category.category}>
                             <SelectLabel className="font-bold text-primary">
@@ -644,7 +645,7 @@ function SidebarContent({
                   <span className="truncate">Limpiar Modelo de Traducción</span>
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent id="alert-clear-translation-cache">
                 <AlertDialogHeader>
                   <AlertDialogTitle>
                     ¿Limpiar caché del modelo de traducción?
@@ -675,6 +676,46 @@ function SidebarContent({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            {/* View DB Events (dev/debug) */}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full max-w-full gap-2"
+                  size="sm"
+                >
+                  <span className="truncate">View DB Events</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent id="dialog-db-events">
+                <DialogHeader>
+                  <DialogTitle>IndexedDB Event Log</DialogTitle>
+                  <DialogDescription>
+                    Shows recent IndexedDB events detected by the monitor.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mt-2">
+                  <pre className="whitespace-pre-wrap max-h-60 overflow-auto text-xs bg-muted p-2 rounded">
+                    {JSON.stringify(getDBEvents(), null, 2)}
+                  </pre>
+                </div>
+                <div className="mt-4 flex gap-2 justify-end">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      try {
+                        clearDBEvents();
+                        toast.success("DB events cleared");
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }}
+                  >
+                    Clear Log
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Clear Cache Button */}
             <AlertDialog>
@@ -688,7 +729,7 @@ function SidebarContent({
                   <span className="truncate">Clear Cache</span>
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent id="alert-clear-cache">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Clear all cached data?</AlertDialogTitle>
                   <AlertDialogDescription>
@@ -716,7 +757,7 @@ function SidebarContent({
         open={!!editingFeed}
         onOpenChange={(open) => !open && setEditingFeed(null)}
       >
-        <DialogContent>
+        <DialogContent id="dialog-edit-feed">
           <DialogHeader>
             <DialogTitle>Edit Feed</DialogTitle>
             <VisuallyHidden>
@@ -749,6 +790,7 @@ function SidebarContent({
 
 import { BrandingBanner } from "@/components/BrandingBanner";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { startDBWatch, stopDBWatch } from "@/lib/db-monitor";
 
 export function AppShell({
   children,
@@ -774,7 +816,26 @@ export function AppShell({
   const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
-    // On mount, read cookie first (server uses cookie to render initial width),
+    // Start an indexedDB monitor on client to detect deletions and log them
+    startDBWatch({
+      dbNames: ["rss-reader-db"],
+      onEvent: (e) => {
+        console.warn("DB Monitor Event:", e);
+        // Notify user in the UI (non-intrusive) — devs can see console and localStorage logs
+        if (e.type === "deleted") {
+          try {
+            toast.warning(`IndexedDB ${e.name} removed`);
+          } catch {}
+        }
+      },
+    });
+    return () => stopDBWatch();
+  }, []);
+
+  // On mount, read cookie first (server uses cookie to render initial width),
+  // fall back to localStorage if cookie is not present. Wrap this logic in a
+  // client-only effect so we don't run DOM APIs during render.
+  useEffect(() => {
     // fall back to localStorage if cookie is not present.
     if (typeof window !== "undefined") {
       const cookieMatch = document.cookie.match(
@@ -782,12 +843,16 @@ export function AppShell({
       );
       const cookieValue = cookieMatch ? parseInt(cookieMatch[2], 10) : NaN;
       if (!Number.isNaN(cookieValue)) {
-        setSidebarWidth(Math.min(Math.max(cookieValue, 200), 600));
+        // Use requestAnimationFrame to avoid synchronous setState within effect
+        requestAnimationFrame(() =>
+          setSidebarWidth(Math.min(Math.max(cookieValue, 200), 600))
+        );
       } else {
         const saved = localStorage.getItem("sidebar-width");
         if (saved) {
           const parsed = parseInt(saved, 10);
-          if (!Number.isNaN(parsed)) setSidebarWidth(parsed);
+          if (!Number.isNaN(parsed))
+            requestAnimationFrame(() => setSidebarWidth(parsed));
         }
       }
     }
@@ -852,7 +917,7 @@ export function AppShell({
         document.cookie = `sidebar-width=${sidebarWidth}; path=/; max-age=${
           60 * 60 * 24 * 365
         }; SameSite=Lax`;
-      } catch (e) {
+      } catch {
         /* ignore cookie write failures */
       }
     };
@@ -932,7 +997,7 @@ export function AppShell({
               <Menu className="w-5 h-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent
+          <SheetContent id="sheet-mobile-nav"
             side="left"
             className="p-0 w-64 flex flex-col overflow-hidden"
           >

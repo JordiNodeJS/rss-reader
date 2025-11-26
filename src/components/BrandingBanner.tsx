@@ -8,7 +8,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ThemeCarousel } from "@/components/ThemeCarousel";
 import { cn } from "@/lib/utils";
-import { useActivityStatus, ACTIVITY_CONFIG } from "@/contexts/ActivityStatusContext";
+import {
+  useActivityStatus,
+  ACTIVITY_CONFIG,
+} from "@/contexts/ActivityStatusContext";
 
 export function BrandingBanner() {
   const { activity } = useActivityStatus();
@@ -24,34 +27,46 @@ export function BrandingBanner() {
   // Mouse Parallax Effect - optimized with quickSetter
   useEffect(() => {
     if (!containerRef.current) return;
-    
+
     // Use GSAP quickSetter for better performance
-    const setBgX = bgRef.current ? gsap.quickSetter(bgRef.current, "x", "px") : null;
-    const setBgY = bgRef.current ? gsap.quickSetter(bgRef.current, "y", "px") : null;
-    const setContentX = contentRef.current ? gsap.quickSetter(contentRef.current, "x", "px") : null;
-    const setContentY = contentRef.current ? gsap.quickSetter(contentRef.current, "y", "px") : null;
-    const setIconRotY = iconRef.current ? gsap.quickSetter(iconRef.current, "rotationY", "deg") : null;
-    const setIconRotX = iconRef.current ? gsap.quickSetter(iconRef.current, "rotationX", "deg") : null;
-    
+    const setBgX = bgRef.current
+      ? gsap.quickSetter(bgRef.current, "x", "px")
+      : null;
+    const setBgY = bgRef.current
+      ? gsap.quickSetter(bgRef.current, "y", "px")
+      : null;
+    const setContentX = contentRef.current
+      ? gsap.quickSetter(contentRef.current, "x", "px")
+      : null;
+    const setContentY = contentRef.current
+      ? gsap.quickSetter(contentRef.current, "y", "px")
+      : null;
+    const setIconRotY = iconRef.current
+      ? gsap.quickSetter(iconRef.current, "rotationY", "deg")
+      : null;
+    const setIconRotX = iconRef.current
+      ? gsap.quickSetter(iconRef.current, "rotationX", "deg")
+      : null;
+
     let rafId: number | null = null;
     let lastX = 0;
     let lastY = 0;
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       if (rafId) return;
-      
+
       rafId = requestAnimationFrame(() => {
         const { clientX, clientY } = e;
         const { innerWidth, innerHeight } = window;
-        
+
         // Normalized position with smoothing
         const targetX = (clientX / innerWidth - 0.5) * 2;
         const targetY = (clientY / innerHeight - 0.5) * 2;
-        
+
         // Lerp for smoother transitions
         lastX += (targetX - lastX) * 0.1;
         lastY += (targetY - lastY) * 0.1;
-        
+
         // Apply transforms directly (no tweening)
         if (setBgX && setBgY) {
           setBgX(lastX * -20);
@@ -65,11 +80,11 @@ export function BrandingBanner() {
           setIconRotY(lastX * 15);
           setIconRotX(-lastY * 15);
         }
-        
+
         rafId = null;
       });
     };
-    
+
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
@@ -90,20 +105,28 @@ export function BrandingBanner() {
     // Split text into individual letter spans
     const rssText = "RSS";
     const readerText = "READER";
-    
+
     const rssSpan = title.querySelector(".title-rss");
     const readerSpan = title.querySelector(".title-reader");
-    
+
     if (rssSpan && readerSpan) {
       // Create letter spans for RSS
-      rssSpan.innerHTML = rssText.split("").map((letter, i) => 
-        `<span class="letter" style="display: inline-block;">${letter}</span>`
-      ).join("");
-      
+      rssSpan.innerHTML = rssText
+        .split("")
+        .map(
+          (letter) =>
+            `<span class="letter" style="display: inline-block;">${letter}</span>`
+        )
+        .join("");
+
       // Create letter spans for READER
-      readerSpan.innerHTML = readerText.split("").map((letter, i) => 
-        `<span class="letter" style="display: inline-block;">${letter}</span>`
-      ).join("");
+      readerSpan.innerHTML = readerText
+        .split("")
+        .map(
+          (letter) =>
+            `<span class="letter" style="display: inline-block;">${letter}</span>`
+        )
+        .join("");
     }
 
     const allLetters = title.querySelectorAll(".letter");
@@ -111,61 +134,69 @@ export function BrandingBanner() {
     // Initial states
     gsap.set(bg, { scale: 1.15, opacity: 0 });
     gsap.set(containerRef.current, { perspective: 1200 });
-    gsap.set(allLetters, { 
+    gsap.set(allLetters, {
       opacity: 0,
       y: -100,
       rotationX: -90,
       rotationY: () => gsap.utils.random(-45, 45),
       scale: 0.3,
-      transformOrigin: "50% 50%"
+      transformOrigin: "50% 50%",
     });
-    gsap.set(icon, { 
-      scale: 0, 
+    gsap.set(icon, {
+      scale: 0,
       rotation: -360,
-      opacity: 0 
+      opacity: 0,
     });
 
     const tl = gsap.timeline();
-    
+
     // Background entrance
-    tl.to(bg, { 
-      scale: 1.1, 
-      opacity: 1, 
-      duration: 0.6, 
-      ease: "power2.out" 
-    })
-    // Icon with bounce
-    .to(icon, { 
-      scale: 1, 
-      rotation: 0,
-      opacity: 1, 
-      duration: 0.8,
-      ease: "back.out(2)"
-    }, "-=0.3")
-    // Letters with stagger - cada letra entra con efecto diferente
-    .to(allLetters, {
+    tl.to(bg, {
+      scale: 1.1,
       opacity: 1,
-      y: 0,
-      rotationX: 0,
-      rotationY: 0,
-      scale: 1,
       duration: 0.6,
-      ease: "back.out(1.7)",
-      stagger: {
-        amount: 0.5,
-        from: "start",
-        ease: "power2.inOut"
-      }
-    }, "-=0.4");
+      ease: "power2.out",
+    })
+      // Icon with bounce
+      .to(
+        icon,
+        {
+          scale: 1,
+          rotation: 0,
+          opacity: 1,
+          duration: 0.8,
+          ease: "back.out(2)",
+        },
+        "-=0.3"
+      )
+      // Letters with stagger - cada letra entra con efecto diferente
+      .to(
+        allLetters,
+        {
+          opacity: 1,
+          y: 0,
+          rotationX: 0,
+          rotationY: 0,
+          scale: 1,
+          duration: 0.6,
+          ease: "back.out(1.7)",
+          stagger: {
+            amount: 0.5,
+            from: "start",
+            ease: "power2.inOut",
+          },
+        },
+        "-=0.4"
+      );
 
     // Subtle breathing background
-    gsap.to(bg, { 
-      scale: 1.12, 
-      duration: 6, 
-      repeat: -1, 
-      yoyo: true, 
-      ease: "sine.inOut", 
-      delay: 1
+    gsap.to(bg, {
+      scale: 1.12,
+      duration: 6,
+      repeat: -1,
+      yoyo: true,
+      ease: "sine.inOut",
+      delay: 1,
     });
 
     // Hover effect on letters
@@ -175,16 +206,16 @@ export function BrandingBanner() {
           scale: 1.3,
           color: "hsl(var(--primary))",
           duration: 0.3,
-          ease: "back.out(2)"
+          ease: "back.out(2)",
         });
       });
-      
+
       letter.addEventListener("mouseleave", () => {
         gsap.to(letter, {
           scale: 1,
           color: "",
           duration: 0.3,
-          ease: "power2.out"
+          ease: "power2.out",
         });
       });
     });
@@ -199,9 +230,9 @@ export function BrandingBanner() {
       <div
         ref={bgRef}
         className="absolute inset-[-20px] w-[calc(100%+40px)] h-[calc(100%+40px)] bg-cover bg-center bg-no-repeat"
-        style={{ 
+        style={{
           backgroundImage: "url(/banner-image.png)",
-          willChange: "transform, opacity"
+          willChange: "transform, opacity",
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/40" />
@@ -213,8 +244,8 @@ export function BrandingBanner() {
         <ThemeCarousel isPaused={false} />
       </div>
 
-      <div 
-        ref={contentRef} 
+      <div
+        ref={contentRef}
         className="container mx-auto px-4 h-full flex items-start pt-4 justify-between relative z-10"
         style={{ willChange: "transform" }}
       >
@@ -233,8 +264,18 @@ export function BrandingBanner() {
               className="font-black tracking-tighter leading-none text-foreground drop-shadow-sm text-3xl md:text-5xl"
               style={{ transformStyle: "preserve-3d" }}
             >
-              <span className="title-rss inline-block origin-bottom" style={{ willChange: "transform, opacity" }}>RSS</span>{" "}
-              <span className="title-reader text-primary inline-block origin-bottom" style={{ willChange: "transform, opacity" }}>READER</span>
+              <span
+                className="title-rss inline-block origin-bottom"
+                style={{ willChange: "transform, opacity" }}
+              >
+                RSS
+              </span>{" "}
+              <span
+                className="title-reader text-primary inline-block origin-bottom"
+                style={{ willChange: "transform, opacity" }}
+              >
+                READER
+              </span>
             </h1>
             <span className="text-xs md:text-sm font-bold tracking-[0.2em] uppercase text-muted-foreground mt-1">
               Level Up Your Feed
@@ -264,7 +305,11 @@ export function BrandingBanner() {
             </div>
           </div>
           <Link href="/help" title="Centro de Ayuda">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 h-9 w-9">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full hover:bg-primary/10 h-9 w-9"
+            >
               <HelpCircle className="text-muted-foreground hover:text-primary transition-colors h-5 w-5" />
             </Button>
           </Link>

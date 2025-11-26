@@ -161,7 +161,9 @@ export function ArticleList({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [articleToSave, setArticleToSave] = useState<Article | null>(null);
   const [isCheckingLanguage, setIsCheckingLanguage] = useState(false);
-  const [articleIsEnglish, setArticleIsEnglish] = useState(false);
+  // Local state intentionally removed for articleIsEnglish because we only
+  // needed it during check time — using the dialog open/close and
+  // articleToSave controls to manage the flow.
 
   // Handle save button click - check language and show dialog if English
   const handleSaveClick = async (article: Article) => {
@@ -171,7 +173,8 @@ export function ArticleList({
     setArticleToSave(article);
 
     const isEnglish = await isArticleInEnglish(article);
-    setArticleIsEnglish(isEnglish);
+    // No longer storing isEnglish in state — use dialog and articleToSave to
+    // decide save/translation flow.
     setIsCheckingLanguage(false);
 
     if (isEnglish) {
@@ -229,14 +232,12 @@ export function ArticleList({
           className="flex flex-col h-full hover:shadow-lg transition-all duration-200 border-muted/60 overflow-hidden group"
         >
           <div className="aspect-video w-full overflow-hidden bg-muted relative">
-            <img
+            <Image
               src={article.image || "/article-placeholder.svg"}
               alt={article.title || "Article image"}
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              onError={(e) => {
-                e.currentTarget.src = "/article-placeholder.svg";
-              }}
+              fill
+              sizes="(max-width: 640px) 100vw, 33vw"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
             {article.scrapedContent && (
               <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm flex items-center gap-1">
@@ -334,7 +335,7 @@ export function ArticleList({
 
       {/* Save with Translation Dialog */}
       <AlertDialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent id="alert-save-translate">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Languages className="w-5 h-5 text-blue-500" />

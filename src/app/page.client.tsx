@@ -90,7 +90,7 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent id="select-sort-order">
                     <SelectItem value="newest">Newest first</SelectItem>
                     <SelectItem value="oldest">Oldest first</SelectItem>
                   </SelectContent>

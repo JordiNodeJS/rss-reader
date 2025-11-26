@@ -197,15 +197,49 @@ export async function GET(request: NextRequest) {
     }).catch(() => null);
 
     if (headCheck && headCheck.status === 404) {
-      return NextResponse.json(
-        {
-          error:
-            "Feed not found. The RSS feed URL may have changed or been removed.",
-          errorType: "not_found",
-          url,
-        },
-        { status: 404 }
-      );
+      // If HEAD returned 404, don't bail out immediately: try to discover
+      // common alternate feed paths (e.g. /section/rss -> /rss/section) or
+      // look for <link rel="alternate"> tags on the page that point to a
+      // valid feed URL. This helps when a pre-filled default feed URL is
+      // incorrect but a canonical feed exists at another path.
+      const discoveredFromHead = await discoverFeedUrl(url);
+      if (discoveredFromHead && discoveredFromHead !== url) {
+        try {
+          const feedCandidate = await tryParseFeed(discoveredFromHead);
+          if (feedCandidate) {
+            // Use discovered feed
+            console.log(
+              `HEAD 404: discovered alternate feed ${discoveredFromHead} for ${url}`
+            );
+            const response = NextResponse.json({
+              ...feedCandidate,
+              _meta: {
+                fetchedAt: new Date().toISOString(),
+                itemCount: feedCandidate.items?.length || 0,
+                source: new URL(discoveredFromHead).hostname,
+                requestedUrl: url,
+                usedUrl: discoveredFromHead,
+              },
+            });
+            response.headers.set("Access-Control-Allow-Origin", "*");
+            response.headers.set(
+              "Access-Control-Allow-Methods",
+              "GET, OPTIONS"
+            );
+            response.headers.set(
+              "Access-Control-Allow-Headers",
+              "Content-Type"
+            );
+            response.headers.set("Cache-Control", "public, max-age=300");
+            return response;
+          }
+        } catch {
+          // ignore and fall through to normal flow to attempt parse below
+        }
+      }
+      // If discovery didn't help, continue to parse original URL — the tryParseFeed
+      // call below will surface a proper error response. This avoids early 404
+      // responses when the server simply uses a different feed path.
     }
 
     // Some feeds might block HEAD requests, so we proceed to parse anyway
@@ -319,7 +353,7 @@ async function discoverFeedUrl(inputUrl: string): Promise<string | null> {
           try {
             const discoveredUrl = new URL(href, inputUrl).href;
             return discoveredUrl;
-          } catch (e) {
+          } catch {
             continue;
           }
         }
@@ -342,6 +376,35 @@ async function discoverFeedUrl(inputUrl: string): Promise<string | null> {
       }
     }
 
+    // Try to rewrite common '/section/rss' -> '/rss/section' patterns
+    try {
+      const parsed = new URL(inputUrl);
+      const path = parsed.pathname || "/";
+      // e.g. /cultura/rss/ -> /rss/cultura/
+      const rssSegmentRegex = /\/(.+?)\/(rss|feed)\/?$/i;
+      const match = rssSegmentRegex.exec(path);
+      if (match) {
+        const section = match[1];
+        // Build candidate as /rss/<section>/ (or /feed/<section>/)
+        const candidatePath = `/${match[2].toLowerCase()}/${section}/`;
+        const candidate = new URL(candidatePath, parsed.origin).href;
+        try {
+          const head = await fetch(candidate, {
+            method: "HEAD",
+            signal: AbortSignal.timeout(5000),
+            headers: {
+              "User-Agent": "Mozilla/5.0 (compatible; RSSReader/1.0)",
+            },
+          }).catch(() => null);
+          if (head && head.ok) return candidate;
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // ignore URL parsing issues
+    }
+
     return null;
   } catch (err) {
     console.warn("Discovery failed:", err);
@@ -353,7 +416,7 @@ async function discoverFeedUrl(inputUrl: string): Promise<string | null> {
 function getSuggestion(errorType: FeedErrorType, url: string): string {
   switch (errorType) {
     case "not_found":
-      return "Try searching for the feed URL on the website or check if they have an alternative RSS endpoint.";
+      return `Try searching for the feed URL on the website or check if they have an alternative RSS endpoint (${url}).`;
     case "invalid_xml":
       return "The feed may be temporarily broken. Try again later or contact the website.";
     case "timeout":
@@ -361,7 +424,7 @@ function getSuggestion(errorType: FeedErrorType, url: string): string {
     case "network":
       return "Check your internet connection or verify the URL is correct.";
     case "invalid_feed":
-      return "This URL may not be an RSS feed. Look for a feed icon or /rss/ path on the website.";
+      return `This URL (${url}) may not be an RSS feed. Look for a feed icon or /rss/ path on the website.`;
     default:
       return "Try again later or verify the feed URL is correct.";
   }

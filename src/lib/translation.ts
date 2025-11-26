@@ -9,6 +9,7 @@
  */
 
 // Types are declared in src/types/chrome-ai.d.ts as ambient types
+import { logDBEvent } from "@/lib/db-monitor";
 
 // ============================================
 // Types

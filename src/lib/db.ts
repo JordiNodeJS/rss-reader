@@ -77,6 +77,44 @@ export const getDB = () => {
         }
       },
     });
+    // Attach event listeners for monitoring if running in a browser
+    dbPromise.then((db) => {
+      if (typeof window !== "undefined" && db) {
+        // versionchange is fired when DB is deleted/updated elsewhere
+        db.addEventListener("versionchange", () => {
+          try {
+            // Dynamic import to avoid server-side crashes
+            import("@/lib/db-monitor").then((m) => {
+              try {
+                m.logDBEvent({
+                  type: "deleted",
+                  name: DB_NAME,
+                  message: "IDB versionchange detected on open DB (possible delete or migration)",
+                });
+              } catch (_) {}
+            });
+          } catch (e) {
+            console.warn("db: failed to import db-monitor to log versionchange", e);
+          }
+        });
+      }
+    });
+    // If openDB fails, try to log the error (client-side only)
+    dbPromise.catch((err) => {
+      if (typeof window !== "undefined") {
+        try {
+          import("./db-monitor").then((m) => {
+            try {
+              m.logDBEvent({
+                type: "error",
+                name: DB_NAME,
+                message: `openDB failed: ${((err as Error)?.message) ?? String(err)}`,
+              });
+            } catch (_) {}
+          });
+        } catch {}
+      }
+    });
   }
   return dbPromise;
 };
@@ -170,6 +208,22 @@ export const clearAllData = async () => {
   await tx.objectStore("feeds").clear();
   await tx.objectStore("articles").clear();
   await tx.done;
+  // Try to log this action to db-monitor for debugging if running in the browser
+  if (typeof window !== "undefined") {
+    try {
+      import("./db-monitor").then((m) => {
+        try {
+          m.logDBEvent({
+            type: "deleted",
+            name: DB_NAME,
+            message: "clearAllData() invoked",
+          });
+        } catch (_) {}
+      });
+    } catch {
+      // ignore dynamic import errors
+    }
+  }
 };
 
 // Update feed (e.g., custom title)
