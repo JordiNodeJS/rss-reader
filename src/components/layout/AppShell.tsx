@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import { Feed } from "@/lib/db";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
+import { MarqueeText } from "@/components/ui/marquee-text";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -591,12 +592,13 @@ function SidebarContent({
               >
                 <Button
                   variant={selectedFeedId === feed.id ? "secondary" : "ghost"}
-                  className="w-full justify-start text-sm font-normal pr-20"
+                  className="w-full justify-start text-sm font-normal pr-20 overflow-hidden"
                   onClick={() => setSelectedFeedId(feed.id!)}
                 >
-                  <span className="truncate">
-                    {feed.customTitle || feed.title}
-                  </span>
+                  <MarqueeText
+                    text={feed.customTitle || feed.title}
+                    className="flex-1 text-left"
+                  />
                 </Button>
                 <div className="absolute right-5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button
@@ -794,7 +796,9 @@ export function AppShell({
       const rss = document.getElementById("rss-icon-container");
       if (rss) {
         const rect = rss.getBoundingClientRect();
-        setMenuTop(rect.top);
+        // Position menu button below the RSS icon to avoid overlap on mobile
+        // Add the icon height plus a small gap (8px)
+        setMenuTop(rect.bottom + 8);
       }
     };
     computeTop();
