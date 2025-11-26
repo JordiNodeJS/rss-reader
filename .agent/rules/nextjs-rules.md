@@ -3,12 +3,13 @@ trigger: always_on
 ---
 
 <!-- AI agent instructions for rss-reader-antigravity -->
+
 # Quick context
 
 - Root framework: Next.js (App Router, Next.js 16+) + React 19.
 - Purpose: Minimal offline-capable RSS reader. Client persists feeds & articles in IndexedDB; server provides two APIs:
   - `/api/rss?url=` parses RSS feeds (uses `rss-parser`).
-  - `/api/scrape?url=` scrapes pages with Playwright + sanitize-html + sharp.
+    - `/api/scrape?url=` scrapes pages with server-side scraping (Readability/Cheerio) + `sanitize-html` + `sharp` for images; use the Next.js / Chrome DevTools MCP for runtime debugging and scraping validation.
 
 # Important files to inspect
 
@@ -18,7 +19,7 @@ trigger: always_on
 - `src/hooks/useFeeds.ts` — central client-side state & actions (add feed, remove feed, scrape article) using `lib/db`.
 - `src/lib/db.ts` — IndexedDB wrappers and schemas for `Feed` and `Article`.
 - `src/app/api/rss/route.ts` — server RSS parsing proxy (rss-parser).
-- `src/app/api/scrape/route.ts` — Playwright scraper, image optimization (sharp) and HTML sanitization.
+  -- `src/app/api/scrape/route.ts` — server-side scraper, image optimization (sharp) and HTML sanitization.
 
 # Quick start (dev machine recommendations)
 
@@ -27,15 +28,12 @@ trigger: always_on
      ```bash
      pnpm install
      ```
-2. Install Playwright browsers (required by server scraper):
-     ```bash
-     npx playwright install chromium
-     ```
+2. Use the Next.js / Chrome DevTools Model Context Protocol (MCP) to validate and debug server-side scraping routines (avoid local Playwright installs when debugging).
 3. Run dev server:
-     ```bash
-     pnpm dev
-     # or npm run dev
-     ```
+   ```bash
+   pnpm dev
+   # or npm run dev
+   ```
 
 Notes: `sharp` is a native module — if install errors occur on Windows, ensure a supported Node version (current LTS) and run `npm rebuild sharp` or follow platform instructions.
 
@@ -47,13 +45,12 @@ Minimal, offline-capable RSS reader built with Next.js (App Router, Next 16+) + 
 Client persists feeds & articles in IndexedDB; the server exposes two helper APIs:
 
 - `/api/rss?url=` — server-side RSS parsing (uses `rss-parser`) to avoid CORS and parser differences.
-- `/api/scrape?url=` — server-side scraping using Playwright, `cheerio` + `sanitize-html`, and image processing with `sharp`.
+- `/api/scrape?url=` — server-side scraping using `cheerio` + `sanitize-html` and image processing with `sharp`.
 
 # Quick start (commands)
 
 ```bash
 pnpm install
-pnpm dlx playwright install chromium
 pnpm dev
 # Build: pnpm build
 # Lint: pnpm lint
@@ -68,7 +65,7 @@ Windows note: `sharp` is native — if install fails run `npm rebuild sharp` and
 - `src/components/BrandingBanner.tsx` — header with status badge and theme toggle (scroll behavior).
 - `src/hooks/useFeeds.ts` — client feed API, persistence calls to `src/lib/db.ts` and calls to server APIs.
 - `src/lib/db.ts` — IndexedDB schema, `DB_VERSION`, and helper functions (use these — do not access IDB directly).
-- `src/app/api/scrape/route.ts` — Playwright scraping flow, `imageMap` base64 conversion, sanitization rules.
+  -- `src/app/api/scrape/route.ts` — server-side scraping flow, `imageMap` base64 conversion, sanitization rules.
 - `src/app/api/rss/route.ts` — RSS parsing proxy.
 
 # Architecture & patterns (concise)
@@ -88,20 +85,22 @@ Windows note: `sharp` is native — if install fails run `npm rebuild sharp` and
 
 # Debugging & run-time checks
 
-- If scraping fails locally, first confirm Playwright browsers are installed: `npx playwright install chromium`.
+-- If scraping fails locally, use the Next.js / Chrome DevTools MCP to inspect runtime and server logs; verify server logs for stack traces.
+
 - Use `curl` or browser devtools to inspect responses from `/api/scrape?url=...` and `/api/rss?url=...` (the routes return `{ error, details }` on failure).
-- Playwright errors surface in server logs; check the dev server terminal for stack traces.
+  -- Server-side scraping errors surface in server logs; check the dev server terminal for stack traces.
 
 # CI / deployment notes
 
-- CI must install Playwright browsers and provide native build support for `sharp`. Add `npx playwright install chromium` to CI and ensure `sharp` native deps are available.
-- Serverless platforms (Vercel) may restrict Playwright — check `src/app/api/scrape/route.ts` for its runtime checks and error guidance.
+-- CI must provide native build support for `sharp`. If your CI needs to run headless browser-based scraping tests, install and configure headless browsers or use dedicated test runners; otherwise prefer MCP-based validation.
+
+- Serverless platforms (Vercel) may restrict headless browsers — check `src/app/api/scrape/route.ts` for its runtime checks and error guidance and prefer MCP or hosted scraping services.
 
 # Quick examples
 
 - Add a feed preset: edit `DEFAULT_FEEDS` in `src/components/layout/AppShell.tsx`.
 - Run a scrape locally: start dev server then:
-     `curl "http://localhost:3000/api/scrape?url=https://example.com/article"`
+  `curl "http://localhost:3000/api/scrape?url=https://example.com/article"`
 
 # Safety & review points for AI agents
 
