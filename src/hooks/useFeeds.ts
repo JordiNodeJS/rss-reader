@@ -12,6 +12,7 @@ import {
   getAllArticles,
   updateArticleScrapedContent,
   updateFeed,
+  getFeedByUrl,
 } from "@/lib/db";
 import { toast } from "sonner";
 import { logDBEvent } from "@/lib/db-monitor";
@@ -282,10 +283,24 @@ export function useFeeds() {
         toast.warning("Feed loaded but contains no articles yet");
       }
 
-      // 2. Save feed to DB
+      // 2. Check if feed already exists before saving
       setActivity("saving", "Saving feed to database");
       const feedTitle = customTitle || data.title || url;
       const storedFeedUrl = data._meta?.usedUrl || url;
+
+      // Check for existing feed with same URL
+      const existingFeed = await getFeedByUrl(storedFeedUrl);
+      if (existingFeed) {
+        toast.info(
+          `Feed "${
+            existingFeed.customTitle || existingFeed.title
+          }" already exists`
+        );
+        setIsLoading(false);
+        clearActivity();
+        return;
+      }
+
       const newFeed: Omit<Feed, "id"> = {
         url: storedFeedUrl,
         title: data.title || url,

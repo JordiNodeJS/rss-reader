@@ -128,7 +128,18 @@ export const getDB = () => {
 // Feed Operations
 export const addFeed = async (feed: Omit<Feed, "id">) => {
   const db = await getDB();
+  // Check if feed with same URL already exists
+  const existing = await db.getFromIndex("feeds", "by-url", feed.url);
+  if (existing) {
+    // Return existing feed's id instead of throwing ConstraintError
+    return existing.id;
+  }
   return db.add("feeds", feed);
+};
+
+export const getFeedByUrl = async (url: string): Promise<Feed | undefined> => {
+  const db = await getDB();
+  return db.getFromIndex("feeds", "by-url", url);
 };
 
 export const getAllFeeds = async () => {
