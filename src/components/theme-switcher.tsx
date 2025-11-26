@@ -137,7 +137,7 @@ export function ThemeSwitcher() {
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center justify-between gap-2 px-3 py-2 rounded-md",
+          "flex items-center justify-between gap-2 px-3 py-2 rounded-md w-full",
           "border border-border bg-background",
           "hover:border-primary/50 hover:bg-muted/30",
           "transition-colors duration-200",
@@ -145,10 +145,10 @@ export function ThemeSwitcher() {
           isOpen && "border-primary ring-1 ring-primary/20"
         )}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {/* Color preview dots */}
           {currentThemeInfo && (
-            <div className="flex gap-1">
+            <div className="flex gap-1 shrink-0">
               {currentThemeInfo.colors.map((color, index) => (
                 <div
                   key={index}
@@ -158,7 +158,7 @@ export function ThemeSwitcher() {
               ))}
             </div>
           )}
-          <span>{currentThemeInfo?.name || "Select theme"}</span>
+          <span className="truncate">{currentThemeInfo?.name || "Select theme"}</span>
         </div>
         <ChevronDown
           className={cn(

@@ -454,9 +454,9 @@ function SidebarContent({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <ScrollArea className="h-full">
-        <div className="py-4">
+    <div className="flex flex-col h-full overflow-hidden min-w-0">
+      <ScrollArea className="h-full w-full">
+        <div className="py-4 pr-8">
           <div className="px-4 mb-6">
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               {/* Square icon with rounded corners matching favicon style */}
@@ -584,52 +584,61 @@ function SidebarContent({
               Your Feeds
             </h3>
             {feeds.map((feed) => (
-              <div key={feed.id} className="group flex items-center gap-1">
+              <div
+                key={feed.id}
+                className="group relative flex items-center px-1"
+              >
                 <Button
                   variant={selectedFeedId === feed.id ? "secondary" : "ghost"}
-                  className="w-full justify-start truncate text-sm font-normal"
+                  className="w-full justify-start text-sm font-normal pr-20"
                   onClick={() => setSelectedFeedId(feed.id!)}
                 >
                   <span className="truncate">
                     {feed.customTitle || feed.title}
                   </span>
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditDialog(feed);
-                  }}
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (feed.id) removeFeed(feed.id);
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="absolute right-5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditDialog(feed);
+                    }}
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-destructive hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (feed.id) removeFeed(feed.id);
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="px-4 py-4 border-t space-y-4 mt-4 pb-6">
+          <div className="px-2 py-4 border-t space-y-4 mt-4 pb-32">
             {/* Theme Switcher */}
             <ThemeSwitcher />
 
             {/* Clear Translation Model Cache Button */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" className="w-full gap-2" size="sm">
-                  <Languages className="w-4 h-4" />
-                  Limpiar Modelo de Traducción
+                <Button
+                  variant="outline"
+                  className="w-full max-w-full gap-2 text-xs"
+                  size="sm"
+                >
+                  <Languages className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Limpiar Modelo de Traducción</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -667,9 +676,9 @@ function SidebarContent({
             {/* Clear Cache Button */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" className="w-full gap-2" size="sm">
-                  <Trash className="w-4 h-4" />
-                  Clear Cache
+                <Button variant="outline" className="w-full max-w-full gap-2" size="sm">
+                  <Trash className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Clear Cache</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -791,7 +800,7 @@ export function AppShell({ children, feedState }: AppShellProps) {
       <BrandingBanner />
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:block w-64 border-r bg-muted/10 h-full">
+        <aside className="hidden md:block w-64 min-w-[256px] max-w-[256px] border-r bg-muted/10 h-full overflow-hidden">
           <SidebarContent
             feeds={feeds}
             selectedFeedId={selectedFeedId}
