@@ -804,7 +804,7 @@ export function AppShell({ children, feedState }: AppShellProps) {
       <BrandingBanner />
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:block w-64 min-w-[256px] max-w-[256px] border-r bg-muted/10 h-full overflow-hidden">
+        <aside className="hidden md:block w-64 min-w-[256px] max-w-[256px] border-r bg-muted/10 h-full overflow-hidden relative group">
           <SidebarContent
             feeds={feeds}
             selectedFeedId={selectedFeedId}
@@ -815,6 +815,14 @@ export function AppShell({ children, feedState }: AppShellProps) {
             clearCache={clearCache}
             isLoading={isLoading}
           />
+          {/* Resize Indicator */}
+          <div 
+            className="absolute right-0 top-0 h-full w-1 cursor-ew-resize z-10 flex items-center justify-center transition-all duration-200"
+            aria-label="Resize sidebar"
+          >
+            {/* Visible indicator line */}
+            <div className="h-12 w-1 rounded-full bg-primary/20 group-hover:bg-primary/40 group-hover:h-16 transition-all duration-200 shadow-sm" />
+          </div>
         </aside>
 
         {/* Mobile Sidebar */}
