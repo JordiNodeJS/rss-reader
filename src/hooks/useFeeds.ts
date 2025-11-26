@@ -182,10 +182,18 @@ export function useFeeds() {
     }
   };
 
-  const scrapeArticle = async (articleId: number, url: string) => {
+  const scrapeArticle = async (
+    articleId: number,
+    url: string,
+    withTranslation: boolean = false
+  ) => {
     setActivity("scraping", "Scraping article content");
     try {
-      toast.info("Scraping article...");
+      toast.info(
+        withTranslation
+          ? "Scraping and translating article..."
+          : "Scraping article..."
+      );
       const res = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`);
 
       // Check content type
@@ -219,13 +227,83 @@ export function useFeeds() {
       if (data.content) {
         setActivity("saving", "Saving article offline");
         await updateArticleScrapedContent(articleId, data.content);
-        // Update local state immediately
-        setArticles((prev) =>
-          prev.map((a) =>
-            a.id === articleId ? { ...a, scrapedContent: data.content } : a
-          )
-        );
-        toast.success("Article scraped and saved offline");
+
+        // If translation is requested, translate the content
+        if (withTranslation) {
+          setActivity("translating", "Translating article to Spanish...");
+          toast.info("Translating article to Spanish...");
+
+          try {
+            // Import translation functions dynamically
+            const { translateToSpanish, translateHtmlPreservingFormat } =
+              await import("@/lib/translation");
+            const { updateArticleTranslation, getArticleById } = await import(
+              "@/lib/db"
+            );
+
+            // Get the article to translate the title too
+            const article = await getArticleById(articleId);
+            if (!article) throw new Error("Article not found");
+
+            // Translate title
+            const titleResult = await translateToSpanish({
+              text: article.title,
+              skipLanguageDetection: true,
+            });
+
+            // Translate scraped content preserving HTML formatting (bold, italic, links, etc.)
+            const contentResult = await translateHtmlPreservingFormat(
+              data.content
+            );
+
+            // Save translation to database
+            await updateArticleTranslation(
+              articleId,
+              titleResult.translatedText,
+              contentResult.translatedText,
+              "es",
+              "en"
+            );
+
+            // Update local state with both scraped content and translation
+            setArticles((prev) =>
+              prev.map((a) =>
+                a.id === articleId
+                  ? {
+                      ...a,
+                      scrapedContent: data.content,
+                      translatedTitle: titleResult.translatedText,
+                      translatedContent: contentResult.translatedText,
+                      translationLanguage: "es",
+                      originalLanguage: "en",
+                      translatedAt: Date.now(),
+                    }
+                  : a
+              )
+            );
+
+            toast.success("Article scraped and translated to Spanish");
+          } catch (translationError) {
+            console.error("Translation failed:", translationError);
+            // Still save the scraped content even if translation fails
+            setArticles((prev) =>
+              prev.map((a) =>
+                a.id === articleId ? { ...a, scrapedContent: data.content } : a
+              )
+            );
+            toast.warning(
+              "Article saved, but translation failed. You can translate it later."
+            );
+          }
+        } else {
+          // Update local state immediately (no translation)
+          setArticles((prev) =>
+            prev.map((a) =>
+              a.id === articleId ? { ...a, scrapedContent: data.content } : a
+            )
+          );
+          toast.success("Article scraped and saved offline");
+        }
         clearActivity();
       } else {
         toast.warning("No content found to scrape");

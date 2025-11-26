@@ -7,6 +7,7 @@ export type ActivityStatus =
   | "fetching-rss" // Azul - Obteniendo feeds RSS
   | "scraping" // Naranja - Haciendo scrape de artículo
   | "saving" // Púrpura - Guardando en IndexedDB
+  | "translating" // Cyan - Traduciendo artículo
   | "error"; // Rojo - Error en alguna operación
 
 export interface ActivityState {
@@ -87,6 +88,11 @@ export const ACTIVITY_CONFIG: Record<
     color: "bg-purple-500",
     pulseColor: "bg-purple-400",
     label: "SAVING",
+  },
+  translating: {
+    color: "bg-cyan-500",
+    pulseColor: "bg-cyan-400",
+    label: "TRANSLATING",
   },
   error: {
     color: "bg-red-500",

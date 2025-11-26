@@ -13,6 +13,7 @@ import {
   translateToSpanish,
   detectLanguage,
   extractTextFromHtml,
+  translateHtmlPreservingFormat,
   TranslationProgress,
   TranslationStatus,
   TranslationProvider,
@@ -199,14 +200,13 @@ export function useTranslation(
         skipLanguageDetection: true, // Already detected as English
       });
 
-      // Translate content
+      // Translate content preserving HTML formatting
       setMessage("Translating content...");
 
-      const contentResult = await translateToSpanish({
-        text: textContent,
-        onProgress: handleProgress,
-        skipLanguageDetection: true, // Already detected as English
-      });
+      const contentResult = await translateHtmlPreservingFormat(
+        contentToTranslate,
+        handleProgress
+      );
 
       // Update state
       setTranslatedTitle(titleResult.translatedText);

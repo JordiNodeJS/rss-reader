@@ -569,18 +569,167 @@ export function extractTextFromHtml(html: string): string {
 }
 
 /**
- * Translate HTML content while preserving structure
+ * Translate HTML content while preserving basic structure (bold, italic, links, etc.)
  *
- * This extracts text nodes, translates them, and reconstructs the HTML
+ * This function translates text segments while preserving HTML tags.
+ * It handles common inline formatting tags like <b>, <strong>, <i>, <em>, <a>, <br>, etc.
  */
 export async function translateHtml(
   html: string,
   onProgress?: (progress: TranslationProgress) => void
 ): Promise<TranslationResult> {
-  // For now, we extract text and translate it
-  // TODO: Implement HTML-aware translation that preserves tags
-  const plainText = extractTextFromHtml(html);
-  return translateToSpanish({ text: plainText, onProgress });
+  // Use the format-preserving translation
+  return translateHtmlPreservingFormat(html, onProgress);
+}
+
+/**
+ * Translate HTML while preserving basic formatting tags
+ *
+ * Strategy:
+ * 1. Replace inline tags with placeholders
+ * 2. Translate the text
+ * 3. Restore the tags from placeholders
+ */
+export async function translateHtmlPreservingFormat(
+  html: string,
+  onProgress?: (progress: TranslationProgress) => void
+): Promise<TranslationResult> {
+  if (!html || html.trim().length === 0) {
+    return {
+      translatedText: "",
+      provider: "none",
+      sourceLanguage: "en",
+      targetLanguage: "es",
+      timestamp: Date.now(),
+    };
+  }
+
+  // Tags to preserve (inline formatting)
+  const preserveTags = [
+    "strong",
+    "b",
+    "em",
+    "i",
+    "u",
+    "s",
+    "strike",
+    "del",
+    "ins",
+    "mark",
+    "small",
+    "sub",
+    "sup",
+    "code",
+    "kbd",
+    "var",
+    "samp",
+    "abbr",
+    "cite",
+    "dfn",
+    "q",
+    "time",
+    "span",
+  ];
+
+  // Store tags and their positions
+  const tagMap: Map<string, string> = new Map();
+  let placeholderIndex = 0;
+
+  // Function to create a placeholder
+  const createPlaceholder = (tag: string): string => {
+    const placeholder = `[[TAG_${placeholderIndex}]]`;
+    tagMap.set(placeholder, tag);
+    placeholderIndex++;
+    return placeholder;
+  };
+
+  // Replace tags with placeholders
+  let processedHtml = html;
+
+  // Preserve self-closing tags and line breaks
+  processedHtml = processedHtml.replace(/<br\s*\/?>/gi, () =>
+    createPlaceholder("<br>")
+  );
+  processedHtml = processedHtml.replace(/<hr\s*\/?>/gi, () =>
+    createPlaceholder("<hr>")
+  );
+
+  // Preserve anchor tags with their attributes
+  processedHtml = processedHtml.replace(
+    /<a\s+([^>]*)>(.*?)<\/a>/gi,
+    (match, attrs, content) => {
+      const openTag = createPlaceholder(`<a ${attrs}>`);
+      const closeTag = createPlaceholder("</a>");
+      return `${openTag}${content}${closeTag}`;
+    }
+  );
+
+  // Preserve image tags
+  processedHtml = processedHtml.replace(/<img\s+[^>]*>/gi, (match) =>
+    createPlaceholder(match)
+  );
+
+  // Preserve other inline formatting tags
+  for (const tag of preserveTags) {
+    // Opening tags (with possible attributes)
+    const openRegex = new RegExp(`<${tag}(\\s+[^>]*)?>`, "gi");
+    processedHtml = processedHtml.replace(openRegex, (match) =>
+      createPlaceholder(match)
+    );
+
+    // Closing tags
+    const closeRegex = new RegExp(`</${tag}>`, "gi");
+    processedHtml = processedHtml.replace(closeRegex, () =>
+      createPlaceholder(`</${tag}>`)
+    );
+  }
+
+  // Remove block-level tags but keep their content (p, div, etc.)
+  // These will be handled by the content structure
+  processedHtml = processedHtml
+    .replace(
+      /<\/?(?:p|div|article|section|header|footer|main|aside|nav|figure|figcaption)(?:\s+[^>]*)?>/gi,
+      "\n"
+    )
+    .replace(/<\/?(?:ul|ol|li)(?:\s+[^>]*)?>/gi, "\n")
+    .replace(/<\/?(?:h[1-6])(?:\s+[^>]*)?>/gi, "\n")
+    .replace(/<\/?blockquote(?:\s+[^>]*)?>/gi, "\n");
+
+  // Remove any remaining HTML tags that weren't preserved
+  processedHtml = processedHtml.replace(/<[^>]+>/g, "");
+
+  // Clean up whitespace but preserve placeholders
+  processedHtml = processedHtml.replace(/\n{3,}/g, "\n\n").trim();
+
+  // Translate the processed text
+  const result = await translateToSpanish({
+    text: processedHtml,
+    onProgress,
+    skipLanguageDetection: true,
+  });
+
+  // Restore tags from placeholders
+  let translatedHtml = result.translatedText;
+  for (const [placeholder, tag] of tagMap.entries()) {
+    translatedHtml = translatedHtml.replace(placeholder, tag);
+  }
+
+  // Clean up any leftover placeholder artifacts
+  translatedHtml = translatedHtml.replace(/\[\[TAG_\d+\]\]/g, "");
+
+  // Wrap paragraphs (split by double newlines)
+  const paragraphs = translatedHtml.split(/\n\n+/);
+  if (paragraphs.length > 1) {
+    translatedHtml = paragraphs
+      .filter((p) => p.trim())
+      .map((p) => `<p>${p.trim()}</p>`)
+      .join("\n");
+  }
+
+  return {
+    ...result,
+    translatedText: translatedHtml,
+  };
 }
 
 /**

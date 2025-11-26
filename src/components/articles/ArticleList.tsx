@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Article } from "@/lib/db";
 import {
   Card,
@@ -11,14 +12,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Download,
   BookOpen,
   CheckCircle,
   Clock,
   Newspaper,
   Tag,
+  Languages,
+  FileText,
 } from "lucide-react";
 import { DateTime } from "luxon";
+import { detectLanguage, extractTextFromHtml } from "@/lib/translation";
 
 // Map common category names to display colors
 const CATEGORY_COLORS: Record<string, string> = {
@@ -100,7 +114,7 @@ import { Feed } from "@/lib/db";
 interface ArticleListProps {
   articles: Article[];
   feeds: Feed[];
-  onScrape: (id: number, url: string) => void;
+  onScrape: (id: number, url: string, withTranslation?: boolean) => void;
   onView: (article: Article) => void;
 }
 
@@ -118,12 +132,71 @@ function getFeedTitle(article: Article, feeds: Feed[]): string | null {
   return null;
 }
 
+// Helper to check if article content is in English
+async function isArticleInEnglish(article: Article): Promise<boolean> {
+  const contentToCheck =
+    article.title + " " + (article.content || article.contentSnippet || "");
+  const textContent = extractTextFromHtml(contentToCheck);
+
+  if (textContent.length < 20) return false;
+
+  try {
+    const detection = await detectLanguage(textContent);
+    return detection.isEnglish;
+  } catch {
+    return false;
+  }
+}
+
 export function ArticleList({
   articles,
   feeds,
   onScrape,
   onView,
 }: ArticleListProps) {
+  // State for save dialog
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [articleToSave, setArticleToSave] = useState<Article | null>(null);
+  const [isCheckingLanguage, setIsCheckingLanguage] = useState(false);
+  const [articleIsEnglish, setArticleIsEnglish] = useState(false);
+
+  // Handle save button click - check language and show dialog if English
+  const handleSaveClick = async (article: Article) => {
+    if (article.scrapedContent) return; // Already saved
+
+    setIsCheckingLanguage(true);
+    setArticleToSave(article);
+
+    const isEnglish = await isArticleInEnglish(article);
+    setArticleIsEnglish(isEnglish);
+    setIsCheckingLanguage(false);
+
+    if (isEnglish) {
+      // Show dialog for English articles
+      setSaveDialogOpen(true);
+    } else {
+      // Save directly for non-English articles
+      onScrape(article.id!, article.link, false);
+    }
+  };
+
+  // Handle save original
+  const handleSaveOriginal = () => {
+    if (articleToSave) {
+      onScrape(articleToSave.id!, articleToSave.link, false);
+    }
+    setSaveDialogOpen(false);
+    setArticleToSave(null);
+  };
+
+  // Handle save with translation
+  const handleSaveWithTranslation = () => {
+    if (articleToSave) {
+      onScrape(articleToSave.id!, articleToSave.link, true);
+    }
+    setSaveDialogOpen(false);
+    setArticleToSave(null);
+  };
   if (articles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
@@ -227,11 +300,18 @@ export function ArticleList({
               variant="outline"
               size="sm"
               className="flex-1"
-              onClick={() => onScrape(article.id!, article.link)}
-              disabled={!!article.scrapedContent}
+              onClick={() => handleSaveClick(article)}
+              disabled={
+                !!article.scrapedContent ||
+                (isCheckingLanguage && articleToSave?.id === article.id)
+              }
             >
               <Download className="w-4 h-4 mr-2" />
-              {article.scrapedContent ? "Saved" : "Save"}
+              {article.scrapedContent
+                ? "Saved"
+                : isCheckingLanguage && articleToSave?.id === article.id
+                ? "..."
+                : "Save"}
             </Button>
             <Button
               variant="default"
@@ -245,6 +325,54 @@ export function ArticleList({
           </CardFooter>
         </Card>
       ))}
+
+      {/* Save with Translation Dialog */}
+      <AlertDialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Languages className="w-5 h-5 text-blue-500" />
+              Artículo en inglés detectado
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <span className="block">
+                  Este artículo parece estar en inglés. ¿Deseas guardar el
+                  contenido original o traducirlo al español?
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  La traducción puede tardar unos segundos dependiendo de la
+                  longitud del artículo.
+                </span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel
+              onClick={() => {
+                setSaveDialogOpen(false);
+                setArticleToSave(null);
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSaveOriginal}
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Guardar original
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={handleSaveWithTranslation}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Languages className="w-4 h-4 mr-2" />
+              Guardar traducido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
