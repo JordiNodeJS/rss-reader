@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Article } from "@/lib/db";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FlipTitleReveal, FlipHtmlReveal } from "@/components/FlipTextReveal";
 import {
   Dialog,
   DialogContent,
@@ -449,18 +450,23 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
   if (!article) return null;
 
   // Prefer scraped content, then full content, then snippet
-  // Use translated content if showing translation
-  const contentToDisplay = translation.isShowingTranslation
-    ? translation.translatedContent
-    : article.scrapedContent ||
-      article.content ||
-      article.contentSnippet ||
-      "No content available";
+  // Get both original and translated content for animation
+  const originalContent =
+    article.scrapedContent ||
+    article.content ||
+    article.contentSnippet ||
+    "No content available";
 
-  // Use translated title if showing translation
-  const titleToDisplay = translation.isShowingTranslation
-    ? translation.translatedTitle
-    : article.title;
+  const translatedContent = translation.translatedContent || originalContent;
+
+  // For display (non-animated fallback)
+  const contentToDisplay = translation.isShowingTranslation
+    ? translatedContent
+    : originalContent;
+
+  // Get both original and translated titles
+  const originalTitle = article.title;
+  const translatedTitle = translation.translatedTitle || article.title;
 
   const handleVisitOriginal = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -500,7 +506,12 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               )}
             </div>
             <DialogTitle className="text-2xl font-bold leading-tight mb-3">
-              {titleToDisplay}
+              <FlipTitleReveal
+                originalTitle={originalTitle}
+                translatedTitle={translatedTitle}
+                showTranslation={translation.isShowingTranslation}
+                duration={1.0}
+              />
             </DialogTitle>
             <VisuallyHidden>
               <DialogDescription>
@@ -574,9 +585,12 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
           </DialogHeader>
 
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
-            <div
+            <FlipHtmlReveal
+              originalHtml={originalContent}
+              translatedHtml={translatedContent}
+              showTranslation={translation.isShowingTranslation}
+              duration={0.6}
               className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
-              dangerouslySetInnerHTML={{ __html: contentToDisplay }}
             />
           </div>
         </DialogContent>
