@@ -34,7 +34,7 @@ const ThemeButton = memo(function ThemeButton({
     >
       {/* Color dots */}
       <div className="flex items-center gap-0.5">
-        {theme.colors.map((color, i) => (
+        {theme.colors?.map((color, i) => (
           <span
             key={i}
             className="w-2 h-2 rounded-full shrink-0 border border-white/10"
@@ -72,7 +72,12 @@ export function ThemeCarousel({ isPaused = false }: ThemeCarouselProps) {
         }}
       >
         {/* Duplicate themes multiple times for seamless loop */}
-        {[...themes, ...themes, ...themes, ...themes].map((theme, i) => (
+        {[
+          ...(themes || []),
+          ...(themes || []),
+          ...(themes || []),
+          ...(themes || []),
+        ].map((theme, i) => (
           <ThemeButton
             key={`${theme.id}-${i}`}
             theme={theme}

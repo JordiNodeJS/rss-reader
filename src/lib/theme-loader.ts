@@ -62,7 +62,7 @@ const THEME_FONTS: Record<string, string[]> = {
  * Carga las fuentes de Google Fonts necesarias para un tema
  */
 function loadGoogleFonts(theme: ThemeName): void {
-  const fonts = THEME_FONTS[theme] || [];
+  const fonts = Array.isArray(THEME_FONTS[theme]) ? THEME_FONTS[theme] : [];
   const fontsToLoad = fonts.filter((font) => !loadedFonts.has(font));
 
   if (fontsToLoad.length === 0) return;

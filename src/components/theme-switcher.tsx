@@ -24,12 +24,13 @@ export function ThemeSwitcher() {
 
   // Track mount state for portal
   useEffect(() => {
-    setIsMounted(true);
+    const id = window.setTimeout(() => setIsMounted(true), 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   // Precargar todos los temas cuando el componente se monta
   useEffect(() => {
-    preloadAllThemes(AVAILABLE_THEMES.map((t) => t.id));
+    preloadAllThemes((AVAILABLE_THEMES || []).map((t) => t.id));
   }, []);
 
   // Close dropdown when clicking outside
@@ -149,7 +150,7 @@ export function ThemeSwitcher() {
           {/* Color preview dots */}
           {currentThemeInfo && (
             <div className="flex gap-1 shrink-0">
-              {currentThemeInfo.colors.map((color, index) => (
+              {currentThemeInfo?.colors?.map((color, index) => (
                 <div
                   key={index}
                   className="w-3 h-3 rounded-full border border-white/10"
@@ -158,7 +159,9 @@ export function ThemeSwitcher() {
               ))}
             </div>
           )}
-          <span className="truncate">{currentThemeInfo?.name || "Select theme"}</span>
+          <span className="truncate">
+            {currentThemeInfo?.name || "Select theme"}
+          </span>
         </div>
         <ChevronDown
           className={cn(
@@ -181,7 +184,7 @@ export function ThemeSwitcher() {
               "animate-in fade-in-0 zoom-in-95 duration-150"
             )}
           >
-            {AVAILABLE_THEMES.map((theme) => (
+            {(AVAILABLE_THEMES || []).map((theme) => (
               <button
                 key={theme.id}
                 onClick={() => handleSelect(theme.id)}
@@ -196,7 +199,7 @@ export function ThemeSwitcher() {
               >
                 {/* Color preview dots */}
                 <div className="flex gap-1 shrink-0">
-                  {theme.colors.map((color, index) => (
+                  {theme.colors?.map((color, index) => (
                     <div
                       key={index}
                       className="w-3 h-3 rounded-full border border-white/10"

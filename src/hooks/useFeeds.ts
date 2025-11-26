@@ -96,8 +96,9 @@ export function useFeeds() {
       // 2. Save feed to DB
       setActivity("saving", "Saving feed to database");
       const feedTitle = customTitle || data.title || url;
+      const storedFeedUrl = data._meta?.usedUrl || url;
       const newFeed: Omit<Feed, "id"> = {
-        url,
+        url: storedFeedUrl,
         title: data.title || url,
         customTitle: customTitle || undefined,
         description: data.description,
@@ -267,7 +268,7 @@ export function useFeeds() {
 
             // Update local state with both scraped content and translation
             setArticles((prev) =>
-              prev.map((a) =>
+              (prev || []).map((a) =>
                 a.id === articleId
                   ? {
                       ...a,
@@ -287,7 +288,7 @@ export function useFeeds() {
             console.error("Translation failed:", translationError);
             // Still save the scraped content even if translation fails
             setArticles((prev) =>
-              prev.map((a) =>
+              (prev || []).map((a) =>
                 a.id === articleId ? { ...a, scrapedContent: data.content } : a
               )
             );
@@ -298,7 +299,7 @@ export function useFeeds() {
         } else {
           // Update local state immediately (no translation)
           setArticles((prev) =>
-            prev.map((a) =>
+            (prev || []).map((a) =>
               a.id === articleId ? { ...a, scrapedContent: data.content } : a
             )
           );
@@ -347,7 +348,12 @@ export function useFeeds() {
   };
 }
 
-function extractImage(item: any): string | undefined {
+interface RSSItemLike {
+  enclosure?: { url?: string; type?: string };
+  [key: string]: unknown;
+}
+
+function extractImage(item: RSSItemLike): string | undefined {
   // Helper to validate image URL
   const isValidImageUrl = (url: string): boolean => {
     if (!url || typeof url !== "string") return false;
@@ -375,7 +381,7 @@ function extractImage(item: any): string | undefined {
   }
 
   // 2. Check media:content (various formats used by Spanish news sites)
-  const mediaContent = item["media:content"];
+  const mediaContent = item["media:content"] as any;
   if (mediaContent) {
     const url =
       mediaContent.url ||
@@ -386,7 +392,7 @@ function extractImage(item: any): string | undefined {
   }
 
   // 3. Check media:thumbnail (very common in eldiario.es, infolibre.es)
-  const mediaThumbnail = item["media:thumbnail"];
+  const mediaThumbnail = item["media:thumbnail"] as any;
   if (mediaThumbnail) {
     const url =
       mediaThumbnail.url ||
@@ -397,7 +403,7 @@ function extractImage(item: any): string | undefined {
   }
 
   // 4. Check media:group > media:content (used by some feeds)
-  const mediaGroup = item["media:group"];
+  const mediaGroup = item["media:group"] as any;
   if (mediaGroup) {
     const groupContent = mediaGroup["media:content"];
     if (groupContent) {
@@ -407,39 +413,59 @@ function extractImage(item: any): string | undefined {
   }
 
   // 5. Check itunes:image
-  if (item["itunes:image"]?.href) {
-    if (isValidImageUrl(item["itunes:image"].href))
-      return item["itunes:image"].href;
+  const itunesImage = item["itunes:image"] as any;
+  if (itunesImage?.href) {
+    if (isValidImageUrl(itunesImage.href)) return itunesImage.href;
   }
 
   // 6. Check direct image field (some feeds include this)
   if (item.image) {
-    const imgUrl = typeof item.image === "string" ? item.image : item.image.url;
+    const image = item.image as any;
+    const imgUrl = typeof image === "string" ? image : image?.url;
     if (isValidImageUrl(imgUrl)) return imgUrl;
   }
 
   // 7. Extract from content:encoded (common in RSS 2.0, WordPress feeds)
-  const contentEncoded = item["content:encoded"];
+  const contentEncoded = item["content:encoded"] as any;
   if (contentEncoded) {
-    const imgUrl = extractFirstImageFromHtml(contentEncoded);
+    const htmlStr =
+      typeof contentEncoded === "string"
+        ? contentEncoded
+        : contentEncoded._ || contentEncoded["$"]?.["#text"] || "";
+    const imgUrl = extractFirstImageFromHtml(htmlStr);
     if (imgUrl && isValidImageUrl(imgUrl)) return imgUrl;
   }
 
   // 8. Extract from content
   if (item.content) {
-    const imgUrl = extractFirstImageFromHtml(item.content);
+    const contentVal = item.content as any;
+    const htmlStr =
+      typeof contentVal === "string"
+        ? contentVal
+        : contentVal._ || contentVal["$"]?.["#text"] || "";
+    const imgUrl = extractFirstImageFromHtml(htmlStr);
     if (imgUrl && isValidImageUrl(imgUrl)) return imgUrl;
   }
 
   // 9. Extract from summary
   if (item.summary) {
-    const imgUrl = extractFirstImageFromHtml(item.summary);
+    const summaryVal = item.summary as any;
+    const htmlStr =
+      typeof summaryVal === "string"
+        ? summaryVal
+        : summaryVal._ || summaryVal["$"]?.["#text"] || "";
+    const imgUrl = extractFirstImageFromHtml(htmlStr);
     if (imgUrl && isValidImageUrl(imgUrl)) return imgUrl;
   }
 
   // 10. Extract from description
   if (item.description) {
-    const imgUrl = extractFirstImageFromHtml(item.description);
+    const descVal = item.description as any;
+    const htmlStr =
+      typeof descVal === "string"
+        ? descVal
+        : descVal._ || descVal["$"]?.["#text"] || "";
+    const imgUrl = extractFirstImageFromHtml(htmlStr);
     if (imgUrl && isValidImageUrl(imgUrl)) return imgUrl;
   }
 
@@ -481,7 +507,15 @@ function extractFirstImageFromHtml(html: string): string | undefined {
 }
 
 // Extract categories from RSS item
-function extractCategories(item: any): string[] | undefined {
+interface RSSItemLikeWithCategories extends RSSItemLike {
+  categories?: unknown[];
+  category?: unknown | unknown[];
+  "media:keywords"?: unknown;
+}
+
+function extractCategories(
+  item: RSSItemLikeWithCategories
+): string[] | undefined {
   const categories: string[] = [];
 
   // 1. Check direct categories array (most common in RSS 2.0)
@@ -489,9 +523,10 @@ function extractCategories(item: any): string[] | undefined {
     for (const cat of item.categories) {
       if (typeof cat === "string") {
         categories.push(cat);
-      } else if (cat?._ || cat?.$?.term) {
+      } else if ((cat as any)?._ || (cat as any)?.$?.term) {
         // Atom format: { _: "Category Name" } or { $: { term: "Category" } }
-        categories.push(cat._ || cat.$.term);
+        const acat = cat as any;
+        categories.push(acat._ || acat.$.term);
       }
     }
   }
@@ -502,17 +537,20 @@ function extractCategories(item: any): string[] | undefined {
       categories.push(item.category);
     } else if (Array.isArray(item.category)) {
       categories.push(
-        ...item.category.filter((c: any) => typeof c === "string")
+        ...(item.category.filter(
+          (c: unknown) => typeof c === "string"
+        ) as string[])
       );
     }
   }
 
   // 3. Check media:keywords (used by eldiario.es, etc.)
   if (item["media:keywords"]) {
+    const mediaKeywords = item["media:keywords"] as any;
     const keywords =
-      typeof item["media:keywords"] === "string"
-        ? item["media:keywords"]
-        : item["media:keywords"]?._ || item["media:keywords"]?.$?.["#text"];
+      typeof mediaKeywords === "string"
+        ? mediaKeywords
+        : mediaKeywords?._ || mediaKeywords?.$?.["#text"];
     if (keywords) {
       // Keywords are usually comma-separated
       const keywordArray = keywords

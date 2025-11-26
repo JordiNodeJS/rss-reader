@@ -66,8 +66,8 @@ export default function RootLayout({
       };
       
       function loadFonts(fonts) {
-        if (!fonts || fonts.length === 0) return;
-        var families = fonts.map(function(f) {
+        if (!Array.isArray(fonts) || fonts.length === 0) return;
+        var families = (fonts || []).map(function(f) {
           return "family=" + f.replace(/ /g, "+") + ":wght@400;500;600;700";
         }).join("&");
         var link = document.createElement("link");

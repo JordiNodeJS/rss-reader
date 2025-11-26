@@ -44,7 +44,7 @@ interface FeedError {
   details: string;
 }
 
-function classifyError(error: unknown, url: string): FeedError {
+function classifyError(error: unknown): FeedError {
   const errorMessage = error instanceof Error ? error.message : "Unknown error";
   const errorString = errorMessage.toLowerCase();
 
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
   async function tryParseFeed(
     feedUrl: string,
     attempt: number = 1
-  ): Promise<Parser.Output<any>> {
+  ): Promise<Parser.Output<unknown>> {
     try {
       return await parser.parseURL(feedUrl);
     } catch (error) {
@@ -210,11 +210,26 @@ export async function GET(request: NextRequest) {
 
     // Some feeds might block HEAD requests, so we proceed to parse anyway
     // Parse the RSS feed with retry logic
-    const feed = await tryParseFeed(url);
+    let feed = await tryParseFeed(url);
+    let usedUrl = url;
 
     // Validate that we got valid feed data
     if (!feed || (!feed.title && !feed.items?.length)) {
-      throw new Error("Invalid RSS feed: No title or items found");
+      // Attempt to find feed via discovery from HTML link tags or common suffix
+      const discovered = await discoverFeedUrl(url);
+      if (discovered && discovered !== url) {
+        try {
+          feed = await tryParseFeed(discovered);
+          usedUrl = discovered;
+          console.log(`Discovered feed ${discovered} for requested URL ${url}`);
+        } catch {
+          // ignore discovery failure and continue below to throw error
+        }
+      }
+
+      if (!feed || (!feed.title && !feed.items?.length)) {
+        throw new Error("Invalid RSS feed: No title or items found");
+      }
     }
 
     // Additional validation: log warning for feeds with few items
@@ -228,6 +243,8 @@ export async function GET(request: NextRequest) {
         fetchedAt: new Date().toISOString(),
         itemCount: feed.items?.length || 0,
         source: parsedUrl.hostname,
+        requestedUrl: url,
+        usedUrl,
       },
     });
 
@@ -238,7 +255,7 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error: unknown) {
-    const feedError = classifyError(error, url);
+    const feedError = classifyError(error);
 
     // Log with structured data for debugging
     console.error("RSS feed error:", {
@@ -259,6 +276,76 @@ export async function GET(request: NextRequest) {
       },
       { status: feedError.status }
     );
+  }
+}
+
+// Try to detect an RSS/Atom feed by inspecting HTML or trying common suffixes
+async function discoverFeedUrl(inputUrl: string): Promise<string | null> {
+  try {
+    const res = await fetch(inputUrl, {
+      method: "GET",
+      signal: AbortSignal.timeout(8000),
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; RSSReader/1.0)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("text/html")) {
+      // Not HTML, cannot discover
+      return null;
+    }
+
+    const html = await res.text();
+
+    // Look for <link rel="alternate" ... type="...rss..." href="..." />
+    const linkRegex = /<link[^>]+rel=["']?alternate["']?[^>]*>/gi;
+    let match;
+    while ((match = linkRegex.exec(html))) {
+      const tag = match[0];
+      // Extract href
+      const hrefMatch = /href=["']([^"']+)["']/i.exec(tag);
+      const typeMatch = /type=["']([^"']+)["']/i.exec(tag);
+      if (hrefMatch) {
+        const href = hrefMatch[1];
+        const type = typeMatch ? typeMatch[1].toLowerCase() : "";
+        if (
+          type.includes("rss") ||
+          type.includes("atom") ||
+          href.toLowerCase().includes("rss") ||
+          href.toLowerCase().includes("feed")
+        ) {
+          try {
+            const discoveredUrl = new URL(href, inputUrl).href;
+            return discoveredUrl;
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+    }
+
+    // If no explicit link found, try common suffixes
+    const suffixes = ["/feed", "/rss", "/rss.xml", "/feed.xml", "/index.xml"];
+    for (const suffix of suffixes) {
+      try {
+        const candidate = new URL(inputUrl).origin + suffix;
+        const head = await fetch(candidate, {
+          method: "HEAD",
+          signal: AbortSignal.timeout(5000),
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; RSSReader/1.0)" },
+        }).catch(() => null);
+        if (head && head.ok) return candidate;
+      } catch {
+        // ignore
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.warn("Discovery failed:", err);
+    return null;
   }
 }
 

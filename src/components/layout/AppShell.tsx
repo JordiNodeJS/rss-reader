@@ -386,8 +386,8 @@ const ORGANIZED_FEEDS: FeedCategory[] = [
 
 // Flatten for backwards compatibility where needed
 const DEFAULT_FEEDS = ORGANIZED_FEEDS.flatMap((category) =>
-  category.sources.flatMap((source) =>
-    source.sections.map((section) => ({
+  (category.sources || []).flatMap((source) =>
+    (source.sections || []).map((section) => ({
       name:
         source.sections.length > 1
           ? `${source.name} - ${section.name}`
@@ -515,7 +515,7 @@ function SidebarContent({
                             <SelectLabel className="font-bold text-primary">
                               {category.category}
                             </SelectLabel>
-                            {category.sources.map((source) =>
+                            {(category.sources || []).map((source) =>
                               source.sections.length === 1 ? (
                                 <SelectItem
                                   key={source.sections[0].url}
@@ -524,7 +524,7 @@ function SidebarContent({
                                   {source.name}
                                 </SelectItem>
                               ) : (
-                                source.sections.map((section) => (
+                                (source.sections || []).map((section) => (
                                   <SelectItem
                                     key={section.url}
                                     value={section.url}
@@ -583,7 +583,7 @@ function SidebarContent({
             <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
               Your Feeds
             </h3>
-            {feeds.map((feed) => (
+            {(feeds || []).map((feed) => (
               <div
                 key={feed.id}
                 className="group relative flex items-center px-1"
@@ -676,7 +676,11 @@ function SidebarContent({
             {/* Clear Cache Button */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" className="w-full max-w-full gap-2" size="sm">
+                <Button
+                  variant="outline"
+                  className="w-full max-w-full gap-2"
+                  size="sm"
+                >
                   <Trash className="w-4 h-4 shrink-0" />
                   <span className="truncate">Clear Cache</span>
                 </Button>

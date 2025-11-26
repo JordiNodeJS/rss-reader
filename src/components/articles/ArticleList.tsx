@@ -149,8 +149,8 @@ async function isArticleInEnglish(article: Article): Promise<boolean> {
 }
 
 export function ArticleList({
-  articles,
-  feeds,
+  articles = [],
+  feeds = [],
   onScrape,
   onView,
 }: ArticleListProps) {
