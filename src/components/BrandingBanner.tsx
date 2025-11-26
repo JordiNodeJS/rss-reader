@@ -201,10 +201,17 @@ export function BrandingBanner() {
 
     // Hover effect on letters
     allLetters.forEach((letter) => {
+      // Get the computed primary color to avoid CSS variable issues in GSAP
+      const computedStyle = window.getComputedStyle(letter);
+      const primaryColor =
+        computedStyle.getPropertyValue("--primary") ||
+        computedStyle.color ||
+        "#3b82f6"; // fallback to blue-500
+
       letter.addEventListener("mouseenter", () => {
         gsap.to(letter, {
           scale: 1.3,
-          color: "hsl(var(--primary))",
+          color: primaryColor,
           duration: 0.3,
           ease: "back.out(2)",
         });
@@ -213,7 +220,6 @@ export function BrandingBanner() {
       letter.addEventListener("mouseleave", () => {
         gsap.to(letter, {
           scale: 1,
-          color: "",
           duration: 0.3,
           ease: "power2.out",
         });
