@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeInitializer } from "@/components/theme-initializer";
@@ -8,8 +8,63 @@ import { ActivityStatusProvider } from "@/contexts/ActivityStatusContext";
 // Ver el script themeScript que precarga las fuentes de Google Fonts
 
 export const metadata: Metadata = {
-  title: "RSS Reader",
-  description: "A modern, retro-arcade styled RSS reader",
+  title: {
+    default: "RSS Reader - Modern & Retro Style",
+    template: "%s | RSS Reader",
+  },
+  description:
+    "A modern, retro-arcade styled RSS reader with offline support, themes, and AI integration.",
+  applicationName: "RSS Reader",
+  authors: [{ name: "JordiNodeJS" }],
+  keywords: [
+    "RSS",
+    "Reader",
+    "Feed",
+    "News",
+    "Offline",
+    "PWA",
+    "Next.js",
+    "React",
+    "Retro",
+    "Arcade",
+  ],
+  creator: "JordiNodeJS",
+  publisher: "JordiNodeJS",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    title: "RSS Reader - Modern & Retro Style",
+    description:
+      "A modern, retro-arcade styled RSS reader with offline support.",
+    url: "https://rss-reader-antigravity.vercel.app",
+    siteName: "RSS Reader",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RSS Reader - Modern & Retro Style",
+    description:
+      "A modern, retro-arcade styled RSS reader with offline support.",
+    creator: "@JordiNodeJS",
+  },
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({

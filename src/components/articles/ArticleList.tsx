@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { detectLanguage, extractTextFromHtml } from "@/lib/translation";
+import Image from "next/image";
 
 // Map common category names to display colors
 const CATEGORY_COLORS: Record<string, string> = {
@@ -202,9 +203,11 @@ export function ArticleList({
   if (safeArticles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
-        <img
+        <Image
           src="/empty-state.svg"
           alt="No articles"
+          width={256}
+          height={256}
           className="w-64 h-64 mb-6 opacity-80"
         />
         <h3 className="text-xl font-semibold mb-2 text-foreground">
@@ -228,7 +231,8 @@ export function ArticleList({
           <div className="aspect-video w-full overflow-hidden bg-muted relative">
             <img
               src={article.image || "/article-placeholder.svg"}
-              alt=""
+              alt={article.title || "Article image"}
+              loading="lazy"
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               onError={(e) => {
                 e.currentTarget.src = "/article-placeholder.svg";
