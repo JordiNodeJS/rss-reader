@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Rss } from "lucide-react";
+import Link from "next/link";
+import { Rss, HelpCircle } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import { ThemeCarousel } from "@/components/ThemeCarousel";
 import { cn } from "@/lib/utils";
 import {
@@ -163,6 +165,23 @@ export function BrandingBanner() {
               </div>
             </div>
           </div>
+          <Link href="/help" title="Centro de Ayuda">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "rounded-full transition-all duration-500 ease-in-out hover:bg-primary/10",
+                isScrolled ? "h-8 w-8" : "h-9 w-9"
+              )}
+            >
+              <HelpCircle
+                className={cn(
+                  "text-muted-foreground hover:text-primary transition-colors",
+                  isScrolled ? "h-4 w-4" : "h-5 w-5"
+                )}
+              />
+            </Button>
+          </Link>
           <div
             className={cn(
               "transition-transform duration-500 ease-in-out",
