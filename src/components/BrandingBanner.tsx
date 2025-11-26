@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Rss } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeCarousel } from "@/components/ThemeCarousel";
 import { cn } from "@/lib/utils";
 import {
   useActivityStatus,
@@ -56,7 +57,7 @@ export function BrandingBanner() {
     <div
       className={cn(
         "w-full relative overflow-hidden shadow-lg z-50 group sticky top-0",
-        isScrolled ? "h-16 md:h-20" : "h-32 md:h-48",
+        isScrolled ? "h-16 md:h-20" : "h-28 md:h-32",
         "transition-[height,box-shadow] duration-300"
       )}
     >
@@ -69,7 +70,20 @@ export function BrandingBanner() {
         <div className="absolute inset-0 bg-primary/10 mix-blend-overlay" />
       </div>
 
-      <div className="container mx-auto px-4 h-full flex items-center justify-between relative z-10">
+      {/* Theme Carousel - subtle strip at bottom, visible only when expanded */}
+      <div
+        className={cn(
+          "absolute bottom-0 left-0 right-0 z-20 py-1.5 bg-background/40 backdrop-blur-sm border-t border-border/20",
+          "transition-all duration-300",
+          isScrolled
+            ? "opacity-0 translate-y-2 pointer-events-none"
+            : "opacity-100 translate-y-0"
+        )}
+      >
+        <ThemeCarousel isPaused={isScrolled} />
+      </div>
+
+      <div className="container mx-auto px-4 h-full flex items-start pt-3 md:pt-4 justify-between relative z-10">
         <div
           className={cn("flex items-center gap-4 md:gap-6", "pl-16 md:pl-0")}
         >
