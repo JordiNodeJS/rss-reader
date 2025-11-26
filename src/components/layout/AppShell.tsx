@@ -459,8 +459,28 @@ function SidebarContent({
         <div className="py-4">
           <div className="px-4 mb-6">
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.svg" alt="Logo" className="w-8 h-8" />
+              {/* Square icon with rounded corners matching favicon style */}
+              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+                <svg
+                  className="w-5 h-5 text-primary-foreground"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 11a9 9 0 0 1 9 9" />
+                  <path d="M4 4a16 16 0 0 1 16 16" />
+                  <circle
+                    cx="5"
+                    cy="19"
+                    r="1.5"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                </svg>
+              </div>
               Reader
             </h1>
           </div>
@@ -600,7 +620,7 @@ function SidebarContent({
             ))}
           </div>
 
-          <div className="px-4 py-4 border-t space-y-4 mt-4">
+          <div className="px-4 py-4 border-t space-y-4 mt-4 pb-6">
             {/* Theme Switcher */}
             <ThemeSwitcher />
 

@@ -89,27 +89,27 @@ export function FlipHtmlReveal({
       ? originalRef.current
       : translatedRef.current;
 
-    // Create the flip-board style animation
+    // Create the flip-board style animation with more visible effect
     const tl = gsap.timeline({
       onComplete: () => {
         onComplete?.();
       },
     });
 
-    // Initial state for incoming element
+    // Initial state for incoming element - more dramatic starting position
     gsap.set(showEl, {
       opacity: 0,
-      y: 20,
-      filter: "blur(4px)",
+      y: 40,
+      filter: "blur(8px)",
       visibility: "visible",
     });
 
-    // Animate out the old content with a "flip up" feel
+    // Animate out the old content with a more visible "flip up" feel
     tl.to(hideEl, {
       opacity: 0,
-      y: -20,
-      filter: "blur(4px)",
-      duration: duration * 0.4,
+      y: -40,
+      filter: "blur(8px)",
+      duration: duration * 0.45,
       ease: "power2.in",
     });
 
@@ -120,10 +120,10 @@ export function FlipHtmlReveal({
         opacity: 1,
         y: 0,
         filter: "blur(0px)",
-        duration: duration * 0.6,
+        duration: duration * 0.55,
         ease: "power2.out",
       },
-      `-=${duration * 0.1}`
+      `-=${duration * 0.15}`
     );
 
     // Hide the old element after animation

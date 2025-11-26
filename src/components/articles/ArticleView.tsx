@@ -510,7 +510,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 originalTitle={originalTitle}
                 translatedTitle={translatedTitle}
                 showTranslation={translation.isShowingTranslation}
-                duration={1.0}
+                duration={2.5}
               />
             </DialogTitle>
             <VisuallyHidden>
@@ -589,7 +589,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               originalHtml={originalContent}
               translatedHtml={translatedContent}
               showTranslation={translation.isShowingTranslation}
-              duration={0.6}
+              duration={1.2}
               className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
             />
           </div>
