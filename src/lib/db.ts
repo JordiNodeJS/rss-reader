@@ -26,6 +26,12 @@ export interface Article {
   isRead: boolean;
   isSaved: boolean; // Explicitly saved by user
   fetchedAt: number;
+  // Translation fields
+  translatedTitle?: string;
+  translatedContent?: string;
+  translationLanguage?: string; // Target language code, e.g., 'es'
+  translatedAt?: number; // Timestamp when translated
+  originalLanguage?: string; // Detected source language, e.g., 'en'
 }
 
 interface RSSDB extends DBSchema {
@@ -128,6 +134,33 @@ export const updateArticleScrapedContent = async (
   if (!article) throw new Error("Article not found");
   article.scrapedContent = content;
   await db.put("articles", article);
+};
+
+// Update article translation
+export const updateArticleTranslation = async (
+  id: number,
+  translatedTitle: string,
+  translatedContent: string,
+  targetLanguage: string = "es",
+  originalLanguage: string = "en"
+) => {
+  const db = await getDB();
+  const article = await db.get("articles", id);
+  if (!article) throw new Error("Article not found");
+  article.translatedTitle = translatedTitle;
+  article.translatedContent = translatedContent;
+  article.translationLanguage = targetLanguage;
+  article.originalLanguage = originalLanguage;
+  article.translatedAt = Date.now();
+  await db.put("articles", article);
+};
+
+// Get article by ID
+export const getArticleById = async (
+  id: number
+): Promise<Article | undefined> => {
+  const db = await getDB();
+  return db.get("articles", id);
 };
 
 // Clear all data

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Article } from "@/lib/db";
+import { useTranslation } from "@/hooks/useTranslation";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,8 @@ import {
   GripVertical,
   AlertTriangle,
   Loader2,
+  Languages,
+  RotateCcw,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
@@ -430,6 +433,13 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
   // Use article.guid as key to reset state when article changes
   const [showIframe, setShowIframe] = useState(false);
 
+  // Translation hook
+  const translation = useTranslation({
+    article,
+    autoTranslate: false,
+    cacheTranslations: true,
+  });
+
   // Reset iframe when dialog closes
   const handleClose = () => {
     setShowIframe(false);
@@ -439,11 +449,18 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
   if (!article) return null;
 
   // Prefer scraped content, then full content, then snippet
-  const contentToDisplay =
-    article.scrapedContent ||
-    article.content ||
-    article.contentSnippet ||
-    "No content available";
+  // Use translated content if showing translation
+  const contentToDisplay = translation.isShowingTranslation
+    ? translation.translatedContent
+    : article.scrapedContent ||
+      article.content ||
+      article.contentSnippet ||
+      "No content available";
+
+  // Use translated title if showing translation
+  const titleToDisplay = translation.isShowingTranslation
+    ? translation.translatedTitle
+    : article.title;
 
   const handleVisitOriginal = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -459,16 +476,31 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
       >
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col gap-0 overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
               <Badge variant="outline">
                 {new Date(article.pubDate).toLocaleDateString()}
               </Badge>
               {article.scrapedContent && (
                 <Badge variant="secondary">Offline Ready</Badge>
               )}
+              {translation.isShowingTranslation && (
+                <Badge
+                  variant="default"
+                  className="bg-blue-500 hover:bg-blue-600"
+                >
+                  <Languages className="w-3 h-3 mr-1" />
+                  Traducido al Español
+                </Badge>
+              )}
+              {translation.isEnglish && !translation.isShowingTranslation && (
+                <Badge variant="outline" className="text-muted-foreground">
+                  <Languages className="w-3 h-3 mr-1" />
+                  English
+                </Badge>
+              )}
             </div>
             <DialogTitle className="text-2xl font-bold leading-tight mb-3">
-              {article.title}
+              {titleToDisplay}
             </DialogTitle>
             <VisuallyHidden>
               <DialogDescription>
@@ -476,7 +508,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 {new Date(article.pubDate).toLocaleDateString()}
               </DialogDescription>
             </VisuallyHidden>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handleVisitOriginal}
                 className="text-primary hover:underline flex items-center gap-1 cursor-pointer"
@@ -492,6 +524,52 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               >
                 Open in new tab <ExternalLink className="w-3 h-3" />
               </a>
+
+              {/* Translation controls */}
+              {translation.isEnglish && (
+                <>
+                  <span className="text-muted-foreground">|</span>
+                  {translation.hasCachedTranslation ||
+                  translation.status === "completed" ? (
+                    <button
+                      onClick={translation.toggleTranslation}
+                      className="text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
+                    >
+                      <Languages className="w-3 h-3" />
+                      {translation.isShowingTranslation
+                        ? "Ver original"
+                        : "Ver traducción"}
+                    </button>
+                  ) : translation.status === "translating" ||
+                    translation.status === "downloading" ||
+                    translation.status === "detecting" ? (
+                    <span className="text-muted-foreground flex items-center gap-1 text-sm">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      {translation.message || "Traduciendo..."}
+                    </span>
+                  ) : translation.status === "error" ? (
+                    <span className="text-destructive flex items-center gap-1 text-sm">
+                      <AlertTriangle className="w-3 h-3" />
+                      Error: {translation.error}
+                      <button
+                        onClick={translation.translate}
+                        className="ml-1 hover:underline"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={translation.translate}
+                      className="text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 cursor-pointer text-sm"
+                      disabled={!translation.canTranslate}
+                    >
+                      <Languages className="w-3 h-3" />
+                      Traducir al español
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </DialogHeader>
 

@@ -12,7 +12,15 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Plus, Trash2, Inbox, Trash, Pencil } from "lucide-react";
+import {
+  Menu,
+  Plus,
+  Trash2,
+  Inbox,
+  Trash,
+  Pencil,
+  Languages,
+} from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useFeeds } from "@/hooks/useFeeds";
@@ -47,6 +55,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  clearTranslationModelCache,
+  getTranslationCacheSize,
+} from "@/lib/translation";
+import { toast } from "sonner";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -590,6 +603,46 @@ function SidebarContent({
           <div className="px-4 py-4 border-t space-y-4 mt-4">
             {/* Theme Switcher */}
             <ThemeSwitcher />
+
+            {/* Clear Translation Model Cache Button */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full gap-2" size="sm">
+                  <Languages className="w-4 h-4" />
+                  Limpiar Modelo de Traducción
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    ¿Limpiar caché del modelo de traducción?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esto eliminará el modelo de traducción descargado (~75MB).
+                    Se volverá a descargar automáticamente cuando traduzcas un
+                    artículo.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      try {
+                        await clearTranslationModelCache();
+                        toast.success(
+                          "Caché del modelo de traducción limpiada"
+                        );
+                      } catch (error) {
+                        toast.error("Error al limpiar la caché");
+                        console.error(error);
+                      }
+                    }}
+                  >
+                    Limpiar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
             {/* Clear Cache Button */}
             <AlertDialog>
