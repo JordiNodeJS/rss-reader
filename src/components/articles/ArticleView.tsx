@@ -477,7 +477,10 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
         open={isOpen && !showIframe}
         onOpenChange={(open) => !open && handleClose()}
       >
-        <DialogContent id="dialog-article-view" className="max-w-4xl max-h-[90vh] flex flex-col gap-0 overflow-hidden">
+        <DialogContent
+          id="dialog-article-view"
+          className="max-w-4xl max-h-[90vh] flex flex-col gap-0 overflow-hidden"
+        >
           <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               <Badge variant="outline">

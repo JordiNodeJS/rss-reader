@@ -15,6 +15,7 @@ import {
 } from "@/lib/db";
 import { toast } from "sonner";
 import { logDBEvent } from "@/lib/db-monitor";
+import { isValidImageUrl } from "@/lib/utils";
 import { useActivityStatus } from "@/contexts/ActivityStatusContext";
 
 // A user-facing error used to suppress noisy console.error logs for expected
@@ -156,7 +157,8 @@ export function useFeeds() {
         logDBEvent({
           type: "deleted",
           name: "rss-reader-db",
-          message: "IndexedDB feeds emptied unexpectedly (not by user clearCache)",
+          message:
+            "IndexedDB feeds emptied unexpectedly (not by user clearCache)",
         });
       } catch (_e) {}
       console.warn("feeds became empty unexpectedly");
@@ -245,63 +247,9 @@ export function useFeeds() {
     setIsLoading(true);
     setActivity("fetching-rss", `Fetching ${customTitle || url}`);
     try {
-      // First try: attempt a direct fetch against the real RSS URL to detect
-      // network / CORS / reachability issues early. This fetch is primarily a
-      // probe; the actual RSS parsing is still performed by our server-side
-      // proxy at `/api/rss` because many feeds require server-side processing
-      // (CORS, redirects, various XML shapes, etc.). If direct fetch fails,
-      // we'll fall back to the proxy and capture the original error for a
-      // helpful user message.
-      try {
-        const probeRes = await fetch(url, {
-          method: "GET",
-          // Ask for RSS/XML if available; servers might ignore this header.
-          headers: { Accept: "application/rss+xml, application/xml, text/xml" },
-          cache: "no-cache",
-        });
-
-        // If we get a non-OK status, we still continue to the proxy, but
-        // log the status for debugging and surface a helpful suggestion later.
-        if (!probeRes.ok) {
-          console.warn(
-            `Direct probe fetch to ${url} returned status ${probeRes.status}`
-          );
-        } else {
-          const probeContentType = probeRes.headers.get("content-type") || "";
-          const looksLikeXml = /xml|rss/i.test(probeContentType);
-          if (!looksLikeXml) {
-            // Not strictly fatal; the proxy may still handle it. Log for devs.
-            console.warn(
-              `Direct probe fetch to ${url} returned non-XML content-type: ${probeContentType}`
-            );
-          }
-        }
-      } catch (probeError) {
-        // Commonly a TypeError 'Failed to fetch' occurs here for CORS or
-        // network reachability issues. Capture the error and warn the user,
-        // but keep going to the server proxy which often succeeds.
-        console.warn(
-          `Direct fetch to feed failed for ${url}. Falling back to proxy:`,
-          probeError
-        );
-        // Show a quieter tip so users know why the probe failed
-        toast.warning(
-          "Direct network access to this feed failed (possible CORS or network issue). Trying server proxy..."
-        );
-        try {
-          logDBEvent({
-            type: "warning",
-            name: "rss-reader-probe",
-            message: `Direct probe fetch failed for ${url}: ${String(
-              probeError
-            )}`,
-          });
-        } catch (_) {
-          /* ignore logging failures */
-        }
-      }
-
-      // 1b. Fetch feed data via proxy (server-side parsing)
+      // Fetch feed data via server-side proxy to avoid CORS issues.
+      // External RSS feeds typically don't include CORS headers, so we
+      // always use our /api/rss proxy which handles parsing server-side.
       const res = await fetch(`/api/rss?url=${encodeURIComponent(url)}`);
 
       // Check if response is JSON before parsing
@@ -403,12 +351,14 @@ export function useFeeds() {
       let errorMsg: string;
       if (
         error instanceof TypeError &&
-        (error.message === "Failed to fetch" || /NetworkError/i.test(error.message))
+        (error.message === "Failed to fetch" ||
+          /NetworkError/i.test(error.message))
       ) {
         errorMsg =
           "Network error contacting feed URL (possible CORS, DNS, or network issue). If the feed is remote, try again or add via the server proxy.";
       } else {
-        errorMsg = error instanceof Error ? error.message : "Failed to add feed";
+        errorMsg =
+          error instanceof Error ? error.message : "Failed to add feed";
       }
       toast.error(errorMsg, {
         duration: 6000, // Show longer for detailed errors
@@ -637,42 +587,7 @@ interface RSSItemLike {
 }
 
 function extractImage(item: RSSItemLike): string | undefined {
-  // Helper to validate image URL
-  const isValidImageUrl = (url?: string | undefined): boolean => {
-    if (!url || typeof url !== "string") return false;
-
-    // Quick reject: tracking pixels / tiny images / known video providers
-    const lowered = url.toLowerCase();
-    if (
-      lowered.includes("pixel") ||
-      lowered.includes("tracking") ||
-      lowered.includes("beacon") ||
-      lowered.includes("youtube.com/watch") ||
-      lowered.includes("youtu.be/") ||
-      lowered.includes("vimeo.com/") ||
-      lowered.includes(".mp4") ||
-      lowered.includes(".webm") ||
-      lowered.includes(".ogg") ||
-      lowered.includes(".mov") ||
-      lowered.includes(".mpeg")
-    )
-      return false;
-
-    // Must be a valid URL
-    try {
-      const u = new URL(url);
-
-      // If the item was provided with an explicit type elsewhere (e.g. enclosure.type), we
-      // already check that before calling this function; here we require either a common
-      // image extension in the path OR the hostname to include an image host pattern.
-      const allowedImageExtRegex = /\.(jpe?g|png|gif|webp|avif|svg|bmp|ico)(\?.*)?$/i;
-      const pathMatch = allowedImageExtRegex.test(u.pathname + (u.search || ""));
-      const hostLooksLikeImgHost = /(^|\.)((image|img|static|cdn|media)\.|images|imgur|cloudinary|unsplash|picsum|pinterest)\./i.test(u.hostname + u.pathname);
-      return pathMatch || hostLooksLikeImgHost;
-    } catch {
-      return false;
-    }
-  };
+  // We use the shared isValidImageUrl util from src/lib/utils.ts
 
   // 1. Check enclosure (with or without type)
   if (item.enclosure?.url) {

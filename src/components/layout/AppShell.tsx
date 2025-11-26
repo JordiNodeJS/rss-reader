@@ -495,7 +495,7 @@ function SidebarContent({
                   <Plus className="w-4 h-4" /> Add Feed
                 </Button>
               </DialogTrigger>
-                <DialogContent id="dialog-add-feed">
+              <DialogContent id="dialog-add-feed">
                 <DialogHeader>
                   <DialogTitle>Add New Feed</DialogTitle>
                   <VisuallyHidden>
@@ -512,7 +512,10 @@ function SidebarContent({
                       <SelectTrigger>
                         <SelectValue placeholder="Select a feed source" />
                       </SelectTrigger>
-                                <SelectContent id="select-addfeed-presets" className="max-h-80">
+                      <SelectContent
+                        id="select-addfeed-presets"
+                        className="max-h-80"
+                      >
                         {ORGANIZED_FEEDS.map((category) => (
                           <SelectGroup key={category.category}>
                             <SelectLabel className="font-bold text-primary">
@@ -997,7 +1000,8 @@ export function AppShell({
               <Menu className="w-5 h-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent id="sheet-mobile-nav"
+          <SheetContent
+            id="sheet-mobile-nav"
             side="left"
             className="p-0 w-64 flex flex-col overflow-hidden"
           >

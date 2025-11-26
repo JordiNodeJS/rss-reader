@@ -1,8 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 // Determine whether a given URL is likely an image URL and not a video or tracking pixel
@@ -26,9 +26,13 @@ export function isValidImageUrl(url?: string | undefined): boolean {
 
   try {
     const u = new URL(url);
-    const allowedImageExtRegex = /\.(jpe?g|png|gif|webp|avif|svg|bmp|ico)(\?.*)?$/i;
+    const allowedImageExtRegex =
+      /\.(jpe?g|png|gif|webp|avif|svg|bmp|ico)(\?.*)?$/i;
     const pathMatch = allowedImageExtRegex.test(u.pathname + (u.search || ""));
-    const hostLooksLikeImgHost = /(^|\.)((image|img|static|cdn|media)\.|images|imgur|cloudinary|unsplash|picsum|pinterest)\./i.test(u.hostname + u.pathname);
+    const hostLooksLikeImgHost =
+      /(^|\.)((image|img|static|cdn|media)\.|images|imgur|cloudinary|unsplash|picsum|pinterest)\./i.test(
+        u.hostname + u.pathname
+      );
     return pathMatch || hostLooksLikeImgHost;
   } catch {
     return false;

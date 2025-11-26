@@ -17,7 +17,8 @@ const DB_MONITOR_KEY = "rss-reader-db-events";
 
 function storeEvent(event: DBEventLogItem) {
   try {
-    if (typeof window === "undefined" || typeof localStorage === "undefined") return;
+    if (typeof window === "undefined" || typeof localStorage === "undefined")
+      return;
     const raw = localStorage.getItem(DB_MONITOR_KEY);
     const arr = raw ? (JSON.parse(raw) as DBEventLogItem[]) : [];
     arr.push(event);
@@ -31,7 +32,8 @@ function storeEvent(event: DBEventLogItem) {
 // Return the current events
 export function getDBEvents(): DBEventLogItem[] {
   try {
-    if (typeof window === "undefined" || typeof localStorage === "undefined") return [];
+    if (typeof window === "undefined" || typeof localStorage === "undefined")
+      return [];
     const raw = localStorage.getItem(DB_MONITOR_KEY);
     return raw ? (JSON.parse(raw) as DBEventLogItem[]) : [];
   } catch (err) {
@@ -43,7 +45,8 @@ export function getDBEvents(): DBEventLogItem[] {
 // Clear events (not used automatically)
 export function clearDBEvents() {
   try {
-    if (typeof window === "undefined" || typeof localStorage === "undefined") return;
+    if (typeof window === "undefined" || typeof localStorage === "undefined")
+      return;
     localStorage.removeItem(DB_MONITOR_KEY);
   } catch (err) {
     console.warn("db-monitor: failed to clear events", err);
@@ -70,7 +73,7 @@ export function startDBWatch(options?: {
     try {
       // typed version of the databases() result
       type DBEntry = { name?: string };
-      const indexedDBAny = (indexedDB as unknown) as {
+      const indexedDBAny = indexedDB as unknown as {
         databases?: () => Promise<DBEntry[]>;
       };
       const list = await indexedDBAny.databases?.();
@@ -95,7 +98,7 @@ export function startDBWatch(options?: {
   watchIntervalId = window.setInterval(async () => {
     try {
       type DBEntry = { name?: string };
-      const indexedDBAny = (indexedDB as unknown) as {
+      const indexedDBAny = indexedDB as unknown as {
         databases?: () => Promise<DBEntry[]>;
       };
       const list = await indexedDBAny.databases?.();
@@ -127,7 +130,9 @@ export function startDBWatch(options?: {
           // Show a toast to the user in dev/test environment (not mandatory in production)
           try {
             toast?.warning?.(`IndexedDB ${name} removed`);
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         } else if (!prev && exists) {
           const event = {
             type: "created" as const,
@@ -150,10 +155,12 @@ export function startDBWatch(options?: {
         type: "error" as const,
         name: "db-monitor",
         timestamp: Date.now(),
-        message: `db-monitor polling error: ${((err as Error)?.message) ?? String(err)}`,
+        message: `db-monitor polling error: ${
+          (err as Error)?.message ?? String(err)
+        }`,
         userAgent: navigator.userAgent,
         href: window.location.href,
-        stack: (((err as Error)?.stack) as string) ?? null,
+        stack: ((err as Error)?.stack as string) ?? null,
       };
       console.error("db-monitor: poll error", err);
       storeEvent(event);
@@ -174,7 +181,7 @@ export function stopDBWatch() {
 export async function checkDBExists(dbName = "rss-reader-db") {
   try {
     type DBEntry = { name?: string };
-    const indexedDBAny = (indexedDB as unknown) as {
+    const indexedDBAny = indexedDB as unknown as {
       databases?: () => Promise<DBEntry[]>;
     };
     const list = await indexedDBAny.databases?.();
@@ -184,9 +191,15 @@ export async function checkDBExists(dbName = "rss-reader-db") {
       // Fallback: try opening DB and see if it fails
       const req = indexedDB.open(dbName);
       return await new Promise((resolve) => {
-        req.onsuccess = () => { req.result.close(); resolve(true); };
+        req.onsuccess = () => {
+          req.result.close();
+          resolve(true);
+        };
         req.onerror = () => resolve(false);
-        req.onupgradeneeded = () => { if (req.transaction) req.transaction.abort(); resolve(true); };
+        req.onupgradeneeded = () => {
+          if (req.transaction) req.transaction.abort();
+          resolve(true);
+        };
       });
     } catch {
       return false;
@@ -196,7 +209,8 @@ export async function checkDBExists(dbName = "rss-reader-db") {
 
 // Export a simple log function so other modules can append events to the DB monitor log
 export function logDBEvent(item: Omit<DBEventLogItem, "timestamp">) {
-  if (typeof window === "undefined" || typeof localStorage === "undefined") return;
+  if (typeof window === "undefined" || typeof localStorage === "undefined")
+    return;
   const ev: DBEventLogItem = { ...item, timestamp: Date.now() };
   storeEvent(ev);
 }

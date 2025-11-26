@@ -34,6 +34,7 @@ import {
 import { DateTime } from "luxon";
 import { detectLanguage, extractTextFromHtml } from "@/lib/translation";
 import Image from "next/image";
+import { isValidImageUrl } from "@/lib/utils";
 
 // Map common category names to display colors
 const CATEGORY_COLORS: Record<string, string> = {
@@ -211,6 +212,8 @@ export function ArticleList({
           alt="No articles"
           width={256}
           height={256}
+          priority
+          style={{ width: "auto", height: "auto" }}
           className="w-64 h-64 mb-6 opacity-80"
         />
         <h3 className="text-xl font-semibold mb-2 text-foreground">
@@ -233,7 +236,7 @@ export function ArticleList({
         >
           <div className="aspect-video w-full overflow-hidden bg-muted relative">
             <Image
-              src={article.image || "/article-placeholder.svg"}
+              src={isValidImageUrl(article.image) ? article.image! : "/article-placeholder.svg"}
               alt={article.title || "Article image"}
               fill
               sizes="(max-width: 640px) 100vw, 33vw"

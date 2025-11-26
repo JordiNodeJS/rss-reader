@@ -89,12 +89,16 @@ export const getDB = () => {
                 m.logDBEvent({
                   type: "deleted",
                   name: DB_NAME,
-                  message: "IDB versionchange detected on open DB (possible delete or migration)",
+                  message:
+                    "IDB versionchange detected on open DB (possible delete or migration)",
                 });
               } catch (_) {}
             });
           } catch (e) {
-            console.warn("db: failed to import db-monitor to log versionchange", e);
+            console.warn(
+              "db: failed to import db-monitor to log versionchange",
+              e
+            );
           }
         });
       }
@@ -108,7 +112,9 @@ export const getDB = () => {
               m.logDBEvent({
                 type: "error",
                 name: DB_NAME,
-                message: `openDB failed: ${((err as Error)?.message) ?? String(err)}`,
+                message: `openDB failed: ${
+                  (err as Error)?.message ?? String(err)
+                }`,
               });
             } catch (_) {}
           });
