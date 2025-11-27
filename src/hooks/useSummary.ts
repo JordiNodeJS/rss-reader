@@ -27,6 +27,7 @@ import {
   SUMMARIZATION_MODELS,
   SummarizationModelKey,
 } from "@/lib/summarization";
+import { translateToSpanish } from "@/lib/translation";
 
 // ============================================
 // Types
@@ -47,6 +48,8 @@ export interface UseSummaryOptions {
   backend?: SummarizationBackend;
   /** Model to use for Transformers.js (default: distilbart-cnn-6-6) */
   modelId?: SummarizationModelKey;
+  /** Translate summary to Spanish after generation (useful for Transformers.js which only outputs English) */
+  translateSummary?: boolean;
 }
 
 export interface UseSummaryReturn {
@@ -79,7 +82,11 @@ export interface UseSummaryReturn {
   /** Available summarization models */
   availableModels: typeof SUMMARIZATION_MODELS;
   /** Generate summary */
-  summarize: (type?: SummaryType, length?: SummaryLength) => Promise<void>;
+  summarize: (
+    type?: SummaryType,
+    length?: SummaryLength,
+    forceRegenerate?: boolean
+  ) => Promise<void>;
   /** Generate summary using Transformers.js specifically */
   summarizeWithModel: (modelId?: SummarizationModelKey) => Promise<void>;
   /** Clear cached summary */
@@ -98,6 +105,7 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     cacheSummaries = true,
     backend = "auto",
     modelId = "distilbart-cnn-6-6",
+    translateSummary = false,
   } = options;
 
   // State
@@ -239,8 +247,24 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
 
   // Summarize function - uses the appropriate backend
   const summarize = useCallback(
-    async (type?: SummaryType, length?: SummaryLength) => {
-      if (!article || !canSummarize) return;
+    async (
+      type?: SummaryType,
+      length?: SummaryLength,
+      forceRegenerate?: boolean
+    ) => {
+      if (!article) return;
+
+      // Skip if already summarized and not forcing regeneration
+      if (!forceRegenerate && hasCachedSummary && summary) {
+        return;
+      }
+
+      // Check if we can summarize (has available backends)
+      if (!isChromeAvailable && !isTransformersAvailable) {
+        setError("No hay ningún servicio de resumen disponible");
+        setStatus("error");
+        return;
+      }
 
       const useType = type || defaultType;
       const useLength = length || defaultLength;
@@ -300,6 +324,26 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
             onProgress: handleTransformersProgress,
           });
           resultSummary = result.summary;
+
+          // Translate summary to Spanish if option enabled (Transformers.js only outputs English)
+          if (translateSummary && resultSummary) {
+            setStatus("summarizing");
+            setMessage("Traduciendo resumen al español...");
+            try {
+              const translationResult = await translateToSpanish({
+                text: resultSummary,
+                skipLanguageDetection: true,
+                sourceLanguage: "en",
+              });
+              resultSummary = translationResult.translatedText;
+            } catch (translateError) {
+              console.warn(
+                "[useSummary] Failed to translate summary:",
+                translateError
+              );
+              // Keep original English summary if translation fails
+            }
+          }
         } else {
           throw new Error("No hay ningún servicio de resumen disponible");
         }
@@ -332,7 +376,8 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     },
     [
       article,
-      canSummarize,
+      hasCachedSummary,
+      summary,
       cacheSummaries,
       handleProgress,
       handleTransformersProgress,
@@ -342,6 +387,7 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
       isChromeAvailable,
       isTransformersAvailable,
       modelId,
+      translateSummary,
     ]
   );
 
