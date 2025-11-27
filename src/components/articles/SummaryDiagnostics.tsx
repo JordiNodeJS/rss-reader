@@ -1,6 +1,6 @@
 /**
  * Summary Diagnostics Component
- * 
+ *
  * Shows diagnostic information about Chrome Summarizer API availability
  */
 
@@ -16,12 +16,14 @@ interface SummaryDiagnosticsProps {
   errorMessage?: string | null;
 }
 
-export function SummaryDiagnostics({ errorMessage }: SummaryDiagnosticsProps = {}) {
+export function SummaryDiagnostics({
+  errorMessage,
+}: SummaryDiagnosticsProps = {}) {
   const [availability, setAvailability] = useState<string>("checking");
   const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>();
   const [chromeVersion, setChromeVersion] = useState<number | null>(null);
   const [isChrome, setIsChrome] = useState(false);
-  
+
   // Use prop error message if provided, otherwise use API error
   const displayError = errorMessage || apiErrorMessage;
 
@@ -30,7 +32,7 @@ export function SummaryDiagnostics({ errorMessage }: SummaryDiagnosticsProps = {
     const userAgent = navigator.userAgent;
     const chromeMatch = userAgent.match(/Chrome\/(\d+)/);
     const edgeMatch = userAgent.match(/Edg\/(\d+)/);
-    
+
     if (chromeMatch || edgeMatch) {
       // Schedule state updates to avoid synchronous setState within the effect
       // which can trigger cascading renders. This runs in the next microtask.
@@ -50,7 +52,7 @@ export function SummaryDiagnostics({ errorMessage }: SummaryDiagnosticsProps = {
       .then((result) => {
         setAvailability(result.status);
         setApiErrorMessage(result.error);
-        
+
         // If we have a prop error message about space, prioritize it
         if (errorMessage && errorMessage.includes("space")) {
           setAvailability("insufficient-space");
@@ -125,7 +127,9 @@ export function SummaryDiagnostics({ errorMessage }: SummaryDiagnosticsProps = {
               Se requiere espacio en disco
             </p>
             <p className="text-xs mb-2">
-              Chrome necesita al menos <strong>22GB de espacio libre</strong> en el volumen donde está instalado tu perfil de Chrome para descargar el modelo Gemini Nano.
+              Chrome necesita al menos <strong>22GB de espacio libre</strong> en
+              el volumen donde está instalado tu perfil de Chrome para descargar
+              el modelo Gemini Nano.
             </p>
             {displayError && (
               <div className="text-xs mt-2 p-1.5 bg-orange-500/5 border border-orange-500/10 rounded">
@@ -136,26 +140,37 @@ export function SummaryDiagnostics({ errorMessage }: SummaryDiagnosticsProps = {
             )}
           </div>
           <div className="text-xs space-y-1">
-            <p><strong>Para solucionarlo:</strong></p>
+            <p>
+              <strong>Para solucionarlo:</strong>
+            </p>
             <ul className="list-disc list-inside space-y-0.5 ml-2">
-              <li>Libera espacio en tu disco (elimina archivos temporales, vacía la papelera)</li>
-              <li>Verifica el espacio disponible en Configuración de Windows</li>
-              <li>El modelo se descargará automáticamente cuando haya suficiente espacio</li>
+              <li>
+                Libera espacio en tu disco (elimina archivos temporales, vacía
+                la papelera)
+              </li>
+              <li>
+                Verifica el espacio disponible en Configuración de Windows
+              </li>
+              <li>
+                El modelo se descargará automáticamente cuando haya suficiente
+                espacio
+              </li>
             </ul>
           </div>
         </div>
       )}
       {availability === "not-supported" && (
         <div className="text-xs text-muted-foreground mt-1">
-          La API de Summarizer solo está disponible en Chrome 138+ en Windows, macOS, Linux o Chromebook Plus.
+          La API de Summarizer solo está disponible en Chrome 138+ en Windows,
+          macOS, Linux o Chromebook Plus.
         </div>
       )}
       {availability === "unavailable" && !errorMessage && (
         <div className="text-xs text-muted-foreground mt-1">
-          La API no está disponible. Puede ser por requisitos de hardware o configuración.
+          La API no está disponible. Puede ser por requisitos de hardware o
+          configuración.
         </div>
       )}
     </div>
   );
 }
-
