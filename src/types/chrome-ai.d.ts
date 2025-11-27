@@ -125,6 +125,10 @@ declare global {
       options: TranslatorAvailabilityOptions
     ): Promise<TranslatorAvailability>;
     create(options: TranslatorCreateOptions): Promise<Translator>;
+    // Optional method to delete a downloaded model (may not be available in all Chrome versions)
+    deleteModel?(
+      options: TranslatorAvailabilityOptions
+    ): Promise<void>;
   }
 
   // ============================================
@@ -170,6 +174,8 @@ declare global {
   interface LanguageDetectorConstructor {
     availability(): Promise<LanguageDetectorAvailability>;
     create(options?: LanguageDetectorCreateOptions): Promise<LanguageDetector>;
+    // Optional method to delete a downloaded model (may not be available in all Chrome versions)
+    deleteModel?(): Promise<void>;
   }
 
   // ============================================

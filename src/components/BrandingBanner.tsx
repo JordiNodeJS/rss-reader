@@ -203,57 +203,107 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
       delay: 1,
     });
 
-    // Magnetic Wave Hover Effect
-    const handleMouseMove = (e: MouseEvent) => {
-      const mouseX = e.clientX;
-      const mouseY = e.clientY;
+    // Magnetic Wave Hover Effect - Optimized with RAF throttling
+    const letterData = Array.from(allLetters).map((letter) => ({
+      element: letter,
+      setY: gsap.quickSetter(letter, "y", "px"),
+      // Cache bounding rect and update only when needed
+      cachedRect: letter.getBoundingClientRect(),
+      rectUpdateCounter: 0,
+    }));
 
-      allLetters.forEach((letter) => {
-        const rect = letter.getBoundingClientRect();
+    let rafId: number | null = null;
+    let pendingMouseX = 0;
+    let pendingMouseY = 0;
+    let isAnimating = false;
+
+    const updateLetters = () => {
+      if (isAnimating) return;
+      isAnimating = true;
+
+      const mouseX = pendingMouseX;
+      const mouseY = pendingMouseY;
+      const maxDistance = 150;
+
+      // Update cached rects every 5 frames to reduce getBoundingClientRect calls
+      const shouldUpdateRects = letterData[0]?.rectUpdateCounter === 0;
+
+      letterData.forEach((letterInfo) => {
+        const letter = letterInfo.element;
+
+        // Update bounding rect cache periodically (not every frame)
+        if (shouldUpdateRects) {
+          letterInfo.cachedRect = letter.getBoundingClientRect();
+          letterInfo.rectUpdateCounter = 5;
+        } else {
+          letterInfo.rectUpdateCounter--;
+        }
+
+        const rect = letterInfo.cachedRect;
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
         const distance = Math.hypot(mouseX - centerX, mouseY - centerY);
-        const maxDistance = 150;
 
         if (distance < maxDistance) {
           const intensity = Math.pow(1 - distance / maxDistance, 2);
-
-          gsap.to(letter, {
+          // Use gsap.set for scale (quickSetter doesn't work well with compound properties)
+          gsap.set(letter, {
             scale: 1 + 0.5 * intensity,
-            y: -15 * intensity,
-            duration: 0.2,
             overwrite: "auto",
-            ease: "power2.out",
           });
+          letterInfo.setY(-15 * intensity);
         } else {
-          gsap.to(letter, {
+          gsap.set(letter, {
             scale: 1,
-            y: 0,
-            duration: 0.4,
             overwrite: "auto",
-            ease: "power2.out",
           });
+          letterInfo.setY(0);
         }
       });
+
+      isAnimating = false;
+      rafId = null;
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      pendingMouseX = e.clientX;
+      pendingMouseY = e.clientY;
+
+      // Throttle with requestAnimationFrame
+      if (!rafId) {
+        rafId = requestAnimationFrame(updateLetters);
+      }
     };
 
     const handleMouseLeave = () => {
-      gsap.to(allLetters, {
-        scale: 1,
-        y: 0,
-        duration: 0.5,
-        overwrite: true,
-        ease: "power2.out",
+      // Cancel pending animation
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+
+      // Reset all letters smoothly
+      letterData.forEach((letterInfo) => {
+        gsap.to(letterInfo.element, {
+          scale: 1,
+          y: 0,
+          duration: 0.5,
+          overwrite: true,
+          ease: "power2.out",
+        });
       });
     };
 
-    title.addEventListener("mousemove", handleMouseMove);
+    title.addEventListener("mousemove", handleMouseMove, { passive: true });
     title.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
       title.removeEventListener("mousemove", handleMouseMove);
       title.removeEventListener("mouseleave", handleMouseLeave);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }, []);
 

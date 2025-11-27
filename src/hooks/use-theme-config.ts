@@ -276,7 +276,7 @@ interface ThemeStore {
 export const useThemeConfig = create<ThemeStore>()(
   persist(
     (set, get) => ({
-      currentTheme: "retro-arcade",
+      currentTheme: "claude",
       isLoading: false,
       setTheme: (theme) => {
         // No hacer nada si ya es el tema actual o si está cargando

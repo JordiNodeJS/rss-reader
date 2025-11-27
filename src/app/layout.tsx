@@ -84,6 +84,7 @@ export default function RootLayout({
         "bubblegum": ["Poppins", "Playfair Display", "Fira Code"],
         "candyland": ["Poppins", "Lora", "Fira Code"],
         "catppuccin": ["Montserrat", "Merriweather", "JetBrains Mono"],
+        "claude": [],
         "claymorphism": ["Plus Jakarta Sans", "DM Sans", "JetBrains Mono"],
         "clean-slate": ["Inter", "Source Serif 4", "JetBrains Mono"],
         "cosmic-night": ["Oxanium", "Source Code Pro"],
@@ -132,11 +133,11 @@ export default function RootLayout({
       }
       
       try {
-        var theme = 'retro-arcade';
+        var theme = 'claude';
         var stored = localStorage.getItem('rss-reader-theme-config');
         if (stored) {
           var parsed = JSON.parse(stored);
-          theme = parsed.state?.currentTheme || 'retro-arcade';
+          theme = parsed.state?.currentTheme || 'claude';
         }
         document.documentElement.classList.add('theme-' + theme);
         
@@ -161,12 +162,12 @@ export default function RootLayout({
           }
         }, 0);
       } catch (e) {
-        document.documentElement.classList.add('theme-retro-arcade');
-        loadFonts(themeFonts['retro-arcade']);
+        document.documentElement.classList.add('theme-claude');
+        loadFonts(themeFonts['claude']);
         var link = document.createElement('link');
         link.rel = 'preload';
         link.as = 'style';
-        link.href = '/styles/themes/retro-arcade.css';
+        link.href = '/styles/themes/claude.css';
         link.id = 'dynamic-theme-link';
         link.onload = function() {
           this.onload = null;

@@ -452,8 +452,8 @@ type TranslationPipeline = (
   text: string
 ) => Promise<Array<{ translation_text: string }>>;
 
-let transformersPipelines: Map<string, TranslationPipeline> = new Map();
-let transformersLoadPromises: Map<string, Promise<TranslationPipeline>> = new Map();
+const transformersPipelines: Map<string, TranslationPipeline> = new Map();
+const transformersLoadPromises: Map<string, Promise<TranslationPipeline>> = new Map();
 
 async function loadTransformersPipeline(
   sourceLanguage: string = "en",
@@ -507,7 +507,7 @@ async function loadTransformersPipeline(
 // ============================================
 
 // Cache translators by "source-target" key
-let chromeTranslators: Map<string, Translator> = new Map();
+const chromeTranslators: Map<string, Translator> = new Map();
 
 async function getChromeTranslator(
   sourceLanguage: string = "en",
@@ -1175,9 +1175,9 @@ export async function translateHtmlPreservingFormat(
  */
 export async function clearTranslationModelCache(): Promise<void> {
   // Clear in-memory instances
-  transformersPipeline = null;
-  transformersLoadPromise = null;
-  chromeTranslator = null;
+  transformersPipelines.clear();
+  transformersLoadPromises.clear();
+  chromeTranslators.clear();
   chromeLanguageDetector = null;
 
   // Clear IndexedDB cache used by Transformers.js
@@ -1270,7 +1270,7 @@ export async function getChromeTranslatorModels(): Promise<CachedModel[]> {
           source: "chrome",
         });
       }
-    } catch (e) {
+    } catch {
       // Ignore errors for unsupported pairs
     }
   }
@@ -1287,7 +1287,7 @@ export async function getChromeTranslatorModels(): Promise<CachedModel[]> {
           source: "chrome",
         });
       }
-    } catch (e) {
+    } catch {
       // Ignore
     }
   }
@@ -1366,7 +1366,7 @@ export async function getDownloadedModels(): Promise<CachedModel[]> {
             const blob = await response.blob();
             size = blob.size;
           }
-        } catch (e) {
+        } catch {
           console.warn("Failed to get size for", request.url);
         }
 
@@ -1402,9 +1402,203 @@ export async function getAllCacheNames(): Promise<string[]> {
 }
 
 /**
+ * Diagnostic function to check available methods on Chrome Translator API
+ */
+async function diagnoseChromeTranslatorAPI(): Promise<void> {
+  if (typeof Translator === "undefined") {
+    console.log("[Translation] Translator API not available");
+    return;
+  }
+  
+  console.log("[Translation] Translator API available. Checking methods...");
+  console.log("[Translation] Translator methods:", Object.keys(Translator));
+  console.log("[Translation] Translator prototype:", Object.getOwnPropertyNames(Object.getPrototypeOf(Translator)));
+  
+  // Check if deleteModel exists
+  const translatorAny = Translator as unknown as Record<string, unknown>;
+  console.log("[Translation] Translator.deleteModel exists:", typeof translatorAny.deleteModel);
+  console.log("[Translation] Translator.deleteModel type:", typeof translatorAny.deleteModel);
+  
+  if (typeof LanguageDetector !== "undefined") {
+    const detectorAny = LanguageDetector as unknown as Record<string, unknown>;
+    console.log("[Translation] LanguageDetector.deleteModel exists:", typeof detectorAny.deleteModel);
+  }
+  
+  // Check storage APIs
+  if (typeof navigator !== "undefined" && navigator.storage) {
+    console.log("[Translation] navigator.storage available:", !!navigator.storage);
+    if (navigator.storage.estimate) {
+      const estimate = await navigator.storage.estimate();
+      console.log("[Translation] Storage estimate:", estimate);
+    }
+  }
+  
+  // Check IndexedDB for Chrome Translator storage
+  if (typeof indexedDB !== "undefined") {
+    const databases = await indexedDB.databases?.();
+    if (databases) {
+      const chromeDBs = databases.filter(db => 
+        db.name?.toLowerCase().includes("translator") ||
+        db.name?.toLowerCase().includes("chrome") ||
+        db.name?.toLowerCase().includes("on-device")
+      );
+      console.log("[Translation] Chrome Translator related IndexedDB databases:", chromeDBs);
+    }
+  }
+}
+
+/**
+ * Delete a specific Chrome Translator model from memory and storage
+ * 
+ * Note: Chrome Translator API doesn't provide a direct deleteModel() method.
+ * Models are stored in Chrome's internal storage which is not directly accessible.
+ * We can only:
+ * 1. Destroy the Translator instance (clears from memory)
+ * 2. Try to use deleteModel() if it exists (may not be available)
+ * 3. The model will remain "available" until Chrome's internal cache management removes it
+ */
+async function deleteChromeModel(modelId: string): Promise<void> {
+  if (typeof Translator === "undefined") return;
+  
+  // Run diagnostics first time to understand what's available
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const deleteChromeModelAny = deleteChromeModel as any;
+  if (!deleteChromeModelAny.diagnosticsRun) {
+    await diagnoseChromeTranslatorAPI();
+    deleteChromeModelAny.diagnosticsRun = true;
+  }
+  
+  // Handle Language Detector
+  if (modelId.includes("Language Detector")) {
+    // Destroy the detector instance if it exists
+    if (chromeLanguageDetector) {
+      try {
+        chromeLanguageDetector.destroy();
+        console.log("[Translation] Language Detector instance destroyed");
+      } catch (error) {
+        console.warn("[Translation] Error destroying Language Detector:", error);
+      }
+      chromeLanguageDetector = null;
+    }
+    
+    // Try to use deleteModel() if available
+    try {
+      if (typeof LanguageDetector !== "undefined" && LanguageDetector.deleteModel) {
+        await LanguageDetector.deleteModel();
+        console.log("[Translation] Language Detector model deleted via deleteModel()");
+        return;
+      }
+    } catch (error) {
+      console.warn("[Translation] deleteModel() not available or failed for Language Detector:", error);
+    }
+    
+    console.warn("[Translation] Language Detector: Only cleared from memory. Model may still be 'available' in Chrome storage.");
+    return;
+  }
+  
+  // Extract language pair from modelId
+  // Format: "Chrome Translator: English → Spanish"
+  const match = modelId.match(/Chrome Translator: (\w+) → Spanish/);
+  if (!match) {
+    // If we can't parse the model ID, try to clear all chrome translators
+    console.warn("[Translation] Could not parse model ID, clearing all translators");
+    for (const translator of chromeTranslators.values()) {
+      try {
+        translator.destroy();
+      } catch (error) {
+        console.warn("[Translation] Error destroying Translator:", error);
+      }
+    }
+    chromeTranslators.clear();
+    return;
+  }
+  
+  const sourceLang = match[1].toLowerCase();
+  // Map common language names to codes
+  const langMap: Record<string, string> = {
+    english: "en",
+    french: "fr",
+    german: "de",
+    italian: "it",
+    portuguese: "pt",
+  };
+  const sourceCode = langMap[sourceLang] || "en";
+  const targetCode = "es";
+  const key = `${sourceCode}-${targetCode}`;
+  
+  console.log(`[Translation] Attempting to delete Chrome Translator model: ${sourceCode}->${targetCode}`);
+  
+  // Destroy the Translator instance if it exists
+  const translator = chromeTranslators.get(key);
+  if (translator) {
+    try {
+      translator.destroy();
+      console.log(`[Translation] Translator instance (${key}) destroyed`);
+    } catch (error) {
+      console.warn(`[Translation] Error destroying Translator (${key}):`, error);
+    }
+    chromeTranslators.delete(key);
+  } else {
+    console.log(`[Translation] No Translator instance found in memory for ${key}`);
+  }
+  
+  // Try to use deleteModel() if available
+  // This should actually remove the model from browser storage
+  try {
+    if (Translator.deleteModel) {
+      await Translator.deleteModel({
+        sourceLanguage: sourceCode,
+        targetLanguage: targetCode,
+      });
+      console.log(`[Translation] ✅ Model ${sourceCode}->${targetCode} deleted via deleteModel()`);
+      
+      // Verify deletion by checking availability
+      const availability = await Translator.availability({
+        sourceLanguage: sourceCode,
+        targetLanguage: targetCode,
+      });
+      console.log(`[Translation] Model availability after deleteModel(): ${availability}`);
+      
+      if (availability === "available") {
+        console.warn(`[Translation] ⚠️ Model still shows as 'available' after deleteModel(). Chrome may cache it internally.`);
+      }
+    } else {
+      console.warn("[Translation] ⚠️ Translator.deleteModel() not available. Model will persist in Chrome's internal storage.");
+      console.warn("[Translation] 💡 Tip: Use chrome://on-device-translation-internals/ to manage models manually.");
+    }
+  } catch (error) {
+    console.warn(`[Translation] deleteModel() failed for ${sourceCode}->${targetCode}:`, error);
+  }
+  
+  // Final verification
+  try {
+    const finalAvailability = await Translator.availability({
+      sourceLanguage: sourceCode,
+      targetLanguage: targetCode,
+    });
+    console.log(`[Translation] Final model availability check: ${finalAvailability}`);
+    
+    if (finalAvailability === "available") {
+      console.warn(`[Translation] ⚠️ Model ${sourceCode}->${targetCode} is still 'available' after deletion attempt.`);
+      console.warn("[Translation] This is expected - Chrome Translator API stores models in internal storage that cannot be directly accessed.");
+      console.warn("[Translation] The model will be re-used from Chrome's cache on next translation request.");
+    }
+  } catch (error) {
+    console.warn("[Translation] Error checking final availability:", error);
+  }
+}
+
+/**
  * Delete a specific model from cache
  */
 export async function deleteModel(modelId: string): Promise<void> {
+  // Handle Chrome models
+  if (modelId.startsWith("Chrome ")) {
+    await deleteChromeModel(modelId);
+    return;
+  }
+
+  // Handle Transformers.js models
   if (typeof caches === "undefined") return;
 
   const cacheNames = await caches.keys();
