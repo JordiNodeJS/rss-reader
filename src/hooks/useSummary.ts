@@ -46,7 +46,7 @@ export interface UseSummaryOptions {
   cacheSummaries?: boolean;
   /** Preferred backend: 'chrome', 'transformers', or 'auto' (default) */
   backend?: SummarizationBackend;
-  /** Model to use for Transformers.js (default: distilbart-cnn-6-6) */
+  /** Model to use for Transformers.js (default: distilbart-cnn-12-6) */
   modelId?: SummarizationModelKey;
   /** Translate summary to Spanish after generation (useful for Transformers.js which only outputs English) */
   translateSummary?: boolean;
@@ -104,7 +104,7 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     length: defaultLength = "medium",
     cacheSummaries = true,
     backend = "auto",
-    modelId = "distilbart-cnn-6-6",
+    modelId = "distilbart-cnn-12-6",
     translateSummary = false,
   } = options;
 

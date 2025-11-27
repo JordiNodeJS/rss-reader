@@ -275,7 +275,7 @@ export async function summarizeWithTransformers(
 
   return {
     summary: result.summary_text,
-    modelId: modelId || "distilbart-cnn-6-6",
+    modelId: modelId || "distilbart-cnn-12-6",
     timestamp: Date.now(),
   };
 }
@@ -284,7 +284,7 @@ export async function summarizeWithTransformers(
  * Pre-load a summarization model
  */
 export async function preloadSummarizationModel(
-  modelId: SummarizationModelKey = "distilbart-cnn-6-6",
+  modelId: SummarizationModelKey = "distilbart-cnn-12-6",
   onProgress?: (progress: TransformersSummarizationProgress) => void
 ): Promise<void> {
   if (!isTransformersSummarizationAvailable()) {

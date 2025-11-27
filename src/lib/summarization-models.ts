@@ -84,4 +84,4 @@ export const SUMMARIZATION_MODELS = {
 } as const;
 
 export type SummarizationModelKey = keyof typeof SUMMARIZATION_MODELS;
-export const DEFAULT_MODEL: SummarizationModelKey = "distilbart-cnn-6-6";
+export const DEFAULT_MODEL: SummarizationModelKey = "distilbart-cnn-12-6";
