@@ -3,6 +3,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Article } from "@/lib/db";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useSummary } from "@/hooks/useSummary";
+import { SummaryType, SummaryLength } from "@/lib/summarization";
+import { SummaryDiagnostics } from "./SummaryDiagnostics";
 import { FlipTitleReveal, FlipHtmlReveal } from "@/components/FlipTextReveal";
 import {
   Dialog,
@@ -23,6 +26,9 @@ import {
   Loader2,
   Languages,
   RotateCcw,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
@@ -445,6 +451,9 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
 export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
   // Use article.guid as key to reset state when article changes
   const [showIframe, setShowIframe] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryType, setSummaryType] = useState<SummaryType>("tldr");
+  const [summaryLength, setSummaryLength] = useState<SummaryLength>("medium");
 
   // Translation hook
   const translation = useTranslation({
@@ -453,10 +462,29 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
     cacheTranslations: true,
   });
 
-  // Reset iframe when dialog closes
+  // Summary hook
+  const summaryHook = useSummary({
+    article,
+    type: summaryType,
+    length: summaryLength,
+    cacheSummaries: true,
+  });
+
+  // Reset iframe and summary panel when dialog closes
   const handleClose = () => {
     setShowIframe(false);
+    setShowSummary(false);
     onClose();
+  };
+
+  // Handle summary generation
+  const handleGenerateSummary = async (type?: SummaryType, length?: SummaryLength) => {
+    const useType = type || summaryType;
+    const useLength = length || summaryLength;
+    setSummaryType(useType);
+    setSummaryLength(useLength);
+    setShowSummary(true);
+    await summaryHook.summarize(useType, useLength);
   };
 
   if (!article) return null;
@@ -510,6 +538,15 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                   Traducido al Español
                 </Badge>
               )}
+              {summaryHook.hasCachedSummary && (
+                <Badge
+                  variant="default"
+                  className="bg-purple-500 hover:bg-purple-600"
+                >
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  AI Summary
+                </Badge>
+              )}
               {translation.sourceLanguage !== "es" &&
                 translation.sourceLanguage !== "unknown" &&
                 !translation.isShowingTranslation && (
@@ -549,6 +586,83 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               >
                 Open in new tab <ExternalLink className="w-3 h-3" />
               </a>
+
+              {/* AI Summary controls */}
+              {summaryHook.isAvailable ? (
+                <>
+                  <span className="text-muted-foreground">|</span>
+                  {summaryHook.hasCachedSummary || summaryHook.status === "completed" ? (
+                    <button
+                      onClick={() => setShowSummary(!showSummary)}
+                      className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      {showSummary ? "Hide summary" : "Show summary"}
+                      {showSummary ? (
+                        <ChevronUp className="w-3 h-3" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" />
+                      )}
+                    </button>
+                  ) : summaryHook.status === "summarizing" ||
+                    summaryHook.status === "downloading" ||
+                    summaryHook.status === "checking" ? (
+                    <span className="text-muted-foreground flex items-center gap-1 text-sm">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      {summaryHook.message || "Generating summary..."}
+                    </span>
+                  ) : summaryHook.status === "error" ? (
+                    <span className="text-destructive flex items-center gap-1 text-sm">
+                      <AlertTriangle className="w-3 h-3" />
+                      Error: {summaryHook.error}
+                      <button
+                        onClick={() => handleGenerateSummary()}
+                        className="ml-1 hover:underline"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleGenerateSummary()}
+                      className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm"
+                      disabled={!summaryHook.canSummarize}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Generate AI summary
+                    </button>
+                  )}
+                </>
+              ) : (
+                // Show info when API is not available
+                <>
+                  <span className="text-muted-foreground">|</span>
+                  {summaryHook.availabilityError && 
+                   summaryHook.availabilityError.includes("space") ? (
+                    // Show prominent warning for insufficient space
+                    <span className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1" title={summaryHook.availabilityError}>
+                      <AlertTriangle className="w-3 h-3" />
+                      <span className="hidden sm:inline">Espacio insuficiente</span>
+                      <details className="inline relative">
+                        <summary className="cursor-pointer ml-1 hover:text-orange-700 dark:hover:text-orange-300">ℹ️</summary>
+                        <div className="absolute mt-2 right-0 p-3 bg-orange-500/10 border border-orange-500/20 rounded shadow-lg z-50 max-w-sm">
+                          <SummaryDiagnostics errorMessage={summaryHook.availabilityError} />
+                        </div>
+                      </details>
+                    </span>
+                  ) : (
+                    <details className="text-xs text-muted-foreground">
+                      <summary className="cursor-pointer hover:text-foreground flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 opacity-50" />
+                        <span className="hidden sm:inline">AI Summary</span>
+                      </summary>
+                      <div className="mt-2 p-2 bg-muted rounded border">
+                        <SummaryDiagnostics />
+                      </div>
+                    </details>
+                  )}
+                </>
+              )}
 
               {/* Translation controls */}
               {translation.sourceLanguage !== "es" &&
@@ -598,6 +712,78 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               )}
             </div>
           </DialogHeader>
+
+          {/* AI Summary Panel */}
+          {showSummary && summaryHook.summary && (
+            <div className="mx-6 mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-500" />
+                  <span className="font-medium text-sm text-purple-600 dark:text-purple-400">
+                    AI Summary
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {summaryHook.summaryType === "key-points"
+                      ? "Key Points"
+                      : summaryHook.summaryType === "tldr"
+                      ? "TL;DR"
+                      : summaryHook.summaryType === "teaser"
+                      ? "Teaser"
+                      : "Headline"}
+                  </Badge>
+                </div>
+                <button
+                  onClick={() => setShowSummary(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                {summaryHook.summaryType === "key-points" ? (
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: summaryHook.summary
+                        .replace(/^[-•*]\s*/gm, "")
+                        .split("\n")
+                        .filter((line) => line.trim())
+                        .map((point) => `<li>${point.trim()}</li>`)
+                        .join(""),
+                    }}
+                    className="list-disc list-inside space-y-1"
+                  />
+                ) : (
+                  <p className="text-foreground/90 leading-relaxed">
+                    {summaryHook.summary}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
+                <span className="text-xs text-muted-foreground">Regenerate:</span>
+                <button
+                  onClick={() => handleGenerateSummary("tldr", "short")}
+                  className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                  disabled={summaryHook.status === "summarizing"}
+                >
+                  Quick
+                </button>
+                <button
+                  onClick={() => handleGenerateSummary("key-points", "medium")}
+                  className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                  disabled={summaryHook.status === "summarizing"}
+                >
+                  Key Points
+                </button>
+                <button
+                  onClick={() => handleGenerateSummary("tldr", "long")}
+                  className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                  disabled={summaryHook.status === "summarizing"}
+                >
+                  Detailed
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
             <FlipHtmlReveal

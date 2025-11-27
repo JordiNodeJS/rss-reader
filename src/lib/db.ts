@@ -33,6 +33,11 @@ export interface Article {
   translationLanguage?: string; // Target language code, e.g., 'es'
   translatedAt?: number; // Timestamp when translated
   originalLanguage?: string; // Detected source language, e.g., 'en'
+  // Summary fields (Chrome Summarizer API)
+  summary?: string; // AI-generated summary
+  summaryType?: "key-points" | "tldr" | "teaser" | "headline";
+  summaryLength?: "short" | "medium" | "long";
+  summarizedAt?: number; // Timestamp when summarized
 }
 
 interface RSSDB extends DBSchema {
@@ -247,6 +252,23 @@ export const getArticleById = async (
 ): Promise<Article | undefined> => {
   const db = await getDB();
   return db.get("articles", id);
+};
+
+// Update article summary
+export const updateArticleSummary = async (
+  id: number,
+  summary: string,
+  summaryType: "key-points" | "tldr" | "teaser" | "headline" = "tldr",
+  summaryLength: "short" | "medium" | "long" = "medium"
+) => {
+  const db = await getDB();
+  const article = await db.get("articles", id);
+  if (!article) throw new Error("Article not found");
+  article.summary = summary;
+  article.summaryType = summaryType;
+  article.summaryLength = summaryLength;
+  article.summarizedAt = Date.now();
+  await db.put("articles", article);
 };
 
 // Clear all data

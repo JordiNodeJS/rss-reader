@@ -218,14 +218,10 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
 
         if (distance < maxDistance) {
           const intensity = Math.pow(1 - distance / maxDistance, 2);
-          
-          // Get primary color dynamically
-          const primaryColor = window.getComputedStyle(document.documentElement).getPropertyValue("--primary");
 
           gsap.to(letter, {
             scale: 1 + 0.5 * intensity,
             y: -15 * intensity,
-            color: primaryColor ? "var(--primary)" : "#3b82f6",
             duration: 0.2,
             overwrite: "auto",
             ease: "power2.out",
@@ -234,7 +230,6 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
           gsap.to(letter, {
             scale: 1,
             y: 0,
-            color: "inherit",
             duration: 0.4,
             overwrite: "auto",
             ease: "power2.out",
@@ -247,7 +242,6 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
       gsap.to(allLetters, {
         scale: 1,
         y: 0,
-        color: "inherit",
         duration: 0.5,
         overwrite: true,
         ease: "power2.out",

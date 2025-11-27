@@ -2,9 +2,81 @@
  * TypeScript declarations for Chrome's Built-in AI APIs
  * @see https://developer.chrome.com/docs/ai/translator-api
  * @see https://developer.chrome.com/docs/ai/language-detection
+ * @see https://developer.chrome.com/docs/ai/summarizer-api
  */
 
 declare global {
+  // ============================================
+  // Summarizer API (Chrome 138+)
+  // ============================================
+
+  type SummarizerAvailability =
+    | "available"
+    | "downloadable"
+    | "downloading"
+    | "unavailable";
+
+  type SummarizerType = "key-points" | "tldr" | "teaser" | "headline";
+  type SummarizerFormat = "markdown" | "plain-text";
+  type SummarizerLength = "short" | "medium" | "long";
+
+  interface SummarizerAvailabilityOptions {
+    type?: SummarizerType;
+    format?: SummarizerFormat;
+    length?: SummarizerLength;
+    expectedInputLanguages?: string[];
+    expectedContextLanguages?: string[];
+    outputLanguage?: string;
+  }
+
+  interface SummarizerCreateOptions extends SummarizerAvailabilityOptions {
+    sharedContext?: string;
+    monitor?: (monitor: SummarizerMonitor) => void;
+  }
+
+  interface SummarizerMonitor extends EventTarget {
+    addEventListener(
+      type: "downloadprogress",
+      listener: (event: SummarizerDownloadProgressEvent) => void
+    ): void;
+    removeEventListener(
+      type: "downloadprogress",
+      listener: (event: SummarizerDownloadProgressEvent) => void
+    ): void;
+  }
+
+  interface SummarizerDownloadProgressEvent extends Event {
+    loaded: number;
+    total: number;
+  }
+
+  interface SummarizerSummarizeOptions {
+    context?: string;
+  }
+
+  interface Summarizer {
+    summarize(
+      text: string,
+      options?: SummarizerSummarizeOptions
+    ): Promise<string>;
+    summarizeStreaming(
+      text: string,
+      options?: SummarizerSummarizeOptions
+    ): ReadableStream<string>;
+    readonly sharedContext: string;
+    readonly type: SummarizerType;
+    readonly format: SummarizerFormat;
+    readonly length: SummarizerLength;
+    destroy(): void;
+  }
+
+  interface SummarizerConstructor {
+    availability(
+      options?: SummarizerAvailabilityOptions
+    ): Promise<SummarizerAvailability>;
+    create(options?: SummarizerCreateOptions): Promise<Summarizer>;
+  }
+
   // ============================================
   // Translator API (Chrome 138+)
   // ============================================
@@ -104,10 +176,12 @@ declare global {
   // Global declarations
   // ============================================
 
+  const Summarizer: SummarizerConstructor | undefined;
   const Translator: TranslatorConstructor | undefined;
   const LanguageDetector: LanguageDetectorConstructor | undefined;
 
   interface Window {
+    Summarizer?: SummarizerConstructor;
     Translator?: TranslatorConstructor;
     LanguageDetector?: LanguageDetectorConstructor;
   }

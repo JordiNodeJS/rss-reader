@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Languages, Trash2, Loader2, HardDrive } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   CachedModel,
   getDownloadedModels,
@@ -45,6 +46,8 @@ export function CacheManager() {
   const [allCacheNames, setAllCacheNames] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const refreshModels = async () => {
     setIsLoading(true);
@@ -76,19 +79,57 @@ export function CacheManager() {
   useEffect(() => {
     if (isOpen) {
       refreshModels();
+      setSelectedModels(new Set()); // Reset selection when opening
     }
   }, [isOpen]);
 
-  const handleDeleteModel = async (modelId: string) => {
-    try {
-      await deleteModel(modelId);
-      toast.success(`Modelo eliminado`);
-      refreshModels();
-    } catch (error) {
-      toast.error("Error al eliminar el modelo");
-      console.error(error);
+  const toggleModelSelection = (modelId: string) => {
+    setSelectedModels((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(modelId)) {
+        newSet.delete(modelId);
+      } else {
+        newSet.add(modelId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllTransformers = () => {
+    const transformersIds = models
+      .filter((m) => m.source === "transformers")
+      .map((m) => m.id);
+    
+    const allSelected = transformersIds.every((id) => selectedModels.has(id));
+    
+    if (allSelected) {
+      // Deselect all
+      setSelectedModels(new Set());
+    } else {
+      // Select all transformers models
+      setSelectedModels(new Set(transformersIds));
     }
   };
+
+  const handleDeleteSelected = async () => {
+    if (selectedModels.size === 0) return;
+    
+    setIsDeleting(true);
+    try {
+      for (const modelId of selectedModels) {
+        await deleteModel(modelId);
+      }
+      toast.success(`${selectedModels.size} modelo(s) eliminado(s)`);
+      setSelectedModels(new Set());
+      refreshModels();
+    } catch (error) {
+      toast.error("Error al eliminar los modelos");
+      console.error(error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
   const handleClearAll = async () => {
     try {
@@ -101,12 +142,17 @@ export function CacheManager() {
     }
   };
 
-  const totalSize = models
-    .filter((m) => m.source === "transformers")
-    .reduce((acc, m) => acc + m.size, 0);
-  
   const transformersModels = models.filter((m) => m.source === "transformers");
   const chromeModels = models.filter((m) => m.source === "chrome");
+  
+  const totalSize = transformersModels.reduce((acc, m) => acc + m.size, 0);
+  
+  const selectedSize = transformersModels
+    .filter((m) => selectedModels.has(m.id))
+    .reduce((acc, m) => acc + m.size, 0);
+    
+  const allTransformersSelected = transformersModels.length > 0 && 
+    transformersModels.every((m) => selectedModels.has(m.id));
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -133,11 +179,17 @@ export function CacheManager() {
           <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
             <div className="flex items-center gap-2">
               <HardDrive className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Espacio Gestionable</span>
+              <span className="text-sm font-medium">
+                {selectedModels.size > 0 
+                  ? `Seleccionado (${selectedModels.size})`
+                  : "Espacio Gestionable"}
+              </span>
             </div>
             <span className="font-bold text-sm">
               {transformersModels.length > 0 
-                ? formatBytes(totalSize) 
+                ? selectedModels.size > 0
+                  ? formatBytes(selectedSize)
+                  : formatBytes(totalSize)
                 : "—"}
             </span>
           </div>
@@ -194,18 +246,32 @@ export function CacheManager() {
                 {/* Transformers.js Models Section */}
                 {transformersModels.length > 0 && (
                   <div className="space-y-2">
-                    {chromeModels.length > 0 && (
-                      <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mt-4">
+                    <div className="flex items-center justify-between mt-4">
+                      <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
                         Modelos Descargados (eliminables)
                       </p>
-                    )}
+                      <button
+                        onClick={toggleAllTransformers}
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        {allTransformersSelected ? "Deseleccionar todo" : "Seleccionar todo"}
+                      </button>
+                    </div>
                     {transformersModels.map((model) => (
                       <div
                         key={model.id}
-                        className="flex items-center justify-between group"
+                        className={`flex items-center gap-3 p-2 rounded-md transition-colors cursor-pointer hover:bg-muted/50 ${
+                          selectedModels.has(model.id) ? "bg-primary/10 border border-primary/30" : ""
+                        }`}
+                        onClick={() => toggleModelSelection(model.id)}
                       >
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-medium truncate max-w-[200px]" title={model.id}>
+                        <Checkbox
+                          checked={selectedModels.has(model.id)}
+                          onCheckedChange={() => toggleModelSelection(model.id)}
+                          className="shrink-0"
+                        />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-sm font-medium truncate" title={model.id}>
                             {model.id.split("/").pop()}
                           </span>
                           <span className="text-xs text-muted-foreground flex gap-2">
@@ -214,15 +280,6 @@ export function CacheManager() {
                             <span>{model.fileCount} archivos</span>
                           </span>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteModel(model.id)}
-                          title="Eliminar modelo"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
                       </div>
                     ))}
                   </div>
@@ -231,18 +288,59 @@ export function CacheManager() {
             )}
           </ScrollArea>
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-between items-center pt-2 gap-2">
+            {selectedModels.size > 0 ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="gap-2"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Eliminar {selectedModels.size} seleccionado{selectedModels.size > 1 ? "s" : ""}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar {selectedModels.size} modelo{selectedModels.size > 1 ? "s" : ""}?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esto liberará {formatBytes(selectedSize)} de espacio. Los modelos 
+                      se descargarán nuevamente cuando los necesites.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteSelected}>
+                      Eliminar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              <div />
+            )}
+            
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={transformersModels.length === 0}>
-                  Eliminar Descargados
+                <Button 
+                  variant={selectedModels.size > 0 ? "outline" : "destructive"} 
+                  size="sm" 
+                  disabled={transformersModels.length === 0}
+                >
+                  Eliminar Todos
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>¿Eliminar todos los modelos?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esto liberará espacio pero requerirá descargar los modelos
+                    Esto liberará {formatBytes(totalSize)} de espacio pero requerirá descargar los modelos
                     nuevamente la próxima vez que traduzcas.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
