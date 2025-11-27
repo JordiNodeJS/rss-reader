@@ -48,6 +48,8 @@ export interface UseTranslationReturn {
   isShowingTranslation: boolean;
   /** Whether the article is in English (translatable) */
   isEnglish: boolean;
+  /** Detected source language code */
+  sourceLanguage: string;
   /** Provider used for translation */
   provider: TranslationProvider;
   /** Error message if translation failed */
@@ -80,15 +82,17 @@ export function useTranslation(
   const [translatedTitle, setTranslatedTitle] = useState("");
   const [translatedContent, setTranslatedContent] = useState("");
   const [isShowingTranslation, setIsShowingTranslation] = useState(false);
-  const [isEnglish, setIsEnglish] = useState(false);
+  const [sourceLanguage, setSourceLanguage] = useState("en");
   const [provider, setProvider] = useState<TranslationProvider>("none");
   const [error, setError] = useState<string | null>(null);
   const [hasCachedTranslation, setHasCachedTranslation] = useState(false);
 
   // Derived state
+  const isEnglish = sourceLanguage === "en";
   const canTranslate =
     !!article &&
-    isEnglish &&
+    sourceLanguage !== "es" &&
+    sourceLanguage !== "unknown" &&
     status !== "translating" &&
     status !== "downloading";
 
@@ -99,7 +103,7 @@ export function useTranslation(
       setTranslatedTitle("");
       setTranslatedContent("");
       setIsShowingTranslation(false);
-      setIsEnglish(false);
+      setSourceLanguage("en");
       setHasCachedTranslation(false);
       setError(null);
       return;
@@ -110,7 +114,9 @@ export function useTranslation(
       setTranslatedTitle(article.translatedTitle);
       setTranslatedContent(article.translatedContent);
       setHasCachedTranslation(true);
-      setIsEnglish(article.originalLanguage === "en");
+      // If we have a cached translation, we know it was translated from something to Spanish
+      // We'll trust the article.originalLanguage if available, or default to 'en'
+      setSourceLanguage(article.originalLanguage || "en");
       setStatus("completed");
     } else {
       setHasCachedTranslation(false);
@@ -132,10 +138,13 @@ export function useTranslation(
 
         if (textContent.length > 20) {
           const detection = await detectLanguage(textContent);
-          setIsEnglish(detection.isEnglish);
+          // If detection returns 'unknown' but we have content, default to 'en' 
+          // to allow user to try translating if they want (though canTranslate blocks 'unknown')
+          // Let's set it to detection.language and let canTranslate handle it
+          setSourceLanguage(detection.language);
         } else {
           // Too short to detect, assume English for English-language feeds
-          setIsEnglish(true);
+          setSourceLanguage("en");
         }
       };
 
@@ -151,7 +160,8 @@ export function useTranslation(
     if (
       autoTranslate &&
       article &&
-      isEnglish &&
+      sourceLanguage !== "es" &&
+      sourceLanguage !== "unknown" &&
       !hasCachedTranslation &&
       status === "idle"
     ) {
@@ -162,7 +172,7 @@ export function useTranslation(
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoTranslate, article?.id, isEnglish, hasCachedTranslation]);
+  }, [autoTranslate, article?.id, sourceLanguage, hasCachedTranslation]);
 
   // Progress callback
   const handleProgress = useCallback((progressData: TranslationProgress) => {
@@ -197,7 +207,7 @@ export function useTranslation(
       const titleResult = await translateToSpanish({
         text: article.title,
         onProgress: handleProgress,
-        skipLanguageDetection: true, // Already detected as English
+        skipLanguageDetection: false, // Re-detect to ensure correct source language is used
       });
 
       // Translate content preserving HTML formatting
@@ -296,6 +306,7 @@ export function useTranslation(
     translatedContent: displayedContent,
     isShowingTranslation,
     isEnglish,
+    sourceLanguage,
     provider,
     error,
     canTranslate,

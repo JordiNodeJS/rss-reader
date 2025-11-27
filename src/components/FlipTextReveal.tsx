@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useLayoutEffect } from "react";
+import { useRef, useCallback, useLayoutEffect, useEffect } from "react";
 import gsap from "gsap";
 import { TextPlugin } from "gsap/TextPlugin";
 
@@ -45,6 +45,27 @@ export function FlipHtmlReveal({
   const animationRef = useRef<gsap.core.Timeline | null>(null);
   const previousShowTranslation = useRef(showTranslation);
   const isFirstRender = useRef(true);
+  const previousHeight = useRef<number>(0);
+
+  // Track container height changes to maintain the "last known stable height"
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Use borderBoxSize if available for accurate height including padding/border
+        if (entry.borderBoxSize && entry.borderBoxSize.length > 0) {
+          previousHeight.current = entry.borderBoxSize[0].blockSize;
+        } else {
+          previousHeight.current = (entry.target as HTMLElement).offsetHeight;
+        }
+      }
+    });
+    
+    resizeObserver.observe(containerRef.current);
+    
+    return () => resizeObserver.disconnect();
+  }, []);
 
   // Use layout effect for DOM manipulation to avoid flicker
   useLayoutEffect(() => {
@@ -54,16 +75,22 @@ export function FlipHtmlReveal({
       if (originalRef.current && translatedRef.current) {
         gsap.set(originalRef.current, {
           opacity: showTranslation ? 0 : 1,
-          visibility: showTranslation ? "hidden" : "visible",
+          display: showTranslation ? "none" : "block",
+          visibility: "visible", // We use display:none now, so visibility can be visible
           y: 0,
           filter: "blur(0px)",
         });
         gsap.set(translatedRef.current, {
           opacity: showTranslation ? 1 : 0,
-          visibility: showTranslation ? "visible" : "hidden",
+          display: showTranslation ? "block" : "none",
+          visibility: "visible",
           y: 0,
           filter: "blur(0px)",
         });
+        // Initialize height ref
+        if (containerRef.current) {
+          previousHeight.current = containerRef.current.offsetHeight;
+        }
       }
       previousShowTranslation.current = showTranslation;
       return;
@@ -80,7 +107,7 @@ export function FlipHtmlReveal({
       animationRef.current.kill();
     }
 
-    if (!originalRef.current || !translatedRef.current) return;
+    if (!originalRef.current || !translatedRef.current || !containerRef.current) return;
 
     const showEl = showTranslation
       ? translatedRef.current
@@ -89,34 +116,61 @@ export function FlipHtmlReveal({
       ? originalRef.current
       : translatedRef.current;
 
-    // Create the flip-board style animation with more visible effect
+    // Create the flip-board style animation
     const tl = gsap.timeline({
       onComplete: () => {
+        // Ensure the hidden element is removed from layout
+        gsap.set(hideEl, { display: "none" });
         onComplete?.();
       },
     });
-
-    // Initial state for incoming element - more dramatic starting position
+    
+    // --- HEIGHT ANIMATION ---
+    // 1. Prepare the incoming element (make it part of layout but invisible)
     gsap.set(showEl, {
+      display: "block",
       opacity: 0,
-      y: 20, // Reduced from 40 to prevent layout shift/expansion
+      y: 10, // Reduced from 20 to minimize movement
       filter: "blur(8px)",
       visibility: "visible",
     });
 
-    // Animate out the old content with a more visible "flip up" feel
-    // Use fromTo for y to ensure it starts at 0
+    // 2. Measure heights
+    // The DOM now has both elements with display:block.
+    // Grid height will be max(hideEl, showEl).
+    // We want to animate from hideEl.height to showEl.height.
+    // However, we only have the 'current composite height'.
+    // We rely on previousHeight.current to be the height of the SINGLE visible element before this change.
+    
+    const newHeight = containerRef.current.offsetHeight;
+    const oldHeight = previousHeight.current;
+    
+    // 3. Animate height if needed
+    if (oldHeight > 0 && Math.abs(newHeight - oldHeight) > 2) {
+      gsap.fromTo(
+        containerRef.current,
+        { height: oldHeight },
+        {
+          height: newHeight,
+          duration: duration,
+          ease: "power2.inOut",
+          clearProps: "height"
+        }
+      );
+    }
+
+    // --- CONTENT ANIMATION ---
+    // Animate out the old content
     tl.fromTo(hideEl, 
       { y: 0, filter: "blur(0px)", opacity: 1 },
       {
         opacity: 0,
-        y: -20, // Reduced from -40 to prevent layout shift/expansion
+        y: -10, // Reduced from 20
         filter: "blur(8px)",
         duration: duration * 0.45,
         ease: "power2.in",
       }
     );
-
 
     // Animate in the new content
     tl.to(
@@ -131,9 +185,6 @@ export function FlipHtmlReveal({
       `-=${duration * 0.15}`
     );
 
-    // Hide the old element after animation
-    tl.set(hideEl, { visibility: "hidden" });
-
     animationRef.current = tl;
 
     return () => {
@@ -141,10 +192,7 @@ export function FlipHtmlReveal({
     };
   }, [showTranslation, duration, onComplete]);
 
-  // Calculate positions - using grid stack to prevent height collapse/jumps
-  // We make the invisible layer "hidden" but still taking up space if needed,
-  // OR use the grid approach where both are in the same cell and the cell takes the max height.
-  // The grid approach is best: both elements in row 1, col 1.
+  // Calculate positions - using grid stack
   const commonStyle: React.CSSProperties = {
     gridArea: "1 / 1",
     width: "100%",
@@ -154,8 +202,8 @@ export function FlipHtmlReveal({
   return (
     <div 
       ref={containerRef} 
-      className={`grid items-start overflow-hidden ${className}`} // items-start ensures content aligns to top, overflow-hidden prevents scrollbars/expansion
-      style={{ gridTemplateColumns: "100%" }} // Force single column
+      className={`grid items-start overflow-hidden ${className}`} 
+      style={{ gridTemplateColumns: "100%" }} 
     >
       {/* Original content layer */}
       <div

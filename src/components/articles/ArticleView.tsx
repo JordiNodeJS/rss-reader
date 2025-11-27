@@ -37,6 +37,18 @@ interface IframeViewerProps {
   onClose: () => void;
 }
 
+function getLanguageName(code: string) {
+  const names: Record<string, string> = {
+    en: "English",
+    es: "Español",
+    fr: "Français",
+    de: "Deutsch",
+    pt: "Português",
+    it: "Italiano",
+  };
+  return names[code] || code.toUpperCase();
+}
+
 function IframeViewer({ url, onClose }: IframeViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [size, setSize] = useState({ width: 900, height: 600 });
@@ -498,12 +510,14 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                   Traducido al Español
                 </Badge>
               )}
-              {translation.isEnglish && !translation.isShowingTranslation && (
-                <Badge variant="outline" className="text-muted-foreground">
-                  <Languages className="w-3 h-3 mr-1" />
-                  English
-                </Badge>
-              )}
+              {translation.sourceLanguage !== "es" &&
+                translation.sourceLanguage !== "unknown" &&
+                !translation.isShowingTranslation && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    <Languages className="w-3 h-3 mr-1" />
+                    {getLanguageName(translation.sourceLanguage)}
+                  </Badge>
+                )}
             </div>
             <DialogTitle className="text-2xl font-bold leading-tight mb-3">
               <FlipTitleReveal
@@ -537,10 +551,11 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               </a>
 
               {/* Translation controls */}
-              {translation.isEnglish && (
-                <>
-                  <span className="text-muted-foreground">|</span>
-                  {translation.hasCachedTranslation ||
+              {translation.sourceLanguage !== "es" &&
+                translation.sourceLanguage !== "unknown" && (
+                  <>
+                    <span className="text-muted-foreground">|</span>
+                    {translation.hasCachedTranslation ||
                   translation.status === "completed" ? (
                     <button
                       onClick={translation.toggleTranslation}

@@ -32,9 +32,19 @@ import {
   FileText,
 } from "lucide-react";
 import { DateTime } from "luxon";
-import { detectLanguage, extractTextFromHtml } from "@/lib/translation";
+import { detectLanguage, extractTextFromHtml, LanguageDetectionResult } from "@/lib/translation";
 import Image from "next/image";
 import { isValidImageUrl } from "@/lib/utils";
+
+// Language names for display
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "inglés",
+  fr: "francés",
+  de: "alemán",
+  it: "italiano",
+  pt: "portugués",
+  es: "español",
+};
 
 // Map common category names to display colors
 const CATEGORY_COLORS: Record<string, string> = {
@@ -134,19 +144,20 @@ function getFeedTitle(article: Article, feeds: Feed[]): string | null {
   return null;
 }
 
-// Helper to check if article content is in English
-async function isArticleInEnglish(article: Article): Promise<boolean> {
+// Helper to check if article content is in a foreign language
+async function getArticleLanguage(
+  article: Article
+): Promise<LanguageDetectionResult | null> {
   const contentToCheck =
     article.title + " " + (article.content || article.contentSnippet || "");
   const textContent = extractTextFromHtml(contentToCheck);
 
-  if (textContent.length < 20) return false;
+  if (textContent.length < 20) return null;
 
   try {
-    const detection = await detectLanguage(textContent);
-    return detection.isEnglish;
+    return await detectLanguage(textContent);
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -162,9 +173,7 @@ export function ArticleList({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [articleToSave, setArticleToSave] = useState<Article | null>(null);
   const [isCheckingLanguage, setIsCheckingLanguage] = useState(false);
-  // Local state intentionally removed for articleIsEnglish because we only
-  // needed it during check time — using the dialog open/close and
-  // articleToSave controls to manage the flow.
+  const [detectedLanguage, setDetectedLanguage] = useState<string>("en");
 
   // Handle save button click - check language and show dialog if English
   const handleSaveClick = async (article: Article) => {
@@ -173,16 +182,21 @@ export function ArticleList({
     setIsCheckingLanguage(true);
     setArticleToSave(article);
 
-    const isEnglish = await isArticleInEnglish(article);
-    // No longer storing isEnglish in state — use dialog and articleToSave to
-    // decide save/translation flow.
+    const detection = await getArticleLanguage(article);
     setIsCheckingLanguage(false);
 
-    if (isEnglish) {
-      // Show dialog for English articles
+    // If detected and NOT Spanish (and confident enough), show dialog
+    if (
+      detection &&
+      !detection.isSpanish &&
+      detection.language !== "unknown" &&
+      detection.confidence > 0.2
+    ) {
+      // Show dialog for foreign articles
+      setDetectedLanguage(detection.language);
       setSaveDialogOpen(true);
     } else {
-      // Save directly for non-English articles
+      // Save directly for Spanish or unknown articles
       onScrape(article.id!, article.link, false);
     }
   };
@@ -342,17 +356,20 @@ export function ArticleList({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Languages className="w-5 h-5 text-blue-500" />
-              Artículo en inglés detectado
+              Artículo en {LANGUAGE_NAMES[detectedLanguage] || detectedLanguage} detected
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 <span className="block">
-                  Este artículo parece estar en inglés. ¿Deseas guardar el
-                  contenido original o traducirlo al español?
+                  Este artículo parece estar en{" "}
+                  {LANGUAGE_NAMES[detectedLanguage] || detectedLanguage}. ¿Deseas
+                  guardar el contenido original o traducirlo al español?
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   La traducción puede tardar unos segundos dependiendo de la
                   longitud del artículo.
+                  {detectedLanguage !== "en" &&
+                    " Nota: La traducción desde este idioma es experimental."}
                 </span>
               </div>
             </AlertDialogDescription>

@@ -801,7 +801,7 @@ function SidebarContent({
                   </DialogDescription>
                 </DialogHeader>
                 <div className="mt-2">
-                  <pre className="whitespace-pre-wrap max-h-60 overflow-auto text-xs bg-muted p-2 rounded">
+                  <pre className="whitespace-pre-wrap break-words max-w-full max-h-60 overflow-auto text-xs bg-muted p-2 rounded">
                     {JSON.stringify(getDBEvents(), null, 2)}
                   </pre>
                 </div>

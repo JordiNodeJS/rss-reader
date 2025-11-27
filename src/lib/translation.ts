@@ -43,6 +43,7 @@ export interface LanguageDetectionResult {
   language: string;
   confidence: number;
   isEnglish: boolean;
+  isSpanish: boolean;
 }
 
 // ============================================
@@ -112,6 +113,273 @@ const ENGLISH_COMMON_WORDS = new Set([
   "how",
 ]);
 
+const SPANISH_COMMON_WORDS = new Set([
+  "el",
+  "la",
+  "de",
+  "que",
+  "y",
+  "a",
+  "en",
+  "un",
+  "ser",
+  "se",
+  "no",
+  "haber",
+  "por",
+  "con",
+  "su",
+  "para",
+  "como",
+  "estar",
+  "tener",
+  "le",
+  "lo",
+  "todo",
+  "pero",
+  "más",
+  "hacer",
+  "o",
+  "poder",
+  "decir",
+  "este",
+  "ir",
+  "otro",
+  "ese",
+  "la",
+  "si",
+  "me",
+  "ya",
+  "ver",
+  "porque",
+  "dar",
+  "cuando",
+  "él",
+  "muy",
+  "sin",
+  "vez",
+  "mucho",
+  "saber",
+  "qué",
+  "sobre",
+  "mi",
+  "alguno",
+  "mismo",
+  "yo",
+  "también",
+  "hasta",
+]);
+
+const FRENCH_COMMON_WORDS = new Set([
+  "le",
+  "de",
+  "un",
+  "à",
+  "être",
+  "et",
+  "en",
+  "avoir",
+  "que",
+  "pour",
+  "dans",
+  "ce",
+  "il",
+  "qui",
+  "ne",
+  "sur",
+  "se",
+  "pas",
+  "plus",
+  "pouvoir",
+  "par",
+  "je",
+  "avec",
+  "tout",
+  "faire",
+  "son",
+  "mettre",
+  "autre",
+  "on",
+  "mais",
+  "nous",
+  "comme",
+  "ou",
+  "si",
+  "leur",
+  "y",
+  "dire",
+  "elle",
+  "devoir",
+  "avant",
+  "deux",
+  "même",
+  "prendre",
+  "aussi",
+  "celui",
+  "donner",
+  "bien",
+  "où",
+  "fois",
+  "vous",
+]);
+
+const GERMAN_COMMON_WORDS = new Set([
+  "der",
+  "die",
+  "und",
+  "in",
+  "den",
+  "von",
+  "zu",
+  "das",
+  "mit",
+  "sich",
+  "des",
+  "auf",
+  "für",
+  "ist",
+  "im",
+  "dem",
+  "nicht",
+  "ein",
+  "eine",
+  "als",
+  "auch",
+  "es",
+  "an",
+  "werden",
+  "aus",
+  "er",
+  "hat",
+  "dass",
+  "sie",
+  "nach",
+  "wird",
+  "bei",
+  "einer",
+  "um",
+  "am",
+  "sind",
+  "noch",
+  "wie",
+  "einem",
+  "über",
+  "einen",
+  "so",
+  "zum",
+  "war",
+  "haben",
+  "nur",
+  "oder",
+  "aber",
+  "vor",
+  "zur",
+]);
+
+const PORTUGUESE_COMMON_WORDS = new Set([
+  "de",
+  "a",
+  "o",
+  "que",
+  "e",
+  "do",
+  "da",
+  "em",
+  "um",
+  "para",
+  "com",
+  "não",
+  "uma",
+  "os",
+  "no",
+  "se",
+  "na",
+  "por",
+  "mais",
+  "as",
+  "dos",
+  "como",
+  "mas",
+  "ao",
+  "ele",
+  "das",
+  "à",
+  "seu",
+  "sua",
+  "ou",
+  "quando",
+  "muito",
+  "nos",
+  "já",
+  "eu",
+  "também",
+  "só",
+  "pelo",
+  "pela",
+  "até",
+  "isso",
+  "ela",
+  "entre",
+  "depois",
+  "sem",
+  "mesmo",
+  "aos",
+  "ter",
+  "seus",
+  "quem",
+]);
+
+const ITALIAN_COMMON_WORDS = new Set([
+  "di",
+  "a",
+  "il",
+  "un",
+  "è",
+  "per",
+  "una",
+  "in",
+  "sono",
+  "ho",
+  "ha",
+  "che",
+  "non",
+  "si",
+  "la",
+  "da",
+  "lo",
+  "con",
+  "ma",
+  "come",
+  "questo",
+  "qui",
+  "quello",
+  "lei",
+  "lui",
+  "mi",
+  "io",
+  "se",
+  "molto",
+  "anche",
+  "solo",
+  "cosa",
+  "dove",
+  "quando",
+  "ora",
+  "adesso",
+  "perché",
+  "noi",
+  "voi",
+  "loro",
+  "tutto",
+  "niente",
+  "bene",
+  "male",
+  "grazie",
+  "prego",
+  "ciao",
+  "sì",
+]);
+
 const CONFIDENCE_THRESHOLD = 0.7;
 const MAX_CHUNK_LENGTH = 500; // Characters per chunk for translation
 
@@ -123,16 +391,26 @@ type TranslationPipeline = (
   text: string
 ) => Promise<Array<{ translation_text: string }>>;
 
-let transformersPipeline: TranslationPipeline | null = null;
-let transformersLoadPromise: Promise<TranslationPipeline> | null = null;
+let transformersPipelines: Map<string, TranslationPipeline> = new Map();
+let transformersLoadPromises: Map<string, Promise<TranslationPipeline>> = new Map();
 
 async function loadTransformersPipeline(
+  sourceLanguage: string = "en",
   onProgress?: (progress: number) => void
 ): Promise<TranslationPipeline> {
-  if (transformersPipeline) return transformersPipeline;
-  if (transformersLoadPromise) return transformersLoadPromise;
+  // Check if model is available for this language pair
+  // We currently assume target is always 'es' (Spanish)
+  const modelName = `Xenova/opus-mt-${sourceLanguage}-es`;
+  
+  if (transformersPipelines.has(modelName)) {
+    return transformersPipelines.get(modelName)!;
+  }
+  
+  if (transformersLoadPromises.has(modelName)) {
+    return transformersLoadPromises.get(modelName)!;
+  }
 
-  transformersLoadPromise = (async () => {
+  const loadPromise = (async () => {
     try {
       // Dynamic import to avoid loading if Chrome API is available
       const { pipeline, env } = await import("@huggingface/transformers");
@@ -141,7 +419,7 @@ async function loadTransformersPipeline(
       env.allowLocalModels = true;
 
       // Load the model with progress callback
-      const translator = await pipeline("translation", "Xenova/opus-mt-en-es", {
+      const translator = await pipeline("translation", modelName, {
         dtype: "q8", // Quantized for smaller size
         progress_callback: (data: { progress?: number; status?: string }) => {
           if (data.progress !== undefined && onProgress) {
@@ -150,43 +428,50 @@ async function loadTransformersPipeline(
         },
       });
 
-      transformersPipeline = translator as unknown as TranslationPipeline;
-      return transformersPipeline;
+      const tp = translator as unknown as TranslationPipeline;
+      transformersPipelines.set(modelName, tp);
+      return tp;
     } catch (error) {
-      transformersLoadPromise = null;
+      transformersLoadPromises.delete(modelName);
       throw error;
     }
   })();
 
-  return transformersLoadPromise;
+  transformersLoadPromises.set(modelName, loadPromise);
+  return loadPromise;
 }
 
 // ============================================
 // Chrome Translator API Wrapper
 // ============================================
 
-let chromeTranslator: Translator | null = null;
+// Cache translators by "source-target" key
+let chromeTranslators: Map<string, Translator> = new Map();
 
 async function getChromeTranslator(
+  sourceLanguage: string = "en",
   onProgress?: (progress: number) => void
 ): Promise<Translator | null> {
+  const targetLanguage = "es";
+  const key = `${sourceLanguage}-${targetLanguage}`;
+  
   // Check if already initialized
-  if (chromeTranslator) return chromeTranslator;
+  if (chromeTranslators.has(key)) return chromeTranslators.get(key)!;
 
   // Check if API is available
   if (typeof Translator === "undefined") return null;
 
   try {
     const availability = await Translator.availability({
-      sourceLanguage: "en",
-      targetLanguage: "es",
+      sourceLanguage,
+      targetLanguage,
     });
 
     if (availability === "unavailable") return null;
 
-    chromeTranslator = await Translator.create({
-      sourceLanguage: "en",
-      targetLanguage: "es",
+    const translator = await Translator.create({
+      sourceLanguage,
+      targetLanguage,
       monitor(m) {
         m.addEventListener("downloadprogress", (e) => {
           if (onProgress) {
@@ -200,9 +485,10 @@ async function getChromeTranslator(
       },
     });
 
-    return chromeTranslator;
+    chromeTranslators.set(key, translator);
+    return translator;
   } catch (error) {
-    console.warn("[Translation] Chrome Translator API error:", error);
+    console.warn(`[Translation] Chrome Translator API error (${sourceLanguage}->${targetLanguage}):`, error);
     return null;
   }
 }
@@ -231,28 +517,51 @@ async function getChromeLanguageDetector(): Promise<LanguageDetector | null> {
 }
 
 /**
- * Heuristic-based English detection fallback
+ * Heuristic-based language detection fallback
  */
-function detectEnglishHeuristic(text: string): LanguageDetectionResult {
+function detectLanguageHeuristic(text: string): LanguageDetectionResult {
   const words = text
     .toLowerCase()
-    .replace(/[^a-záéíóúüñ\s]/g, "")
+    .replace(/[^a-zà-ÿ\s]/g, "")
     .split(/\s+/)
     .filter((w) => w.length > 1);
 
   if (words.length === 0) {
-    return { language: "unknown", confidence: 0, isEnglish: false };
+    return { language: "unknown", confidence: 0, isEnglish: false, isSpanish: false };
   }
 
-  const englishWordCount = words.filter((w) =>
-    ENGLISH_COMMON_WORDS.has(w)
-  ).length;
-  const confidence = Math.min(englishWordCount / Math.min(words.length, 50), 1);
+  const languages = [
+    { code: "en", words: ENGLISH_COMMON_WORDS },
+    { code: "es", words: SPANISH_COMMON_WORDS },
+    { code: "fr", words: FRENCH_COMMON_WORDS },
+    { code: "de", words: GERMAN_COMMON_WORDS },
+    { code: "pt", words: PORTUGUESE_COMMON_WORDS },
+    { code: "it", words: ITALIAN_COMMON_WORDS },
+  ];
+
+  let bestLang = "unknown";
+  let maxScore = 0;
+
+  for (const lang of languages) {
+    const matchCount = words.filter((w) => lang.words.has(w)).length;
+    const score = matchCount / Math.min(words.length, 50);
+
+    if (score > maxScore) {
+      maxScore = score;
+      bestLang = lang.code;
+    }
+  }
+
+  // Minimum confidence threshold
+  if (maxScore < 0.15) {
+    return { language: "unknown", confidence: maxScore, isEnglish: false, isSpanish: false };
+  }
 
   return {
-    language: confidence > 0.15 ? "en" : "unknown",
-    confidence,
-    isEnglish: confidence > 0.15,
+    language: bestLang,
+    confidence: Math.min(maxScore, 1),
+    isEnglish: bestLang === "en",
+    isSpanish: bestLang === "es",
   };
 }
 
@@ -279,6 +588,9 @@ export async function detectLanguage(
           isEnglish:
             topResult.detectedLanguage === "en" &&
             topResult.confidence > CONFIDENCE_THRESHOLD,
+          isSpanish:
+            topResult.detectedLanguage === "es" &&
+            topResult.confidence > CONFIDENCE_THRESHOLD,
         };
       }
     } catch (error) {
@@ -287,7 +599,7 @@ export async function detectLanguage(
   }
 
   // Fallback to heuristic
-  return detectEnglishHeuristic(sampleText);
+  return detectLanguageHeuristic(sampleText);
 }
 
 // ============================================
@@ -325,9 +637,10 @@ function splitIntoChunks(
  */
 async function translateWithChrome(
   text: string,
+  sourceLanguage: string = "en",
   onProgress?: (progress: TranslationProgress) => void
 ): Promise<string> {
-  const translator = await getChromeTranslator((downloadProgress) => {
+  const translator = await getChromeTranslator(sourceLanguage, (downloadProgress) => {
     onProgress?.({
       status: "downloading",
       progress: downloadProgress,
@@ -368,9 +681,10 @@ async function translateWithChrome(
  */
 async function translateWithTransformers(
   text: string,
+  sourceLanguage: string = "en",
   onProgress?: (progress: TranslationProgress) => void
 ): Promise<string> {
-  const pipeline = await loadTransformersPipeline((downloadProgress) => {
+  const pipeline = await loadTransformersPipeline(sourceLanguage, (downloadProgress) => {
     onProgress?.({
       status: "downloading",
       progress: downloadProgress,
@@ -432,6 +746,8 @@ export async function translateToSpanish(
     throw new Error("No text provided for translation");
   }
 
+  let sourceLanguage = "en";
+
   // Only detect language if not skipped
   if (!skipLanguageDetection) {
     onProgress?.({
@@ -443,19 +759,22 @@ export async function translateToSpanish(
     // Detect language first
     const detection = await detectLanguage(text);
 
-    if (!detection.isEnglish) {
+    if (detection.isSpanish) {
       throw new Error(
-        `Text does not appear to be in English (detected: ${
-          detection.language
-        }, confidence: ${(detection.confidence * 100).toFixed(1)}%)`
+        `Text is already in Spanish (confidence: ${(detection.confidence * 100).toFixed(1)}%)`
       );
+    }
+    
+    // If detected language is known and supported, use it
+    if (detection.language !== "unknown") {
+        sourceLanguage = detection.language;
     }
   }
 
   // Try Chrome API first (unless explicitly requesting transformers)
   if (preferredProvider !== "transformers") {
     try {
-      const translatedText = await translateWithChrome(text, onProgress);
+      const translatedText = await translateWithChrome(text, sourceLanguage, onProgress);
 
       onProgress?.({
         status: "completed",
@@ -466,13 +785,13 @@ export async function translateToSpanish(
       return {
         translatedText,
         provider: "chrome",
-        sourceLanguage: "en",
+        sourceLanguage,
         targetLanguage: "es",
         timestamp: Date.now(),
       };
     } catch (error) {
       console.info(
-        "[Translation] Chrome API unavailable, falling back to Transformers.js:",
+        `[Translation] Chrome API unavailable for ${sourceLanguage}->es, falling back to Transformers.js:`,
         error
       );
     }
@@ -480,7 +799,7 @@ export async function translateToSpanish(
 
   // Fallback to Transformers.js
   try {
-    const translatedText = await translateWithTransformers(text, onProgress);
+    const translatedText = await translateWithTransformers(text, sourceLanguage, onProgress);
 
     onProgress?.({
       status: "completed",
@@ -491,7 +810,7 @@ export async function translateToSpanish(
     return {
       translatedText,
       provider: "transformers",
-      sourceLanguage: "en",
+      sourceLanguage,
       targetLanguage: "es",
       timestamp: Date.now(),
     };
@@ -536,11 +855,11 @@ export async function preloadTranslationModel(
   onProgress?: (progress: number) => void
 ): Promise<TranslationProvider> {
   // Try Chrome first
-  const chromeTranslator = await getChromeTranslator(onProgress);
+  const chromeTranslator = await getChromeTranslator("en", onProgress);
   if (chromeTranslator) return "chrome";
 
   // Otherwise preload Transformers.js
-  await loadTransformersPipeline(onProgress);
+  await loadTransformersPipeline("en", onProgress);
   return "transformers";
 }
 
