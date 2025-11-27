@@ -1,8 +1,10 @@
 /**
  * useSummary Hook
  *
- * React hook for generating AI summaries of article content
- * using Chrome's Summarizer API (Gemini Nano - Chrome 138+)
+ * React hook for generating AI summaries of article content.
+ * Supports two backends:
+ * 1. Chrome's Summarizer API (Gemini Nano - Chrome 138+) - Primary
+ * 2. Transformers.js with smaller models (DistilBART) - Fallback
  */
 
 "use client";
@@ -18,21 +20,33 @@ import {
   SummarizationProgress,
   SummaryType,
   SummaryLength,
+  // Transformers.js exports
+  summarizeWithTransformers,
+  isTransformersSummarizationAvailable,
+  TransformersSummarizationProgress,
+  SUMMARIZATION_MODELS,
+  SummarizationModelKey,
 } from "@/lib/summarization";
 
 // ============================================
 // Types
 // ============================================
 
+export type SummarizationBackend = "chrome" | "transformers" | "auto";
+
 export interface UseSummaryOptions {
   /** Article to summarize */
   article: Article | null;
-  /** Summary type (default: tldr) */
+  /** Summary type (default: tldr) - Only used with Chrome API */
   type?: SummaryType;
-  /** Summary length (default: medium) */
+  /** Summary length (default: medium) - Only used with Chrome API */
   length?: SummaryLength;
   /** Cache summaries in IndexedDB */
   cacheSummaries?: boolean;
+  /** Preferred backend: 'chrome', 'transformers', or 'auto' (default) */
+  backend?: SummarizationBackend;
+  /** Model to use for Transformers.js (default: distilbart-cnn-6-6) */
+  modelId?: SummarizationModelKey;
 }
 
 export interface UseSummaryReturn {
@@ -53,13 +67,21 @@ export interface UseSummaryReturn {
   /** Availability error (e.g., insufficient space) */
   availabilityError: string | null;
   /** Whether Chrome Summarizer API is available */
-  isAvailable: boolean;
+  isChromeAvailable: boolean;
+  /** Whether Transformers.js is available */
+  isTransformersAvailable: boolean;
+  /** Current active backend */
+  activeBackend: SummarizationBackend | null;
   /** Whether summarization can be triggered */
   canSummarize: boolean;
   /** Whether cached summary exists */
   hasCachedSummary: boolean;
+  /** Available summarization models */
+  availableModels: typeof SUMMARIZATION_MODELS;
   /** Generate summary */
   summarize: (type?: SummaryType, length?: SummaryLength) => Promise<void>;
+  /** Generate summary using Transformers.js specifically */
+  summarizeWithModel: (modelId?: SummarizationModelKey) => Promise<void>;
   /** Clear cached summary */
   clearSummary: () => Promise<void>;
 }
@@ -74,6 +96,8 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     type: defaultType = "tldr",
     length: defaultLength = "medium",
     cacheSummaries = true,
+    backend = "auto",
+    modelId = "distilbart-cnn-6-6",
   } = options;
 
   // State
@@ -82,35 +106,51 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
   const [message, setMessage] = useState("");
   const [summary, setSummary] = useState("");
   const [summaryType, setSummaryType] = useState<SummaryType>(defaultType);
-  const [summaryLength, setSummaryLength] = useState<SummaryLength>(defaultLength);
+  const [summaryLength, setSummaryLength] =
+    useState<SummaryLength>(defaultLength);
   const [error, setError] = useState<string | null>(null);
-  const [isAvailable, setIsAvailable] = useState(false);
+  const [isChromeAvailable, setIsChromeAvailable] = useState(false);
+  const [isTransformersAvailable, setIsTransformersAvailable] = useState(false);
   const [hasCachedSummary, setHasCachedSummary] = useState(false);
-  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(
+    null
+  );
+  const [activeBackend, setActiveBackend] =
+    useState<SummarizationBackend | null>(null);
 
-  // Derived state
+  // Derived state - can summarize if any backend is available
   const canSummarize =
     !!article &&
-    isAvailable &&
+    (isChromeAvailable || isTransformersAvailable) &&
     status !== "summarizing" &&
     status !== "downloading";
 
   // Check API availability on mount
   useEffect(() => {
     let mounted = true;
-    
-    // First check basic availability
+
+    // Check Transformers.js availability (always available in browser)
+    setIsTransformersAvailable(isTransformersSummarizationAvailable());
+
+    // Check Chrome Summarizer API availability
     isSummarizerAvailable()
       .then((available) => {
         if (mounted) {
-          setIsAvailable(available);
+          setIsChromeAvailable(available);
           if (!available) {
             // Get detailed availability info to check for specific errors
             getSummarizerAvailability()
               .then((result) => {
-                if (mounted && result.status === "insufficient-space" && result.error) {
+                if (
+                  mounted &&
+                  result.status === "insufficient-space" &&
+                  result.error
+                ) {
                   setAvailabilityError(result.error);
-                  console.warn("[useSummary] Insufficient disk space detected:", result.error);
+                  console.warn(
+                    "[useSummary] Insufficient disk space detected:",
+                    result.error
+                  );
                 } else if (mounted && result.error) {
                   setAvailabilityError(result.error);
                 }
@@ -118,16 +158,25 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
               .catch(() => {
                 // Ignore errors in detailed check
               });
-            console.log("[useSummary] Summarizer API not available. Check browser console for details.");
+            console.log(
+              "[useSummary] Chrome Summarizer API not available, Transformers.js fallback ready"
+            );
           }
         }
       })
       .catch((error) => {
-        console.error("[useSummary] Error checking availability:", error);
+        console.error(
+          "[useSummary] Error checking Chrome availability:",
+          error
+        );
         if (mounted) {
-          setIsAvailable(false);
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          if (errorMessage.includes("space") || errorMessage.includes("enough space")) {
+          setIsChromeAvailable(false);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          if (
+            errorMessage.includes("space") ||
+            errorMessage.includes("enough space")
+          ) {
             setAvailabilityError(errorMessage);
           }
         }
@@ -169,7 +218,26 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     setMessage(progressData.message);
   }, []);
 
-  // Summarize function
+  // Progress callback for Transformers.js
+  const handleTransformersProgress = useCallback(
+    (progressData: TransformersSummarizationProgress) => {
+      // Map Transformers.js status to our status type
+      const statusMap: Record<string, SummarizationStatus> = {
+        idle: "idle",
+        "loading-model": "downloading",
+        downloading: "downloading",
+        summarizing: "summarizing",
+        completed: "completed",
+        error: "error",
+      };
+      setStatus(statusMap[progressData.status] || "checking");
+      setProgress(progressData.progress);
+      setMessage(progressData.message);
+    },
+    []
+  );
+
+  // Summarize function - uses the appropriate backend
   const summarize = useCallback(
     async (type?: SummaryType, length?: SummaryLength) => {
       if (!article || !canSummarize) return;
@@ -193,22 +261,52 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
         const textContent = extractTextForSummary(contentToSummarize);
 
         if (!textContent || textContent.length < 50) {
-          throw new Error("Article content is too short to summarize");
+          throw new Error(
+            "El contenido del artículo es demasiado corto para resumir"
+          );
         }
 
-        // Generate summary
-        const result = await summarizeText({
-          text: textContent,
-          type: useType,
-          length: useLength,
-          sharedContext: "This is a news article from an RSS feed.",
-          context: `Article title: ${article.title}`,
-          onProgress: handleProgress,
-        });
+        let resultSummary: string;
 
-        setSummary(result.summary);
+        // Determine which backend to use
+        const useChrome =
+          backend === "chrome" || (backend === "auto" && isChromeAvailable);
+        const useTransformers =
+          backend === "transformers" ||
+          (backend === "auto" && !isChromeAvailable);
+
+        if (useChrome && isChromeAvailable) {
+          // Use Chrome Summarizer API
+          setActiveBackend("chrome");
+          const result = await summarizeText({
+            text: textContent,
+            type: useType,
+            length: useLength,
+            sharedContext: "This is a news article from an RSS feed.",
+            context: `Article title: ${article.title}`,
+            onProgress: handleProgress,
+          });
+          resultSummary = result.summary;
+        } else if (useTransformers && isTransformersAvailable) {
+          // Use Transformers.js
+          setActiveBackend("transformers");
+          const result = await summarizeWithTransformers({
+            text: textContent,
+            modelId,
+            maxLength:
+              useLength === "short" ? 75 : useLength === "long" ? 250 : 150,
+            minLength:
+              useLength === "short" ? 20 : useLength === "long" ? 80 : 40,
+            onProgress: handleTransformersProgress,
+          });
+          resultSummary = result.summary;
+        } else {
+          throw new Error("No hay ningún servicio de resumen disponible");
+        }
+
+        setSummary(resultSummary);
         setStatus("completed");
-        setMessage("Summary generated");
+        setMessage("Resumen generado");
         setHasCachedSummary(true);
 
         // Cache in IndexedDB
@@ -216,7 +314,7 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
           try {
             await updateArticleSummary(
               article.id,
-              result.summary,
+              resultSummary,
               useType,
               useLength
             );
@@ -226,13 +324,93 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
         }
       } catch (err) {
         const errorMessage =
-          err instanceof Error ? err.message : "Summarization failed";
+          err instanceof Error ? err.message : "Error al generar el resumen";
         setError(errorMessage);
         setStatus("error");
         setMessage(errorMessage);
       }
     },
-    [article, canSummarize, cacheSummaries, handleProgress, defaultType, defaultLength]
+    [
+      article,
+      canSummarize,
+      cacheSummaries,
+      handleProgress,
+      handleTransformersProgress,
+      defaultType,
+      defaultLength,
+      backend,
+      isChromeAvailable,
+      isTransformersAvailable,
+      modelId,
+    ]
+  );
+
+  // Summarize with specific Transformers.js model
+  const summarizeWithModel = useCallback(
+    async (specificModelId?: SummarizationModelKey) => {
+      if (!article || !isTransformersAvailable) return;
+
+      const useModelId = specificModelId || modelId;
+
+      setError(null);
+      setActiveBackend("transformers");
+
+      try {
+        const contentToSummarize =
+          article.scrapedContent ||
+          article.content ||
+          article.contentSnippet ||
+          "";
+
+        const textContent = extractTextForSummary(contentToSummarize);
+
+        if (!textContent || textContent.length < 50) {
+          throw new Error(
+            "El contenido del artículo es demasiado corto para resumir"
+          );
+        }
+
+        const result = await summarizeWithTransformers({
+          text: textContent,
+          modelId: useModelId,
+          maxLength: 150,
+          minLength: 40,
+          onProgress: handleTransformersProgress,
+        });
+
+        setSummary(result.summary);
+        setStatus("completed");
+        setMessage("Resumen generado con Transformers.js");
+        setHasCachedSummary(true);
+
+        // Cache in IndexedDB
+        if (cacheSummaries && article.id) {
+          try {
+            await updateArticleSummary(
+              article.id,
+              result.summary,
+              "tldr",
+              "medium"
+            );
+          } catch (cacheError) {
+            console.warn("[useSummary] Failed to cache summary:", cacheError);
+          }
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Error al generar el resumen";
+        setError(errorMessage);
+        setStatus("error");
+        setMessage(errorMessage);
+      }
+    },
+    [
+      article,
+      isTransformersAvailable,
+      cacheSummaries,
+      handleTransformersProgress,
+      modelId,
+    ]
   );
 
   // Clear cached summary
@@ -264,10 +442,14 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     summaryLength,
     error,
     availabilityError,
-    isAvailable,
+    isChromeAvailable,
+    isTransformersAvailable,
+    activeBackend,
     canSummarize,
     hasCachedSummary,
+    availableModels: SUMMARIZATION_MODELS,
     summarize,
+    summarizeWithModel,
     clearSummary,
   };
 }
@@ -288,4 +470,3 @@ export function useSummarizerAvailability() {
 
   return { isAvailable, loading };
 }
-

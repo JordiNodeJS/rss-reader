@@ -494,7 +494,10 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
   };
 
   // Handle summary generation
-  const handleGenerateSummary = async (type?: SummaryType, length?: SummaryLength) => {
+  const handleGenerateSummary = async (
+    type?: SummaryType,
+    length?: SummaryLength
+  ) => {
     const useType = type || summaryType;
     const useLength = length || summaryLength;
     setSummaryType(useType);
@@ -568,25 +571,35 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                   <div className="flex items-center gap-1.5">
                     <Languages className="w-3 h-3 text-muted-foreground shrink-0" />
                     <Select
-                      value={translation.sourceLanguage === "unknown" ? "" : translation.sourceLanguage}
+                      value={
+                        translation.sourceLanguage === "unknown"
+                          ? ""
+                          : translation.sourceLanguage
+                      }
                       onValueChange={async (value) => {
                         if (value && value !== translation.sourceLanguage) {
                           await translation.setSourceLanguage(value);
                         }
                       }}
                     >
-                      <SelectTrigger 
+                      <SelectTrigger
                         className="h-6 text-[10px] px-2 py-0 border-muted-foreground/30 bg-background hover:bg-muted/50 w-fit min-w-[110px] max-w-[140px]"
-                        title={translation.sourceLanguage === "unknown" ? "Selecciona el idioma del artículo" : "Cambiar idioma detectado"}
+                        title={
+                          translation.sourceLanguage === "unknown"
+                            ? "Selecciona el idioma del artículo"
+                            : "Cambiar idioma detectado"
+                        }
                       >
                         <SelectValue placeholder="Idioma desconocido">
-                          {translation.sourceLanguage === "unknown" 
-                            ? "Seleccionar idioma" 
+                          {translation.sourceLanguage === "unknown"
+                            ? "Seleccionar idioma"
                             : getLanguageName(translation.sourceLanguage)}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {SUPPORTED_LANGUAGES.filter(lang => lang.code !== "es").map((lang) => (
+                        {SUPPORTED_LANGUAGES.filter(
+                          (lang) => lang.code !== "es"
+                        ).map((lang) => (
                           <SelectItem key={lang.code} value={lang.code}>
                             {lang.name}
                           </SelectItem>
@@ -628,16 +641,18 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               </a>
 
               {/* AI Summary controls */}
-              {summaryHook.isAvailable ? (
+              {summaryHook.isChromeAvailable ||
+              summaryHook.isTransformersAvailable ? (
                 <>
                   <span className="text-muted-foreground">|</span>
-                  {summaryHook.hasCachedSummary || summaryHook.status === "completed" ? (
+                  {summaryHook.hasCachedSummary ||
+                  summaryHook.status === "completed" ? (
                     <button
                       onClick={() => setShowSummary(!showSummary)}
                       className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
                     >
                       <Sparkles className="w-3 h-3" />
-                      {showSummary ? "Hide summary" : "Show summary"}
+                      {showSummary ? "Ocultar resumen" : "Ver resumen"}
                       {showSummary ? (
                         <ChevronUp className="w-3 h-3" />
                       ) : (
@@ -649,7 +664,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                     summaryHook.status === "checking" ? (
                     <span className="text-muted-foreground flex items-center gap-1 text-sm">
                       <Loader2 className="w-3 h-3 animate-spin" />
-                      {summaryHook.message || "Generating summary..."}
+                      {summaryHook.message || "Generando resumen..."}
                     </span>
                   ) : summaryHook.status === "error" ? (
                     <span className="text-destructive flex items-center gap-1 text-sm">
@@ -669,7 +684,13 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                       disabled={!summaryHook.canSummarize}
                     >
                       <Sparkles className="w-3 h-3" />
-                      Generate AI summary
+                      Generar resumen con IA
+                      {summaryHook.isTransformersAvailable &&
+                        !summaryHook.isChromeAvailable && (
+                          <span className="text-[10px] opacity-70 ml-1">
+                            (local)
+                          </span>
+                        )}
                     </button>
                   )}
                 </>
@@ -677,16 +698,25 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 // Show info when API is not available
                 <>
                   <span className="text-muted-foreground">|</span>
-                  {summaryHook.availabilityError && 
-                   summaryHook.availabilityError.includes("space") ? (
+                  {summaryHook.availabilityError &&
+                  summaryHook.availabilityError.includes("space") ? (
                     // Show prominent warning for insufficient space
-                    <span className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1" title={summaryHook.availabilityError}>
+                    <span
+                      className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1"
+                      title={summaryHook.availabilityError}
+                    >
                       <AlertTriangle className="w-3 h-3" />
-                      <span className="hidden sm:inline">Espacio insuficiente</span>
+                      <span className="hidden sm:inline">
+                        Espacio insuficiente
+                      </span>
                       <details className="inline relative">
-                        <summary className="cursor-pointer ml-1 hover:text-orange-700 dark:hover:text-orange-300">ℹ️</summary>
+                        <summary className="cursor-pointer ml-1 hover:text-orange-700 dark:hover:text-orange-300">
+                          ℹ️
+                        </summary>
                         <div className="absolute mt-2 right-0 p-3 bg-orange-500/10 border border-orange-500/20 rounded shadow-lg z-50 max-w-sm">
-                          <SummaryDiagnostics errorMessage={summaryHook.availabilityError} />
+                          <SummaryDiagnostics
+                            errorMessage={summaryHook.availabilityError}
+                          />
                         </div>
                       </details>
                     </span>
@@ -710,46 +740,46 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                   <>
                     <span className="text-muted-foreground">|</span>
                     {translation.hasCachedTranslation ||
-                  translation.status === "completed" ? (
-                    <button
-                      onClick={translation.toggleTranslation}
-                      className="text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
-                    >
-                      <Languages className="w-3 h-3" />
-                      {translation.isShowingTranslation
-                        ? "Ver original"
-                        : "Ver traducción"}
-                    </button>
-                  ) : translation.status === "translating" ||
-                    translation.status === "downloading" ||
-                    translation.status === "detecting" ? (
-                    <span className="text-muted-foreground flex items-center gap-1 text-sm">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      {translation.message || "Traduciendo..."}
-                    </span>
-                  ) : translation.status === "error" ? (
-                    <span className="text-destructive flex items-center gap-1 text-sm">
-                      <AlertTriangle className="w-3 h-3" />
-                      Error: {translation.error}
+                    translation.status === "completed" ? (
+                      <button
+                        onClick={translation.toggleTranslation}
+                        className="text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
+                      >
+                        <Languages className="w-3 h-3" />
+                        {translation.isShowingTranslation
+                          ? "Ver original"
+                          : "Ver traducción"}
+                      </button>
+                    ) : translation.status === "translating" ||
+                      translation.status === "downloading" ||
+                      translation.status === "detecting" ? (
+                      <span className="text-muted-foreground flex items-center gap-1 text-sm">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        {translation.message || "Traduciendo..."}
+                      </span>
+                    ) : translation.status === "error" ? (
+                      <span className="text-destructive flex items-center gap-1 text-sm">
+                        <AlertTriangle className="w-3 h-3" />
+                        Error: {translation.error}
+                        <button
+                          onClick={translation.translate}
+                          className="ml-1 hover:underline"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ) : (
                       <button
                         onClick={translation.translate}
-                        className="ml-1 hover:underline"
+                        className="text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 cursor-pointer text-sm"
+                        disabled={!translation.canTranslate}
                       >
-                        <RotateCcw className="w-3 h-3" />
+                        <Languages className="w-3 h-3" />
+                        Traducir al español
                       </button>
-                    </span>
-                  ) : (
-                    <button
-                      onClick={translation.translate}
-                      className="text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 cursor-pointer text-sm"
-                      disabled={!translation.canTranslate}
-                    >
-                      <Languages className="w-3 h-3" />
-                      Traducir al español
-                    </button>
-                  )}
-                </>
-              )}
+                    )}
+                  </>
+                )}
             </div>
           </DialogHeader>
 
@@ -799,7 +829,9 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 )}
               </div>
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
-                <span className="text-xs text-muted-foreground">Regenerate:</span>
+                <span className="text-xs text-muted-foreground">
+                  Regenerate:
+                </span>
                 <button
                   onClick={() => handleGenerateSummary("tldr", "short")}
                   className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"

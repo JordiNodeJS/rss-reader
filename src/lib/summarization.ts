@@ -1,11 +1,33 @@
 /**
  * Summarization Service
  *
- * Provides article summarization using Chrome's Summarizer API (Gemini Nano)
- * Available from Chrome 138+
+ * Provides article summarization using:
+ * 1. Chrome's Summarizer API (Gemini Nano) - Available from Chrome 138+
+ * 2. Transformers.js fallback - Smaller models like DistilBART that run locally
  *
  * @see https://developer.chrome.com/docs/ai/summarizer-api
+ * @see https://huggingface.co/docs/transformers.js
  */
+
+// Re-export Transformers.js types and functions
+export {
+  summarizeWithTransformers,
+  preloadSummarizationModel,
+  unloadSummarizationModel,
+  getSummarizationModelStatus,
+  terminateSummarizationWorker,
+  getCachedSummarizationModels,
+  clearSummarizationModelCache,
+  getSummarizationCacheSize,
+  isTransformersSummarizationAvailable,
+  SUMMARIZATION_MODELS,
+  DEFAULT_MODEL,
+  type SummarizationModelKey,
+  type TransformersSummarizationStatus,
+  type TransformersSummarizationProgress,
+  type TransformersSummarizationOptions,
+  type TransformersSummarizationResult,
+} from "./summarization-transformers";
 
 // ============================================
 // Types
@@ -80,16 +102,20 @@ export async function isSummarizerAvailable(): Promise<boolean> {
 
   // Check if Summarizer API exists
   if (typeof Summarizer === "undefined") {
-    console.log("[Summarization] Summarizer API not found. Chrome 138+ required.");
+    console.log(
+      "[Summarization] Summarizer API not found. Chrome 138+ required."
+    );
     console.log("[Summarization] Current user agent:", navigator.userAgent);
-    
+
     // Try to detect Chrome version
     const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+)/);
     if (chromeMatch) {
       const chromeVersion = parseInt(chromeMatch[1], 10);
-      console.log(`[Summarization] Chrome version detected: ${chromeVersion} (need 138+)`);
+      console.log(
+        `[Summarization] Chrome version detected: ${chromeVersion} (need 138+)`
+      );
     }
-    
+
     return false;
   }
 
@@ -99,13 +125,21 @@ export async function isSummarizerAvailable(): Promise<boolean> {
     return availability !== "unavailable";
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn("[Summarization] Error checking Summarizer availability:", errorMessage);
-    
+    console.warn(
+      "[Summarization] Error checking Summarizer availability:",
+      errorMessage
+    );
+
     // Check for specific error messages
-    if (errorMessage.includes("enough space") || errorMessage.includes("space")) {
-      console.error("[Summarization] Insufficient disk space. Chrome requires ~22GB free space.");
+    if (
+      errorMessage.includes("enough space") ||
+      errorMessage.includes("space")
+    ) {
+      console.error(
+        "[Summarization] Insufficient disk space. Chrome requires ~22GB free space."
+      );
     }
-    
+
     return false;
   }
 }
@@ -126,16 +160,22 @@ export async function getSummarizerAvailability(): Promise<{
     return { status: availability };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn("[Summarization] Error checking Summarizer availability:", errorMessage);
-    
+    console.warn(
+      "[Summarization] Error checking Summarizer availability:",
+      errorMessage
+    );
+
     // Check for specific error messages
-    if (errorMessage.includes("enough space") || errorMessage.includes("space")) {
-      return { 
+    if (
+      errorMessage.includes("enough space") ||
+      errorMessage.includes("space")
+    ) {
+      return {
         status: "insufficient-space",
-        error: errorMessage 
+        error: errorMessage,
       };
     }
-    
+
     return { status: "not-supported", error: errorMessage };
   }
 }
@@ -345,11 +385,11 @@ export async function summarizeTextStreaming(
 
     // Use the AsyncIterator protocol for ReadableStream
     const reader = stream.getReader();
-    
+
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      
+
       summary = value; // Each chunk is the accumulated summary
       onChunk(summary);
     }
@@ -462,4 +502,3 @@ export function clearSummarizerCache(): void {
   }
   summarizerCache.clear();
 }
-

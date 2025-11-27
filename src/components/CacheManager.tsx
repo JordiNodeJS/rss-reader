@@ -8,7 +8,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2, HardDrive, ExternalLink, Info, RefreshCw } from "lucide-react";
+import {
+  Trash2,
+  Loader2,
+  HardDrive,
+  ExternalLink,
+  Info,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import {
   CachedModel,
   getDownloadedModels,
@@ -16,6 +24,12 @@ import {
   clearTranslationModelCache,
   deleteModel,
 } from "@/lib/translation";
+import {
+  getCachedSummarizationModels,
+  clearSummarizationModelCache,
+  getSummarizationCacheSize,
+  SUMMARIZATION_MODELS,
+} from "@/lib/summarization";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -35,6 +49,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+interface SummarizationCachedModel {
+  name: string;
+  size: number;
+  url: string;
+}
+
 function formatBytes(bytes: number, decimals = 2) {
   if (!+bytes) return "0 Bytes";
   const k = 1024;
@@ -46,22 +66,32 @@ function formatBytes(bytes: number, decimals = 2) {
 
 export function CacheManager() {
   const [models, setModels] = useState<CachedModel[]>([]);
+  const [summarizationModels, setSummarizationModels] = useState<
+    SummarizationCachedModel[]
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
-  const [deletingChromeModel, setDeletingChromeModel] = useState<string | null>(null);
+  const [isClearingSummarization, setIsClearingSummarization] = useState(false);
+  const [deletingChromeModel, setDeletingChromeModel] = useState<string | null>(
+    null
+  );
 
   const refreshModels = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Get Transformers.js models from Cache API
+      // Get Transformers.js models from Cache API (translation)
       const transformersModels = await getDownloadedModels();
-      
+
       // Get Chrome Translator API models
       const chromeModels = await getChromeTranslatorModels();
-      
-      // Combine both
+
+      // Get summarization models
+      const summModels = await getCachedSummarizationModels();
+
+      // Combine translation models
       setModels([...transformersModels, ...chromeModels]);
+      setSummarizationModels(summModels);
     } catch (error) {
       console.error("Failed to load models:", error);
     } finally {
@@ -79,7 +109,7 @@ export function CacheManager() {
     setIsClearing(true);
     try {
       await clearTranslationModelCache();
-      toast.success("Caché de modelos eliminada correctamente");
+      toast.success("Caché de modelos de traducción eliminada correctamente");
       refreshModels();
     } catch (error) {
       toast.error("Error al limpiar la caché");
@@ -89,28 +119,49 @@ export function CacheManager() {
     }
   };
 
+  const handleClearSummarizationCache = async () => {
+    setIsClearingSummarization(true);
+    try {
+      await clearSummarizationModelCache();
+      toast.success("Caché de modelos de resumen eliminada correctamente");
+      refreshModels();
+    } catch (error) {
+      toast.error("Error al limpiar la caché de resumen");
+      console.error(error);
+    } finally {
+      setIsClearingSummarization(false);
+    }
+  };
+
   const transformersModels = models.filter((m) => m.source === "transformers");
   const chromeModels = models.filter((m) => m.source === "chrome");
-  
-  const totalTransformersSize = transformersModels.reduce((acc, m) => acc + m.size, 0);
+
+  const totalTransformersSize = transformersModels.reduce(
+    (acc, m) => acc + m.size,
+    0
+  );
+  const totalSummarizationSize = summarizationModels.reduce(
+    (acc, m) => acc + m.size,
+    0
+  );
 
   const handleDeleteChromeModel = async (modelId: string) => {
     setDeletingChromeModel(modelId);
     try {
       await deleteModel(modelId);
-      
+
       // Wait a bit and refresh to check if model was actually deleted
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       await refreshModels();
-      
+
       // Check if model still exists
       const updatedModels = await getChromeTranslatorModels();
-      const stillExists = updatedModels.some(m => m.id === modelId);
-      
+      const stillExists = updatedModels.some((m) => m.id === modelId);
+
       if (stillExists) {
         toast.warning(
           "El modelo se eliminó de memoria, pero puede seguir disponible en el almacenamiento interno de Chrome. " +
-          "Usa chrome://on-device-translation-internals/ para eliminarlo completamente.",
+            "Usa chrome://on-device-translation-internals/ para eliminarlo completamente.",
           { duration: 6000 }
         );
       } else {
@@ -120,7 +171,7 @@ export function CacheManager() {
       console.error("Error deleting Chrome model:", error);
       toast.error(
         "No se pudo eliminar el modelo. Puede que Chrome no permita eliminarlo desde la aplicación. " +
-        "Intenta usar chrome://on-device-translation-internals/",
+          "Intenta usar chrome://on-device-translation-internals/",
         { duration: 6000 }
       );
     } finally {
@@ -152,18 +203,21 @@ export function CacheManager() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Caché de Modelos IA
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-6 w-6" 
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
               onClick={refreshModels}
               disabled={isLoading}
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
+              />
             </Button>
           </DialogTitle>
           <DialogDescription>
-            Los modelos de traducción se descargan localmente para funcionar sin conexión.
+            Los modelos de traducción se descargan localmente para funcionar sin
+            conexión.
             <br />
             <span className="text-xs opacity-70">
               Los feeds y artículos NO se verán afectados al limpiar esta caché.
@@ -184,7 +238,7 @@ export function CacheManager() {
                   Transformers.js
                 </span>
               </div>
-              
+
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -218,9 +272,9 @@ export function CacheManager() {
                   </span>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
+                      <Button
+                        variant="destructive"
+                        size="sm"
                         className="gap-1.5"
                         disabled={isClearing}
                       >
@@ -234,17 +288,25 @@ export function CacheManager() {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar modelos locales?</AlertDialogTitle>
+                        <AlertDialogTitle>
+                          ¿Eliminar modelos locales?
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                          Esto liberará {formatBytes(totalTransformersSize)} de espacio. 
-                          Los modelos se descargarán de nuevo cuando los necesites.
-                          <br /><br />
-                          <strong>Tus feeds y artículos NO se verán afectados.</strong>
+                          Esto liberará {formatBytes(totalTransformersSize)} de
+                          espacio. Los modelos se descargarán de nuevo cuando
+                          los necesites.
+                          <br />
+                          <br />
+                          <strong>
+                            Tus feeds y artículos NO se verán afectados.
+                          </strong>
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleClearTransformersCache}>
+                        <AlertDialogAction
+                          onClick={handleClearTransformersCache}
+                        >
                           Eliminar
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -266,16 +328,16 @@ export function CacheManager() {
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-[250px]">
                       <p className="text-xs">
-                        Los modelos de Chrome se gestionan internamente por el navegador. 
-                        Puedes intentar eliminarlos desde aquí, pero si Chrome no lo permite, 
-                        usa chrome://on-device-translation-internals/ para gestionarlos manualmente.
+                        Los modelos de Chrome se gestionan internamente por el
+                        navegador. Puedes intentar eliminarlos desde aquí, pero
+                        si Chrome no lo permite, usa
+                        chrome://on-device-translation-internals/ para
+                        gestionarlos manualmente.
                       </p>
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  Integrado
-                </span>
+                <span className="text-xs text-muted-foreground">Integrado</span>
               </div>
 
               {isLoading ? (
@@ -290,15 +352,15 @@ export function CacheManager() {
                 <div className="space-y-2">
                   {chromeModels.map((model) => {
                     const isDeleting = deletingChromeModel === model.id;
-                    const displayName = model.id.replace("Chrome Translator: ", "").replace("Chrome ", "");
+                    const displayName = model.id
+                      .replace("Chrome Translator: ", "")
+                      .replace("Chrome ", "");
                     return (
                       <div
                         key={model.id}
                         className="flex items-center justify-between text-sm bg-muted/50 rounded px-3 py-2 gap-2"
                       >
-                        <span className="truncate flex-1">
-                          {displayName}
-                        </span>
+                        <span className="truncate flex-1">{displayName}</span>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[10px] text-blue-500/80">
                             gestionado por Chrome
@@ -320,23 +382,33 @@ export function CacheManager() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar modelo de Chrome?</AlertDialogTitle>
+                                <AlertDialogTitle>
+                                  ¿Eliminar modelo de Chrome?
+                                </AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Se intentará eliminar el modelo <strong>{displayName}</strong>.
-                                  <br /><br />
+                                  Se intentará eliminar el modelo{" "}
+                                  <strong>{displayName}</strong>.
+                                  <br />
+                                  <br />
                                   <span className="text-xs">
-                                    ⚠️ Nota: Los modelos de Chrome se almacenan internamente y puede que 
-                                    no se puedan eliminar completamente desde esta aplicación. 
-                                    Si el modelo sigue apareciendo después de eliminarlo, usa{" "}
-                                    <code className="bg-muted px-1 rounded">chrome://on-device-translation-internals/</code>{" "}
+                                    ⚠️ Nota: Los modelos de Chrome se almacenan
+                                    internamente y puede que no se puedan
+                                    eliminar completamente desde esta
+                                    aplicación. Si el modelo sigue apareciendo
+                                    después de eliminarlo, usa{" "}
+                                    <code className="bg-muted px-1 rounded">
+                                      chrome://on-device-translation-internals/
+                                    </code>{" "}
                                     para gestionarlo manualmente.
                                   </span>
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDeleteChromeModel(model.id)}
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    handleDeleteChromeModel(model.id)
+                                  }
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                   Eliminar
@@ -353,9 +425,9 @@ export function CacheManager() {
 
               {chromeModels.length > 0 && (
                 <div className="pt-2 border-t">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="w-full gap-1.5 text-xs"
                     onClick={openChromeTranslatorSettings}
                   >
@@ -363,10 +435,122 @@ export function CacheManager() {
                     Gestionar en Chrome
                   </Button>
                   <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                    Abre <code className="bg-muted px-1 rounded">chrome://on-device-translation-internals/</code>
+                    Abre{" "}
+                    <code className="bg-muted px-1 rounded">
+                      chrome://on-device-translation-internals/
+                    </code>
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Summarization Models Section */}
+            <div className="rounded-lg border p-4 space-y-3 border-purple-500/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-500" />
+                  <span className="font-medium text-sm">
+                    Modelos de Resumen
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Transformers.js
+                </span>
+              </div>
+
+              {isLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : summarizationModels.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">
+                  No hay modelos de resumen descargados.
+                  <br />
+                  <span className="text-xs opacity-70">
+                    Se descargarán automáticamente al usar la función de
+                    resumen.
+                  </span>
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {summarizationModels.map((model) => (
+                    <div
+                      key={model.url}
+                      className="flex items-center justify-between text-sm bg-muted/50 rounded px-3 py-2"
+                    >
+                      <span className="truncate flex-1" title={model.name}>
+                        {model.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                        {formatBytes(model.size)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {summarizationModels.length > 0 && (
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="text-sm font-medium">
+                    Total: {formatBytes(totalSummarizationSize)}
+                  </span>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={isClearingSummarization}
+                      >
+                        {isClearingSummarization ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                        Limpiar
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          ¿Eliminar modelos de resumen?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esto liberará {formatBytes(totalSummarizationSize)} de
+                          espacio. Los modelos se descargarán de nuevo cuando
+                          los necesites.
+                          <br />
+                          <br />
+                          <strong>
+                            Tus feeds y artículos NO se verán afectados.
+                          </strong>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleClearSummarizationCache}
+                        >
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+
+              {/* Available models info */}
+              <div className="pt-2 border-t text-xs text-muted-foreground">
+                <p className="font-medium mb-1">Modelos disponibles:</p>
+                <ul className="space-y-0.5">
+                  {Object.entries(SUMMARIZATION_MODELS).map(([key, model]) => (
+                    <li key={key} className="flex justify-between">
+                      <span>{model.name}</span>
+                      <span className="opacity-70">{model.size}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
 
             {/* Info Note */}
@@ -374,10 +558,14 @@ export function CacheManager() {
               <p className="flex items-start gap-2">
                 <Info className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                  <strong>¿Por qué hay dos tipos de modelos?</strong>
+                  <strong>¿Qué modelos se utilizan?</strong>
                   <br />
-                  Chrome incluye traducción integrada (más rápida). Como fallback, 
-                  usamos modelos descargables de Transformers.js para navegadores sin soporte.
+                  <strong>Traducción:</strong> Chrome incluye traducción
+                  integrada (más rápida). Como fallback, usamos modelos de
+                  Transformers.js.
+                  <br />
+                  <strong>Resumen:</strong> Usamos modelos DistilBART ligeros
+                  (~60-270MB) que funcionan completamente en el navegador.
                 </span>
               </p>
             </div>

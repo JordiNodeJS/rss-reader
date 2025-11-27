@@ -13,6 +13,15 @@ const nextConfig: NextConfig = {
     ],
     dangerouslyAllowSVG: true,
   },
+  // Turbopack configuration for browser compatibility with Transformers.js
+  // These Node.js-only modules should be excluded from client bundles
+  turbopack: {
+    resolveAlias: {
+      // Exclude Node.js-only modules from client bundle
+      sharp: { browser: "" },
+      "onnxruntime-node": { browser: "" },
+    },
+  },
 };
 
 export default nextConfig;
