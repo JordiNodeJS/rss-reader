@@ -196,3 +196,114 @@
 .animate-marquee-reverse:hover {
   animation-play-state: paused;
 }
+
+/* ===== Flip Board Text Reveal Animation Styles ===== */
+
+/* Title flip animation - monospace feel during scramble */
+.flip-title {
+  display: inline-block;
+  font-family: inherit;
+  transition: font-family 0.1s ease;
+}
+
+/* During animation, use a slightly different rendering for the scramble effect */
+.flip-title.animating {
+  font-family: var(--font-mono), monospace;
+}
+
+/* Container for flip text reveal */
+.flip-text-reveal {
+  position: relative;
+  will-change: filter, transform;
+}
+
+.flip-text-reveal.animating {
+  /* Subtle text-shadow during animation for depth */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* HTML content flip layers */
+.flip-html-layer {
+  will-change: opacity, transform, filter;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Add subtle perspective for 3D feel */
+.flip-html-reveal-container {
+  perspective: 1000px;
+}
+
+/* Scramble character animation keyframes */
+@keyframes flip-char-in {
+  0% {
+    transform: rotateX(-90deg) translateY(-10px);
+    opacity: 0;
+  }
+  50% {
+    transform: rotateX(20deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: rotateX(0deg) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes flip-char-out {
+  0% {
+    transform: rotateX(0deg) translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: rotateX(-20deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: rotateX(90deg) translateY(10px);
+    opacity: 0;
+  }
+}
+
+/* Individual character animation class (for advanced usage) */
+.flip-char {
+  display: inline-block;
+  transform-origin: center bottom;
+  animation: flip-char-in 0.3s ease-out forwards;
+}
+
+.flip-char.out {
+  animation: flip-char-out 0.3s ease-in forwards;
+}
+
+/* Translation badge pulse animation */
+@keyframes translation-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+  }
+}
+
+.translation-badge-pulse {
+  animation: translation-pulse 2s ease-in-out infinite;
+}
+
+/* Smooth content transition wrapper */
+.content-transition {
+  transition: opacity 0.3s ease, transform 0.3s ease, filter 0.3s ease;
+}
+
+.content-transition.fading-out {
+  opacity: 0;
+  transform: translateY(-10px);
+  filter: blur(2px);
+}
+
+.content-transition.fading-in {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}

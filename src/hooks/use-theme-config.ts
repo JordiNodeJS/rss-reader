@@ -276,7 +276,7 @@ interface ThemeStore {
 export const useThemeConfig = create<ThemeStore>()(
   persist(
     (set, get) => ({
-      currentTheme: "retro-arcade",
+      currentTheme: "claude",
       isLoading: false,
       setTheme: (theme) => {
         // No hacer nada si ya es el tema actual o si está cargando
@@ -326,6 +326,10 @@ export const useThemeConfig = create<ThemeStore>()(
 
           // Load the theme CSS
           loadTheme(state.currentTheme);
+          
+          // Explicitly reset isLoading after hydration
+          // This prevents the loading spinner from showing during initial mount
+          state.isLoading = false;
         }
       },
     }
