@@ -5,23 +5,19 @@ Cuando se trate de depurar o comprobar funcionalidades de la UI, utiliza **conju
 ## Flujo de trabajo recomendado:
 
 1. **Inicialización Next.js** (si aplica):
-
    - Usa `nextjs_index` para descubrir el servidor Next.js en ejecución
    - Usa `nextjs_call` para obtener errores de compilación/runtime antes de probar en el navegador
 
 2. **Navegación y captura inicial**:
-
    - Usa `browser_navigate` para cargar la página
    - Usa `browser_snapshot` para obtener el estado accesible de la página (mejor que screenshot)
    - Usa `browser_console_messages` para capturar errores del navegador
 
 3. **Análisis combinado**:
-
    - **Next.js DevTools**: Detecta errores específicos de Next.js (hidratación, SSR, routing, cache)
    - **Chrome DevTools**: Valida diseño visual, responsividad, interacciones, y comportamiento del DOM
 
 4. **Interacción y pruebas**:
-
    - Usa `browser_click`, `browser_type`, `browser_fill_form` para interactuar con la UI
    - Monitorea `browser_network_requests` para verificar llamadas API
    - Verifica `browser_console_messages` después de cada interacción
@@ -38,3 +34,4 @@ Cuando se trate de depurar o comprobar funcionalidades de la UI, utiliza **conju
 - **Validación de diseño**: `browser_snapshot` + `browser_take_screenshot` para capturas visuales
 
 **IMPORTANTE**: Siempre usa ambos MCPs de forma complementaria, no como alternativas. Next.js DevTools para errores del framework, Chrome DevTools para comportamiento del navegador y UI.
+

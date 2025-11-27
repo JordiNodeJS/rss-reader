@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeInitializer } from "@/components/theme-initializer";
@@ -8,8 +8,63 @@ import { ActivityStatusProvider } from "@/contexts/ActivityStatusContext";
 // Ver el script themeScript que precarga las fuentes de Google Fonts
 
 export const metadata: Metadata = {
-  title: "RSS Reader",
-  description: "A modern, retro-arcade styled RSS reader",
+  title: {
+    default: "RSS Reader - Modern & Retro Style",
+    template: "%s | RSS Reader",
+  },
+  description:
+    "A modern, retro-arcade styled RSS reader with offline support, themes, and AI integration.",
+  applicationName: "RSS Reader",
+  authors: [{ name: "JordiNodeJS" }],
+  keywords: [
+    "RSS",
+    "Reader",
+    "Feed",
+    "News",
+    "Offline",
+    "PWA",
+    "Next.js",
+    "React",
+    "Retro",
+    "Arcade",
+  ],
+  creator: "JordiNodeJS",
+  publisher: "JordiNodeJS",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    title: "RSS Reader - Modern & Retro Style",
+    description:
+      "A modern, retro-arcade styled RSS reader with offline support.",
+    url: "https://rss-reader-antigravity.vercel.app",
+    siteName: "RSS Reader",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RSS Reader - Modern & Retro Style",
+    description:
+      "A modern, retro-arcade styled RSS reader with offline support.",
+    creator: "@JordiNodeJS",
+  },
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -29,6 +84,7 @@ export default function RootLayout({
         "bubblegum": ["Poppins", "Playfair Display", "Fira Code"],
         "candyland": ["Poppins", "Lora", "Fira Code"],
         "catppuccin": ["Montserrat", "Merriweather", "JetBrains Mono"],
+        "claude": [],
         "claymorphism": ["Plus Jakarta Sans", "DM Sans", "JetBrains Mono"],
         "clean-slate": ["Inter", "Source Serif 4", "JetBrains Mono"],
         "cosmic-night": ["Oxanium", "Source Code Pro"],
@@ -66,8 +122,8 @@ export default function RootLayout({
       };
       
       function loadFonts(fonts) {
-        if (!fonts || fonts.length === 0) return;
-        var families = fonts.map(function(f) {
+        if (!Array.isArray(fonts) || fonts.length === 0) return;
+        var families = (fonts || []).map(function(f) {
           return "family=" + f.replace(/ /g, "+") + ":wght@400;500;600;700";
         }).join("&");
         var link = document.createElement("link");
@@ -77,11 +133,11 @@ export default function RootLayout({
       }
       
       try {
-        var theme = 'retro-arcade';
+        var theme = 'claude';
         var stored = localStorage.getItem('rss-reader-theme-config');
         if (stored) {
           var parsed = JSON.parse(stored);
-          theme = parsed.state?.currentTheme || 'retro-arcade';
+          theme = parsed.state?.currentTheme || 'claude';
         }
         document.documentElement.classList.add('theme-' + theme);
         
@@ -90,18 +146,39 @@ export default function RootLayout({
         
         // Precargar el CSS del tema para evitar flash
         var link = document.createElement('link');
-        link.rel = 'stylesheet';
+        link.rel = 'preload';
+        link.as = 'style';
         link.href = '/styles/themes/' + theme + '.css';
         link.id = 'dynamic-theme-link';
+        link.onload = function() {
+          this.onload = null;
+          this.rel = 'stylesheet';
+        };
         document.head.appendChild(link);
+        // Fallback: convert to stylesheet immediately for browsers that don't support onload
+        setTimeout(function() {
+          if (link.rel !== 'stylesheet') {
+            link.rel = 'stylesheet';
+          }
+        }, 0);
       } catch (e) {
-        document.documentElement.classList.add('theme-retro-arcade');
-        loadFonts(themeFonts['retro-arcade']);
+        document.documentElement.classList.add('theme-claude');
+        loadFonts(themeFonts['claude']);
         var link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = '/styles/themes/retro-arcade.css';
+        link.rel = 'preload';
+        link.as = 'style';
+        link.href = '/styles/themes/claude.css';
         link.id = 'dynamic-theme-link';
+        link.onload = function() {
+          this.onload = null;
+          this.rel = 'stylesheet';
+        };
         document.head.appendChild(link);
+        setTimeout(function() {
+          if (link.rel !== 'stylesheet') {
+            link.rel = 'stylesheet';
+          }
+        }, 0);
       }
     })()
   `;

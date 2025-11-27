@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Article } from "@/lib/db";
 import {
   Card,
@@ -11,14 +12,39 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Download,
   BookOpen,
   CheckCircle,
   Clock,
   Newspaper,
   Tag,
+  Languages,
+  FileText,
 } from "lucide-react";
 import { DateTime } from "luxon";
+import { detectLanguage, extractTextFromHtml, LanguageDetectionResult } from "@/lib/translation";
+import Image from "next/image";
+import { isValidImageUrl } from "@/lib/utils";
+
+// Language names for display
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "inglés",
+  fr: "francés",
+  de: "alemán",
+  it: "italiano",
+  pt: "portugués",
+  es: "español",
+};
 
 // Map common category names to display colors
 const CATEGORY_COLORS: Record<string, string> = {
@@ -98,9 +124,9 @@ function getDisplayCategory(categories?: string[]): string | null {
 import { Feed } from "@/lib/db";
 
 interface ArticleListProps {
-  articles: Article[];
+  articles?: Article[] | null;
   feeds: Feed[];
-  onScrape: (id: number, url: string) => void;
+  onScrape: (id: number, url: string, withTranslation?: boolean) => void;
   onView: (article: Article) => void;
 }
 
@@ -118,18 +144,90 @@ function getFeedTitle(article: Article, feeds: Feed[]): string | null {
   return null;
 }
 
+// Helper to check if article content is in a foreign language
+async function getArticleLanguage(
+  article: Article
+): Promise<LanguageDetectionResult | null> {
+  const contentToCheck =
+    article.title + " " + (article.content || article.contentSnippet || "");
+  const textContent = extractTextFromHtml(contentToCheck);
+
+  if (textContent.length < 20) return null;
+
+  try {
+    return await detectLanguage(textContent);
+  } catch {
+    return null;
+  }
+}
+
 export function ArticleList({
-  articles,
-  feeds,
+  articles = [],
+  feeds = [],
   onScrape,
   onView,
 }: ArticleListProps) {
-  if (articles.length === 0) {
+  // Ensure articles is always an array to avoid runtime errors
+  const safeArticles = Array.isArray(articles) ? articles : [];
+  // State for save dialog
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [articleToSave, setArticleToSave] = useState<Article | null>(null);
+  const [isCheckingLanguage, setIsCheckingLanguage] = useState(false);
+  const [detectedLanguage, setDetectedLanguage] = useState<string>("en");
+
+  // Handle save button click - check language and show dialog if English
+  const handleSaveClick = async (article: Article) => {
+    if (article.scrapedContent) return; // Already saved
+
+    setIsCheckingLanguage(true);
+    setArticleToSave(article);
+
+    const detection = await getArticleLanguage(article);
+    setIsCheckingLanguage(false);
+
+    // If detected and NOT Spanish (and confident enough), show dialog
+    if (
+      detection &&
+      !detection.isSpanish &&
+      detection.language !== "unknown" &&
+      detection.confidence > 0.2
+    ) {
+      // Show dialog for foreign articles
+      setDetectedLanguage(detection.language);
+      setSaveDialogOpen(true);
+    } else {
+      // Save directly for Spanish or unknown articles
+      onScrape(article.id!, article.link, false);
+    }
+  };
+
+  // Handle save original
+  const handleSaveOriginal = () => {
+    if (articleToSave) {
+      onScrape(articleToSave.id!, articleToSave.link, false);
+    }
+    setSaveDialogOpen(false);
+    setArticleToSave(null);
+  };
+
+  // Handle save with translation
+  const handleSaveWithTranslation = () => {
+    if (articleToSave) {
+      onScrape(articleToSave.id!, articleToSave.link, true);
+    }
+    setSaveDialogOpen(false);
+    setArticleToSave(null);
+  };
+  if (safeArticles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
-        <img
+        <Image
           src="/empty-state.svg"
           alt="No articles"
+          width={256}
+          height={256}
+          priority
+          style={{ width: "auto", height: "auto" }}
           className="w-64 h-64 mb-6 opacity-80"
         />
         <h3 className="text-xl font-semibold mb-2 text-foreground">
@@ -145,19 +243,18 @@ export function ArticleList({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 md:p-6 pb-20">
-      {articles.map((article) => (
+      {safeArticles.map((article) => (
         <Card
           key={article.id || article.guid}
           className="flex flex-col h-full hover:shadow-lg transition-all duration-200 border-muted/60 overflow-hidden group"
         >
           <div className="aspect-video w-full overflow-hidden bg-muted relative">
-            <img
-              src={article.image || "/article-placeholder.svg"}
-              alt=""
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              onError={(e) => {
-                e.currentTarget.src = "/article-placeholder.svg";
-              }}
+            <Image
+              src={isValidImageUrl(article.image) ? article.image! : "/article-placeholder.svg"}
+              alt={article.title || "Article image"}
+              fill
+              sizes="(max-width: 640px) 100vw, 33vw"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
             {article.scrapedContent && (
               <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm flex items-center gap-1">
@@ -227,11 +324,18 @@ export function ArticleList({
               variant="outline"
               size="sm"
               className="flex-1"
-              onClick={() => onScrape(article.id!, article.link)}
-              disabled={!!article.scrapedContent}
+              onClick={() => handleSaveClick(article)}
+              disabled={
+                !!article.scrapedContent ||
+                (isCheckingLanguage && articleToSave?.id === article.id)
+              }
             >
               <Download className="w-4 h-4 mr-2" />
-              {article.scrapedContent ? "Saved" : "Save"}
+              {article.scrapedContent
+                ? "Saved"
+                : isCheckingLanguage && articleToSave?.id === article.id
+                ? "..."
+                : "Save"}
             </Button>
             <Button
               variant="default"
@@ -245,6 +349,57 @@ export function ArticleList({
           </CardFooter>
         </Card>
       ))}
+
+      {/* Save with Translation Dialog */}
+      <AlertDialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <AlertDialogContent id="alert-save-translate">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Languages className="w-5 h-5 text-blue-500" />
+              Artículo en {LANGUAGE_NAMES[detectedLanguage] || detectedLanguage} detected
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <span className="block">
+                  Este artículo parece estar en{" "}
+                  {LANGUAGE_NAMES[detectedLanguage] || detectedLanguage}. ¿Deseas
+                  guardar el contenido original o traducirlo al español?
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  La traducción puede tardar unos segundos dependiendo de la
+                  longitud del artículo.
+                  {detectedLanguage !== "en" &&
+                    " Nota: La traducción desde este idioma es experimental."}
+                </span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel
+              onClick={() => {
+                setSaveDialogOpen(false);
+                setArticleToSave(null);
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSaveOriginal}
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Guardar original
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={handleSaveWithTranslation}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Languages className="w-4 h-4 mr-2" />
+              Guardar traducido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

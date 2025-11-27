@@ -2,6 +2,11 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Article } from "@/lib/db";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useSummary } from "@/hooks/useSummary";
+import { SummaryType, SummaryLength } from "@/lib/summarization";
+import { SummaryDiagnostics } from "./SummaryDiagnostics";
+import { FlipTitleReveal, FlipHtmlReveal } from "@/components/FlipTextReveal";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +17,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ExternalLink,
   X,
   Maximize2,
@@ -19,6 +31,11 @@ import {
   GripVertical,
   AlertTriangle,
   Loader2,
+  Languages,
+  RotateCcw,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
@@ -32,6 +49,27 @@ interface IframeViewerProps {
   url: string;
   onClose: () => void;
 }
+
+function getLanguageName(code: string) {
+  const names: Record<string, string> = {
+    en: "English",
+    es: "Español",
+    fr: "Français",
+    de: "Deutsch",
+    pt: "Português",
+    it: "Italiano",
+  };
+  return names[code] || code.toUpperCase();
+}
+
+const SUPPORTED_LANGUAGES = [
+  { code: "en", name: "English" },
+  { code: "fr", name: "Français" },
+  { code: "de", name: "Deutsch" },
+  { code: "pt", name: "Português" },
+  { code: "it", name: "Italiano" },
+  { code: "es", name: "Español" },
+];
 
 function IframeViewer({ url, onClose }: IframeViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -429,21 +467,64 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
 export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
   // Use article.guid as key to reset state when article changes
   const [showIframe, setShowIframe] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryType, setSummaryType] = useState<SummaryType>("tldr");
+  const [summaryLength, setSummaryLength] = useState<SummaryLength>("medium");
 
-  // Reset iframe when dialog closes
+  // Translation hook
+  const translation = useTranslation({
+    article,
+    autoTranslate: false,
+    cacheTranslations: true,
+  });
+
+  // Summary hook
+  const summaryHook = useSummary({
+    article,
+    type: summaryType,
+    length: summaryLength,
+    cacheSummaries: true,
+    translateSummary: true, // Translate summaries to Spanish when using local model
+  });
+
+  // Reset iframe and summary panel when dialog closes
   const handleClose = () => {
     setShowIframe(false);
+    setShowSummary(false);
     onClose();
+  };
+
+  // Handle summary generation
+  const handleGenerateSummary = async (
+    type?: SummaryType,
+    length?: SummaryLength,
+    forceRegenerate?: boolean
+  ) => {
+    const useType = type || summaryType;
+    const useLength = length || summaryLength;
+    setSummaryType(useType);
+    setSummaryLength(useLength);
+    setShowSummary(true);
+    await summaryHook.summarize(useType, useLength, forceRegenerate);
   };
 
   if (!article) return null;
 
   // Prefer scraped content, then full content, then snippet
-  const contentToDisplay =
+  // Get both original and translated content for animation
+  const originalContent =
     article.scrapedContent ||
     article.content ||
     article.contentSnippet ||
     "No content available";
+
+  const translatedContent = translation.translatedContent || originalContent;
+
+  // For display (non-animated fallback) - not needed as we use FlipHtmlReveal directly
+
+  // Get both original and translated titles
+  const originalTitle = article.title;
+  const translatedTitle = translation.translatedTitle || article.title;
 
   const handleVisitOriginal = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -457,18 +538,86 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
         open={isOpen && !showIframe}
         onOpenChange={(open) => !open && handleClose()}
       >
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col gap-0 overflow-hidden">
+        <DialogContent
+          id="dialog-article-view"
+          className="max-w-4xl max-h-[90vh] flex flex-col gap-0 overflow-hidden"
+        >
           <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
               <Badge variant="outline">
                 {new Date(article.pubDate).toLocaleDateString()}
               </Badge>
               {article.scrapedContent && (
                 <Badge variant="secondary">Offline Ready</Badge>
               )}
+              {translation.isShowingTranslation && (
+                <Badge
+                  variant="default"
+                  className="bg-blue-500 hover:bg-blue-600"
+                >
+                  <Languages className="w-3 h-3 mr-1" />
+                  Traducido al Español
+                </Badge>
+              )}
+              {summaryHook.hasCachedSummary && (
+                <Badge
+                  variant="default"
+                  className="bg-purple-500 hover:bg-purple-600"
+                >
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  AI Summary
+                </Badge>
+              )}
+              {translation.sourceLanguage !== "es" &&
+                !translation.isShowingTranslation && (
+                  <div className="flex items-center gap-1.5">
+                    <Languages className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <Select
+                      value={
+                        translation.sourceLanguage === "unknown"
+                          ? ""
+                          : translation.sourceLanguage
+                      }
+                      onValueChange={async (value) => {
+                        if (value && value !== translation.sourceLanguage) {
+                          await translation.setSourceLanguage(value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger
+                        className="h-6 text-[10px] px-2 py-0 border-muted-foreground/30 bg-background hover:bg-muted/50 w-fit min-w-[110px] max-w-[140px]"
+                        title={
+                          translation.sourceLanguage === "unknown"
+                            ? "Selecciona el idioma del artículo"
+                            : "Cambiar idioma detectado"
+                        }
+                      >
+                        <SelectValue placeholder="Idioma desconocido">
+                          {translation.sourceLanguage === "unknown"
+                            ? "Seleccionar idioma"
+                            : getLanguageName(translation.sourceLanguage)}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_LANGUAGES.filter(
+                          (lang) => lang.code !== "es"
+                        ).map((lang) => (
+                          <SelectItem key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
             </div>
             <DialogTitle className="text-2xl font-bold leading-tight mb-3">
-              {article.title}
+              <FlipTitleReveal
+                originalTitle={originalTitle}
+                translatedTitle={translatedTitle}
+                showTranslation={translation.isShowingTranslation}
+                duration={2.5}
+              />
             </DialogTitle>
             <VisuallyHidden>
               <DialogDescription>
@@ -476,7 +625,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 {new Date(article.pubDate).toLocaleDateString()}
               </DialogDescription>
             </VisuallyHidden>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handleVisitOriginal}
                 className="text-primary hover:underline flex items-center gap-1 cursor-pointer"
@@ -492,13 +641,251 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               >
                 Open in new tab <ExternalLink className="w-3 h-3" />
               </a>
+
+              {/* AI Summary controls */}
+              {summaryHook.isChromeAvailable ||
+              summaryHook.isTransformersAvailable ? (
+                <>
+                  <span className="text-muted-foreground">|</span>
+                  {summaryHook.hasCachedSummary ||
+                  summaryHook.status === "completed" ? (
+                    <button
+                      onClick={() => setShowSummary(!showSummary)}
+                      className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      {showSummary ? "Ocultar resumen" : "Ver resumen"}
+                      {showSummary ? (
+                        <ChevronUp className="w-3 h-3" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" />
+                      )}
+                    </button>
+                  ) : summaryHook.status === "summarizing" ||
+                    summaryHook.status === "downloading" ||
+                    summaryHook.status === "checking" ? (
+                    <span className="text-muted-foreground flex items-center gap-1 text-sm">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      {summaryHook.message || "Generando resumen..."}
+                    </span>
+                  ) : summaryHook.status === "error" ? (
+                    <span className="text-destructive flex items-center gap-1 text-sm">
+                      <AlertTriangle className="w-3 h-3" />
+                      Error: {summaryHook.error}
+                      <button
+                        onClick={() => handleGenerateSummary()}
+                        className="ml-1 hover:underline"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleGenerateSummary()}
+                      className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm"
+                      disabled={!summaryHook.canSummarize}
+                      title={
+                        summaryHook.isTransformersAvailable &&
+                        !summaryHook.isChromeAvailable
+                          ? "Resumen generado localmente y traducido al español"
+                          : undefined
+                      }
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Generar resumen con IA
+                      {summaryHook.isTransformersAvailable &&
+                        !summaryHook.isChromeAvailable && (
+                          <span className="text-[10px] opacity-70 ml-1">
+                            (local)
+                          </span>
+                        )}
+                    </button>
+                  )}
+                </>
+              ) : (
+                // Show info when API is not available
+                <>
+                  <span className="text-muted-foreground">|</span>
+                  {summaryHook.availabilityError &&
+                  summaryHook.availabilityError.includes("space") ? (
+                    // Show prominent warning for insufficient space
+                    <span
+                      className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1"
+                      title={summaryHook.availabilityError}
+                    >
+                      <AlertTriangle className="w-3 h-3" />
+                      <span className="hidden sm:inline">
+                        Espacio insuficiente
+                      </span>
+                      <details className="inline relative">
+                        <summary className="cursor-pointer ml-1 hover:text-orange-700 dark:hover:text-orange-300">
+                          ℹ️
+                        </summary>
+                        <div className="absolute mt-2 right-0 p-3 bg-orange-500/10 border border-orange-500/20 rounded shadow-lg z-50 max-w-sm">
+                          <SummaryDiagnostics
+                            errorMessage={summaryHook.availabilityError}
+                          />
+                        </div>
+                      </details>
+                    </span>
+                  ) : (
+                    <details className="text-xs text-muted-foreground">
+                      <summary className="cursor-pointer hover:text-foreground flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 opacity-50" />
+                        <span className="hidden sm:inline">AI Summary</span>
+                      </summary>
+                      <div className="mt-2 p-2 bg-muted rounded border">
+                        <SummaryDiagnostics />
+                      </div>
+                    </details>
+                  )}
+                </>
+              )}
+
+              {/* Translation controls */}
+              {translation.sourceLanguage !== "es" &&
+                translation.sourceLanguage !== "unknown" && (
+                  <>
+                    <span className="text-muted-foreground">|</span>
+                    {translation.hasCachedTranslation ||
+                    translation.status === "completed" ? (
+                      <button
+                        onClick={translation.toggleTranslation}
+                        className="text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
+                      >
+                        <Languages className="w-3 h-3" />
+                        {translation.isShowingTranslation
+                          ? "Ver original"
+                          : "Ver traducción"}
+                      </button>
+                    ) : translation.status === "translating" ||
+                      translation.status === "downloading" ||
+                      translation.status === "detecting" ? (
+                      <span className="text-muted-foreground flex items-center gap-1 text-sm">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        {translation.message || "Traduciendo..."}
+                      </span>
+                    ) : translation.status === "error" ? (
+                      <span className="text-destructive flex items-center gap-1 text-sm">
+                        <AlertTriangle className="w-3 h-3" />
+                        Error: {translation.error}
+                        <button
+                          onClick={translation.translate}
+                          className="ml-1 hover:underline"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={translation.translate}
+                        className="text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 cursor-pointer text-sm"
+                        disabled={!translation.canTranslate}
+                      >
+                        <Languages className="w-3 h-3" />
+                        Traducir al español
+                      </button>
+                    )}
+                  </>
+                )}
             </div>
           </DialogHeader>
 
+          {/* AI Summary Panel */}
+          {showSummary && summaryHook.summary && (
+            <div className="mx-6 mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-500" />
+                  <span className="font-medium text-sm text-purple-600 dark:text-purple-400">
+                    Resumen IA
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {summaryHook.summaryType === "key-points"
+                      ? "Puntos clave"
+                      : summaryHook.summaryType === "tldr"
+                      ? "TL;DR"
+                      : summaryHook.summaryType === "teaser"
+                      ? "Teaser"
+                      : "Titular"}
+                  </Badge>
+                  {/* Show local badge when using Transformers.js */}
+                  {(summaryHook.activeBackend === "transformers" ||
+                    (!summaryHook.isChromeAvailable &&
+                      summaryHook.isTransformersAvailable)) && (
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] opacity-70"
+                      title="Resumen generado localmente y traducido al español"
+                    >
+                      local
+                    </Badge>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowSummary(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                {summaryHook.summaryType === "key-points" ? (
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: summaryHook.summary
+                        .replace(/^[-•*]\s*/gm, "")
+                        .split("\n")
+                        .filter((line) => line.trim())
+                        .map((point) => `<li>${point.trim()}</li>`)
+                        .join(""),
+                    }}
+                    className="list-disc list-inside space-y-1"
+                  />
+                ) : (
+                  <p className="text-foreground/90 leading-relaxed">
+                    {summaryHook.summary}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
+                <span className="text-xs text-muted-foreground">
+                  Regenerar:
+                </span>
+                <button
+                  onClick={() => handleGenerateSummary("tldr", "short", true)}
+                  className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                  disabled={summaryHook.status === "summarizing"}
+                >
+                  Rápido
+                </button>
+                <button
+                  onClick={() =>
+                    handleGenerateSummary("key-points", "medium", true)
+                  }
+                  className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                  disabled={summaryHook.status === "summarizing"}
+                >
+                  Puntos clave
+                </button>
+                <button
+                  onClick={() => handleGenerateSummary("tldr", "long", true)}
+                  className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                  disabled={summaryHook.status === "summarizing"}
+                >
+                  Detallado
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
-            <div
+            <FlipHtmlReveal
+              originalHtml={originalContent}
+              translatedHtml={translatedContent}
+              showTranslation={translation.isShowingTranslation}
+              duration={1.2}
               className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
-              dangerouslySetInnerHTML={{ __html: contentToDisplay }}
             />
           </div>
         </DialogContent>
