@@ -751,7 +751,7 @@ function SidebarContent({
 
             {/* Clear Translation Model Cache Button */}
             <CacheManager />
-            
+
             {/* View DB Events (dev/debug) */}
             <Dialog>
               <DialogTrigger asChild>
@@ -943,7 +943,7 @@ export function AppShell({
         // Add the icon height plus a small gap (8px)
         setMenuTop(rect.bottom + 8);
       }
-      
+
       const appScroll = document.getElementById("app-scroll");
       if (appScroll) {
         setIsScrolled(appScroll.scrollTop > 20);
