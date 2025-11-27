@@ -15,11 +15,11 @@ import type {
   WorkerProgressData,
   SummarizationResult,
   ModelStatus,
-} from "./summarization-worker";
+} from "./summarization-models";
 
 // Re-export model configuration
-export { SUMMARIZATION_MODELS, DEFAULT_MODEL } from "./summarization-worker";
-export type { SummarizationModelKey } from "./summarization-worker";
+export { SUMMARIZATION_MODELS, DEFAULT_MODEL } from "./summarization-models";
+export type { SummarizationModelKey } from "./summarization-models";
 
 // ============================================
 // Types

@@ -4,94 +4,26 @@
  * Runs Transformers.js summarization off the main thread for better performance.
  * Uses smaller models like distilbart-cnn-6-6 for efficient summarization.
  *
+ * IMPORTANT: This file should ONLY be loaded as a Web Worker.
+ * Do not import this file directly - use summarization-transformers.ts instead.
+ *
  * @see https://huggingface.co/docs/transformers.js
  */
 
 import { pipeline, env } from "@huggingface/transformers";
+import {
+  SUMMARIZATION_MODELS,
+  DEFAULT_MODEL,
+  type SummarizationModelKey,
+  type WorkerRequest,
+  type WorkerResponse,
+  type WorkerProgressData,
+  type SummarizationResult,
+  type ModelStatus,
+} from "./summarization-models";
 
 // Skip local model check - always fetch from Hugging Face Hub
 env.allowLocalModels = false;
-
-// ============================================
-// Types
-// ============================================
-
-export type WorkerMessageType =
-  | "summarize"
-  | "load-model"
-  | "unload-model"
-  | "get-status";
-
-export interface WorkerRequest {
-  id: string;
-  type: WorkerMessageType;
-  data?: {
-    text?: string;
-    modelId?: string;
-    maxLength?: number;
-    minLength?: number;
-  };
-}
-
-export interface WorkerProgressData {
-  status: "initiate" | "download" | "progress" | "done" | "ready";
-  file?: string;
-  progress?: number;
-  loaded?: number;
-  total?: number;
-  name?: string;
-}
-
-export interface WorkerResponse {
-  id: string;
-  type: "progress" | "result" | "error" | "status";
-  data?: WorkerProgressData | SummarizationResult | ModelStatus;
-  error?: string;
-}
-
-export interface SummarizationResult {
-  summary_text: string;
-}
-
-export interface ModelStatus {
-  isLoaded: boolean;
-  modelId: string | null;
-  isLoading: boolean;
-}
-
-// ============================================
-// Available Models (ordered by size/speed)
-// ============================================
-
-export const SUMMARIZATION_MODELS = {
-  // Smallest, fastest (~60MB) - Good for quick summaries
-  "distilbart-cnn-6-6": {
-    id: "Xenova/distilbart-cnn-6-6",
-    name: "DistilBART CNN 6-6",
-    size: "~60MB",
-    description: "Fast and lightweight summarization model",
-    maxInputLength: 1024,
-  },
-  // Medium size (~125MB) - Better quality
-  "distilbart-cnn-12-6": {
-    id: "Xenova/distilbart-cnn-12-6",
-    name: "DistilBART CNN 12-6",
-    size: "~125MB",
-    description: "Balanced quality and speed",
-    maxInputLength: 1024,
-  },
-  // Larger (~270MB) - Best quality for English
-  "bart-large-cnn": {
-    id: "Xenova/bart-large-cnn",
-    name: "BART Large CNN",
-    size: "~270MB",
-    description: "High quality English summarization",
-    maxInputLength: 1024,
-  },
-} as const;
-
-export type SummarizationModelKey = keyof typeof SUMMARIZATION_MODELS;
-export const DEFAULT_MODEL: SummarizationModelKey = "distilbart-cnn-6-6";
 
 // ============================================
 // Pipeline Singleton
@@ -128,6 +60,7 @@ class SummarizationPipelineSingleton {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.instance = await pipeline("summarization" as any, modelConfig.id, {
+        dtype: "q8", // Use quantized model for smaller size
         progress_callback: (data: WorkerProgressData) => {
           progressCallback?.(data);
         },

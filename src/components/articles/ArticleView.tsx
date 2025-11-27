@@ -682,13 +682,16 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                       onClick={() => handleGenerateSummary()}
                       className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm"
                       disabled={!summaryHook.canSummarize}
+                      title={summaryHook.isTransformersAvailable && !summaryHook.isChromeAvailable 
+                        ? "El modelo local genera resúmenes en inglés" 
+                        : undefined}
                     >
                       <Sparkles className="w-3 h-3" />
                       Generar resumen con IA
                       {summaryHook.isTransformersAvailable &&
                         !summaryHook.isChromeAvailable && (
                           <span className="text-[10px] opacity-70 ml-1">
-                            (local)
+                            (local, EN)
                           </span>
                         )}
                     </button>
@@ -801,6 +804,13 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                       ? "Teaser"
                       : "Headline"}
                   </Badge>
+                  {/* Show EN only badge when using local model (Transformers.js generates English summaries) */}
+                  {(summaryHook.activeBackend === "transformers" ||
+                    (!summaryHook.isChromeAvailable && summaryHook.isTransformersAvailable)) && (
+                    <Badge variant="secondary" className="text-[10px] opacity-70" title="El modelo local solo genera resúmenes en inglés">
+                      EN only
+                    </Badge>
+                  )}
                 </div>
                 <button
                   onClick={() => setShowSummary(false)}

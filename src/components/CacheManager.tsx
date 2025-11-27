@@ -27,7 +27,6 @@ import {
 import {
   getCachedSummarizationModels,
   clearSummarizationModelCache,
-  getSummarizationCacheSize,
   SUMMARIZATION_MODELS,
 } from "@/lib/summarization";
 import { toast } from "sonner";

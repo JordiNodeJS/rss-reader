@@ -496,7 +496,7 @@ export function clearSummarizerCache(): void {
   for (const summarizer of summarizerCache.values()) {
     try {
       summarizer.destroy();
-    } catch (e) {
+    } catch {
       // Ignore destroy errors
     }
   }
