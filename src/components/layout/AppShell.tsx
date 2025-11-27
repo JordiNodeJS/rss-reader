@@ -1098,6 +1098,7 @@ export function AppShell({
                 addNewFeed={addNewFeed}
                 updateFeedTitle={updateFeedTitle}
                 clearCache={clearCache}
+                reorderFeeds={reorderFeeds}
                 isLoading={isLoading}
               />
             </div>

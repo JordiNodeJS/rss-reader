@@ -31,12 +31,18 @@ export function SummaryDiagnostics({ errorMessage }: SummaryDiagnosticsProps = {
     const chromeMatch = userAgent.match(/Chrome\/(\d+)/);
     const edgeMatch = userAgent.match(/Edg\/(\d+)/);
     
-    if (chromeMatch) {
-      setIsChrome(true);
-      setChromeVersion(parseInt(chromeMatch[1], 10));
-    } else if (edgeMatch) {
-      setIsChrome(false);
-      setChromeVersion(parseInt(edgeMatch[1], 10));
+    if (chromeMatch || edgeMatch) {
+      // Schedule state updates to avoid synchronous setState within the effect
+      // which can trigger cascading renders. This runs in the next microtask.
+      Promise.resolve().then(() => {
+        if (chromeMatch) {
+          setIsChrome(true);
+          setChromeVersion(parseInt(chromeMatch[1], 10));
+        } else if (edgeMatch) {
+          setIsChrome(false);
+          setChromeVersion(parseInt(edgeMatch[1], 10));
+        }
+      });
     }
 
     // Check API availability
