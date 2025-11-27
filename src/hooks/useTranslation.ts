@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Article, updateArticleTranslation, getArticleById } from "@/lib/db";
+import { Article, updateArticleTranslation, updateArticleLanguage, getArticleById } from "@/lib/db";
 import {
   translateToSpanish,
   detectLanguage,
@@ -64,6 +64,8 @@ export interface UseTranslationReturn {
   toggleTranslation: () => void;
   /** Clear cached translation */
   clearTranslation: () => void;
+  /** Set source language manually */
+  setSourceLanguage: (language: string) => Promise<void>;
 }
 
 // ============================================
@@ -124,31 +126,49 @@ export function useTranslation(
       setTranslatedContent("");
       setStatus("idle");
 
-      // Detect language
-      const detectArticleLanguage = async () => {
-        // Include title in detection for better accuracy
-        const contentToCheck =
-          article.title +
-          " " +
-          (article.scrapedContent ||
-            article.content ||
-            article.contentSnippet ||
-            "");
-        const textContent = extractTextFromHtml(contentToCheck);
+      // If article already has a manually set originalLanguage, use it
+      if (article.originalLanguage && article.originalLanguage !== "unknown") {
+        console.log("[useTranslation] Using saved originalLanguage:", article.originalLanguage);
+        setSourceLanguage(article.originalLanguage);
+      } else {
+        // Detect language
+        const detectArticleLanguage = async () => {
+          // Include title in detection for better accuracy
+          const contentToCheck =
+            article.title +
+            " " +
+            (article.scrapedContent ||
+              article.content ||
+              article.contentSnippet ||
+              "");
+          const textContent = extractTextFromHtml(contentToCheck);
 
-        if (textContent.length > 20) {
-          const detection = await detectLanguage(textContent);
-          // If detection returns 'unknown' but we have content, default to 'en' 
-          // to allow user to try translating if they want (though canTranslate blocks 'unknown')
-          // Let's set it to detection.language and let canTranslate handle it
-          setSourceLanguage(detection.language);
-        } else {
-          // Too short to detect, assume English for English-language feeds
-          setSourceLanguage("en");
-        }
-      };
+          if (textContent.length > 20) {
+            const detection = await detectLanguage(textContent);
+            console.log("[useTranslation] Language detection for article:", {
+              articleId: article.id,
+              title: article.title.substring(0, 50),
+              detectedLanguage: detection.language,
+              confidence: detection.confidence.toFixed(3),
+              textLength: textContent.length,
+              sampleText: textContent.substring(0, 100),
+            });
+            // If detection returns 'unknown' but we have content, default to 'en' 
+            // to allow user to try translating if they want (though canTranslate blocks 'unknown')
+            // Let's set it to detection.language and let canTranslate handle it
+            setSourceLanguage(detection.language);
+          } else {
+            // Too short to detect, assume English for English-language feeds
+            console.log("[useTranslation] Text too short for detection, defaulting to 'en':", {
+              articleId: article.id,
+              textLength: textContent.length,
+            });
+            setSourceLanguage("en");
+          }
+        };
 
-      detectArticleLanguage();
+        detectArticleLanguage();
+      }
     }
 
     // Reset showing state when article changes
@@ -295,6 +315,46 @@ export function useTranslation(
     }
   }, [article?.id, cacheTranslations]);
 
+  // Set source language manually
+  const setSourceLanguageManual = useCallback(async (language: string) => {
+    setSourceLanguage(language);
+    
+    // If there's a cached translation and the language changed, clear it
+    // so the user can retranslate with the correct language
+    if (hasCachedTranslation && language !== article?.originalLanguage) {
+      setTranslatedTitle("");
+      setTranslatedContent("");
+      setHasCachedTranslation(false);
+      setIsShowingTranslation(false);
+      setStatus("idle");
+      
+      // Clear from IndexedDB
+      if (article?.id && cacheTranslations) {
+        try {
+          await updateArticleTranslation(article.id, "", "", "", "");
+        } catch (err) {
+          console.warn(
+            "[useTranslation] Failed to clear cached translation:",
+            err
+          );
+        }
+      }
+    }
+    
+    // Save to IndexedDB if article exists
+    if (article?.id && cacheTranslations) {
+      try {
+        await updateArticleLanguage(article.id, language);
+        console.log("[useTranslation] Updated article language to:", language);
+      } catch (err) {
+        console.warn(
+          "[useTranslation] Failed to update article language:",
+          err
+        );
+      }
+    }
+  }, [article?.id, article?.originalLanguage, cacheTranslations, hasCachedTranslation]);
+
   // Get displayed content
   const displayedTitle =
     isShowingTranslation && translatedTitle
@@ -324,6 +384,7 @@ export function useTranslation(
     translate,
     toggleTranslation,
     clearTranslation,
+    setSourceLanguage: setSourceLanguageManual,
   };
 }
 

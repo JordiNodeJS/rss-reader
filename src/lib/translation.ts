@@ -221,6 +221,67 @@ const FRENCH_COMMON_WORDS = new Set([
   "où",
   "fois",
   "vous",
+  // Additional common French words
+  "les",
+  "des",
+  "est",
+  "sont",
+  "une",
+  "trois",
+  "quatre",
+  "cinq",
+  "budget",
+  "sécu",
+  "syndicats",
+  "médecins",
+  "libéraux",
+  "cette",
+  "cet",
+  "ces",
+  "sans",
+  "sous",
+  "entre",
+  "jusqu",
+  "depuis",
+  "pendant",
+  "contre",
+  "selon",
+  "selon",
+  "vers",
+  "chez",
+  "malgré",
+  "grâce",
+  "afin",
+  "alors",
+  "donc",
+  "car",
+  "puisque",
+  "quand",
+  "lorsque",
+  "tandis",
+  "toutefois",
+  "cependant",
+  "néanmoins",
+  "ainsi",
+  "alors",
+  "déjà",
+  "encore",
+  "jamais",
+  "toujours",
+  "souvent",
+  "parfois",
+  "quelquefois",
+  "beaucoup",
+  "peu",
+  "très",
+  "trop",
+  "assez",
+  "plutôt",
+  "vraiment",
+  "certainement",
+  "probablement",
+  "peut-être",
+  "sûrement",
 ]);
 
 const GERMAN_COMMON_WORDS = new Set([
@@ -541,10 +602,14 @@ function detectLanguageHeuristic(text: string): LanguageDetectionResult {
 
   let bestLang = "unknown";
   let maxScore = 0;
+  const scores: Record<string, number> = {};
 
   for (const lang of languages) {
     const matchCount = words.filter((w) => lang.words.has(w)).length;
-    const score = matchCount / Math.min(words.length, 50);
+    // Use a more lenient scoring: divide by actual word count (up to 100 words)
+    // This gives better results for shorter texts
+    const score = matchCount / Math.min(words.length, 100);
+    scores[lang.code] = score;
 
     if (score > maxScore) {
       maxScore = score;
@@ -552,9 +617,25 @@ function detectLanguageHeuristic(text: string): LanguageDetectionResult {
     }
   }
 
-  // Minimum confidence threshold
-  if (maxScore < 0.15) {
+  // Lower threshold for better detection (was 0.15, now 0.1)
+  // This helps detect languages even with shorter texts
+  if (maxScore < 0.1) {
     return { language: "unknown", confidence: maxScore, isEnglish: false, isSpanish: false };
+  }
+
+  // If scores are very close, prefer the language with more matches
+  // This helps avoid false positives when multiple languages have similar scores
+  const sortedScores = Object.entries(scores)
+    .sort((a, b) => b[1] - a[1]);
+  
+  // If top two scores are within 0.05 of each other, check for more specific indicators
+  if (sortedScores.length >= 2 && sortedScores[0][1] - sortedScores[1][1] < 0.05) {
+    // Check for French-specific patterns
+    const frenchPatterns = /\b(les|des|est|sont|pour|avec|dans|sur|par|une|deux|trois|quatre|cinq|budget|sécu|syndicats|médecins|libéraux)\b/i;
+    if (frenchPatterns.test(text)) {
+      bestLang = "fr";
+      maxScore = Math.max(maxScore, sortedScores[0][1] + 0.1);
+    }
   }
 
   return {
@@ -582,7 +663,7 @@ export async function detectLanguage(
       const topResult = results[0];
 
       if (topResult) {
-        return {
+        const result = {
           language: topResult.detectedLanguage,
           confidence: topResult.confidence,
           isEnglish:
@@ -592,6 +673,12 @@ export async function detectLanguage(
             topResult.detectedLanguage === "es" &&
             topResult.confidence > CONFIDENCE_THRESHOLD,
         };
+        console.log("[Translation] Chrome Language Detection result:", {
+          language: result.language,
+          confidence: result.confidence.toFixed(3),
+          sampleText: sampleText.substring(0, 100),
+        });
+        return result;
       }
     } catch (error) {
       console.warn("[Translation] Chrome Language Detection failed:", error);
@@ -599,7 +686,13 @@ export async function detectLanguage(
   }
 
   // Fallback to heuristic
-  return detectLanguageHeuristic(sampleText);
+  const heuristicResult = detectLanguageHeuristic(sampleText);
+  console.log("[Translation] Heuristic Language Detection result:", {
+    language: heuristicResult.language,
+    confidence: heuristicResult.confidence.toFixed(3),
+    sampleText: sampleText.substring(0, 100),
+  });
+  return heuristicResult;
 }
 
 // ============================================

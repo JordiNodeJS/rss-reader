@@ -17,6 +17,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ExternalLink,
   X,
   Maximize2,
@@ -54,6 +61,15 @@ function getLanguageName(code: string) {
   };
   return names[code] || code.toUpperCase();
 }
+
+const SUPPORTED_LANGUAGES = [
+  { code: "en", name: "English" },
+  { code: "fr", name: "Français" },
+  { code: "de", name: "Deutsch" },
+  { code: "pt", name: "Português" },
+  { code: "it", name: "Italiano" },
+  { code: "es", name: "Español" },
+];
 
 function IframeViewer({ url, onClose }: IframeViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -548,12 +564,36 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 </Badge>
               )}
               {translation.sourceLanguage !== "es" &&
-                translation.sourceLanguage !== "unknown" &&
                 !translation.isShowingTranslation && (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    <Languages className="w-3 h-3 mr-1" />
-                    {getLanguageName(translation.sourceLanguage)}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Languages className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <Select
+                      value={translation.sourceLanguage === "unknown" ? "" : translation.sourceLanguage}
+                      onValueChange={async (value) => {
+                        if (value && value !== translation.sourceLanguage) {
+                          await translation.setSourceLanguage(value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger 
+                        className="h-6 text-[10px] px-2 py-0 border-muted-foreground/30 bg-background hover:bg-muted/50 w-fit min-w-[110px] max-w-[140px]"
+                        title={translation.sourceLanguage === "unknown" ? "Selecciona el idioma del artículo" : "Cambiar idioma detectado"}
+                      >
+                        <SelectValue placeholder="Idioma desconocido">
+                          {translation.sourceLanguage === "unknown" 
+                            ? "Seleccionar idioma" 
+                            : getLanguageName(translation.sourceLanguage)}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_LANGUAGES.filter(lang => lang.code !== "es").map((lang) => (
+                          <SelectItem key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
             </div>
             <DialogTitle className="text-2xl font-bold leading-tight mb-3">

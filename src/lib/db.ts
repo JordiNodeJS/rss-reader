@@ -246,6 +246,18 @@ export const updateArticleTranslation = async (
   await db.put("articles", article);
 };
 
+// Update article original language
+export const updateArticleLanguage = async (
+  id: number,
+  originalLanguage: string
+) => {
+  const db = await getDB();
+  const article = await db.get("articles", id);
+  if (!article) throw new Error("Article not found");
+  article.originalLanguage = originalLanguage;
+  await db.put("articles", article);
+};
+
 // Get article by ID
 export const getArticleById = async (
   id: number
