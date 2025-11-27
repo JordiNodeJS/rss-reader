@@ -76,6 +76,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { CacheManager } from "@/components/CacheManager";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -398,6 +399,15 @@ const ORGANIZED_FEEDS: FeedCategory[] = [
         name: "Alternet",
         sections: [
           { name: "World", url: "https://www.alternet.org/feeds/world.rss" },
+        ],
+      },
+      {
+        name: "Liberation",
+        sections: [
+          {
+            name: "Société",
+            url: "https://www.liberation.fr/arc/outboundfeeds/rss-all/category/societe/?outputType=xml",
+          },
         ],
       },
     ],
@@ -740,48 +750,8 @@ function SidebarContent({
             <ThemeSwitcher />
 
             {/* Clear Translation Model Cache Button */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full max-w-full gap-2 text-xs"
-                  size="sm"
-                >
-                  <Languages className="w-4 h-4 shrink-0" />
-                  <span className="truncate">Limpiar Modelo de Traducción</span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent id="alert-clear-translation-cache">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    ¿Limpiar caché del modelo de traducción?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esto eliminará el modelo de traducción descargado (~75MB).
-                    Se volverá a descargar automáticamente cuando traduzcas un
-                    artículo.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={async () => {
-                      try {
-                        await clearTranslationModelCache();
-                        toast.success(
-                          "Caché del modelo de traducción limpiada"
-                        );
-                      } catch (error) {
-                        toast.error("Error al limpiar la caché");
-                        console.error(error);
-                      }
-                    }}
-                  >
-                    Limpiar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <CacheManager />
+            
             {/* View DB Events (dev/debug) */}
             <Dialog>
               <DialogTrigger asChild>
@@ -915,6 +885,7 @@ export function AppShell({
     isLoading,
   } = feedState;
   const [menuTop, setMenuTop] = useState<number | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
   // Default to 256px at render-time so server and initial client render match.
   // Read from localStorage in a client-only effect to avoid hydration mismatches.
   const [sidebarWidth, setSidebarWidth] = useState<number>(
@@ -971,6 +942,11 @@ export function AppShell({
         // Position menu button below the RSS icon to avoid overlap on mobile
         // Add the icon height plus a small gap (8px)
         setMenuTop(rect.bottom + 8);
+      }
+      
+      const appScroll = document.getElementById("app-scroll");
+      if (appScroll) {
+        setIsScrolled(appScroll.scrollTop > 20);
       }
     };
     computeTop();
@@ -1050,7 +1026,7 @@ export function AppShell({
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <BrandingBanner />
+      <BrandingBanner isScrolled={isScrolled} />
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
         <aside

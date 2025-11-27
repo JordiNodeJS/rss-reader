@@ -13,7 +13,11 @@ import {
   ACTIVITY_CONFIG,
 } from "@/contexts/ActivityStatusContext";
 
-export function BrandingBanner() {
+interface BrandingBannerProps {
+  isScrolled?: boolean;
+}
+
+export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
   const { activity } = useActivityStatus();
   const activityConfig = ACTIVITY_CONFIG[activity.status];
 
@@ -262,7 +266,10 @@ export function BrandingBanner() {
   return (
     <div
       ref={containerRef}
-      className="w-full relative overflow-hidden shadow-lg z-50 group sticky top-0 h-28 md:h-32 bg-background"
+      className={cn(
+        "w-full overflow-hidden shadow-lg z-50 group sticky top-0 bg-background transition-all duration-300 ease-in-out",
+        isScrolled ? "h-16" : "h-28 md:h-32"
+      )}
     >
       {/* Hero Background Image */}
       <div
@@ -277,29 +284,48 @@ export function BrandingBanner() {
         <div className="absolute inset-0 bg-primary/10 mix-blend-overlay" />
       </div>
 
-      {/* Theme Carousel */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 py-1.5 bg-background/40 backdrop-blur-sm border-t border-border/20">
-        <ThemeCarousel isPaused={false} />
+      {/* Theme Carousel - Hide when scrolled */}
+      <div 
+        className={cn(
+          "absolute bottom-0 left-0 right-0 z-20 py-1.5 bg-background/40 backdrop-blur-sm border-t border-border/20 transition-opacity duration-300",
+          isScrolled ? "opacity-0 pointer-events-none" : "opacity-100"
+        )}
+      >
+        <ThemeCarousel isPaused={isScrolled} />
       </div>
 
       <div
         ref={contentRef}
-        className="container mx-auto px-4 h-full flex items-start pt-4 justify-between relative z-10"
+        className={cn(
+          "container mx-auto px-4 h-full flex justify-between relative z-10 transition-all duration-300",
+          isScrolled ? "items-center pt-0" : "items-start pt-4"
+        )}
         style={{ willChange: "transform" }}
       >
         <div className="flex items-center gap-4 md:gap-6 pl-0">
           <div
             ref={iconRef}
             id="rss-icon-container"
-            className="bg-background/80 p-2 md:p-3 rounded-xl backdrop-blur-md shadow-2xl border border-border/50"
+            className={cn(
+              "bg-background/80 rounded-xl backdrop-blur-md shadow-2xl border border-border/50 transition-all duration-300",
+              isScrolled ? "p-1.5" : "p-2 md:p-3"
+            )}
             style={{ willChange: "transform" }}
           >
-            <Rss className="text-primary w-7 h-7 md:w-9 md:h-9" />
+            <Rss 
+              className={cn(
+                "text-primary transition-all duration-300",
+                isScrolled ? "w-5 h-5" : "w-7 h-7 md:w-9 md:h-9"
+              )} 
+            />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col justify-center">
             <h1
               ref={titleRef}
-              className="font-black tracking-tighter leading-none text-foreground drop-shadow-sm text-3xl md:text-5xl"
+              className={cn(
+                "font-black tracking-tighter leading-none text-foreground drop-shadow-sm transition-all duration-300 origin-left",
+                isScrolled ? "text-xl md:text-2xl" : "text-3xl md:text-5xl"
+              )}
               style={{ transformStyle: "preserve-3d" }}
             >
               <span
@@ -315,28 +341,41 @@ export function BrandingBanner() {
                 READER
               </span>
             </h1>
-            <span className="text-xs md:text-sm font-bold tracking-[0.2em] uppercase text-muted-foreground mt-1">
+            <span 
+              className={cn(
+                "text-xs md:text-sm font-bold tracking-[0.2em] uppercase text-muted-foreground mt-1 transition-all duration-300 origin-left",
+                isScrolled ? "h-0 opacity-0 overflow-hidden mt-0 scale-0" : "h-auto opacity-100 scale-100"
+              )}
+            >
               Level Up Your Feed
             </span>
           </div>
         </div>
 
-        <div className="flex items-center bg-background/80 rounded-full backdrop-blur-md border border-border/50 shadow-lg gap-4 pl-6 pr-2 py-2">
+        <div 
+          className={cn(
+            "flex items-center bg-background/80 rounded-full backdrop-blur-md border border-border/50 shadow-lg transition-all duration-300",
+             isScrolled ? "gap-1.5 pl-2 pr-0.5 py-0.5 scale-75 origin-right" : "gap-2 pl-3 pr-1 py-1 scale-90"
+          )}
+        >
           <div className="hidden md:flex items-center">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground whitespace-nowrap mb-1">
+              <span className={cn(
+                "text-[8px] uppercase tracking-wider text-muted-foreground whitespace-nowrap transition-all duration-300",
+                isScrolled ? "h-0 opacity-0 mb-0 scale-0" : "h-auto opacity-100 mb-0.5 scale-100"
+              )}>
                 System Status
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <span
                   className={cn(
-                    "w-2 h-2 rounded-full shrink-0 transition-colors duration-300",
+                    "w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-300",
                     activityConfig.color,
                     activity.status !== "idle" && "animate-pulse"
                   )}
                   title={activity.message || activityConfig.label}
                 />
-                <span className="text-sm font-bold text-foreground/80">
+                <span className="text-xs font-semibold text-foreground/70">
                   {activityConfig.label}
                 </span>
               </div>
@@ -346,12 +385,12 @@ export function BrandingBanner() {
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full hover:bg-primary/10 h-9 w-9"
+              className="rounded-full hover:bg-primary/10 h-7 w-7"
             >
-              <HelpCircle className="text-muted-foreground hover:text-primary transition-colors h-5 w-5" />
+              <HelpCircle className="text-muted-foreground hover:text-primary transition-colors h-4 w-4" />
             </Button>
           </Link>
-          <div className="scale-100">
+          <div className="scale-90">
             <ThemeToggle />
           </div>
         </div>

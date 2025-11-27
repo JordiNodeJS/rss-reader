@@ -207,16 +207,26 @@ export function useTranslation(
       const titleResult = await translateToSpanish({
         text: article.title,
         onProgress: handleProgress,
-        skipLanguageDetection: false, // Re-detect to ensure correct source language is used
+        skipLanguageDetection: true, // Use the already detected language
+        sourceLanguage: sourceLanguage,
       });
 
       // Translate content preserving HTML formatting
       setMessage("Translating content...");
+      
+      console.log("[useTranslation] Translating content with sourceLanguage:", sourceLanguage);
+      console.log("[useTranslation] contentToTranslate length:", contentToTranslate.length);
 
       const contentResult = await translateHtmlPreservingFormat(
         contentToTranslate,
-        handleProgress
+        handleProgress,
+        sourceLanguage
       );
+      
+      console.log("[useTranslation] Content translation result:", {
+        translatedTextLength: contentResult.translatedText?.length,
+        provider: contentResult.provider,
+      });
 
       // Update state
       setTranslatedTitle(titleResult.translatedText);
@@ -235,7 +245,7 @@ export function useTranslation(
             titleResult.translatedText,
             contentResult.translatedText,
             "es",
-            "en"
+            sourceLanguage
           );
         } catch (cacheError) {
           console.warn(
@@ -251,7 +261,7 @@ export function useTranslation(
       setStatus("error");
       setMessage(errorMessage);
     }
-  }, [article, canTranslate, cacheTranslations, handleProgress]);
+  }, [article, canTranslate, cacheTranslations, handleProgress, sourceLanguage]);
 
   // Toggle between original and translated
   const toggleTranslation = useCallback(() => {

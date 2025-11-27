@@ -725,6 +725,7 @@ export interface TranslateOptions {
   onProgress?: (progress: TranslationProgress) => void;
   preferredProvider?: TranslationProvider;
   skipLanguageDetection?: boolean; // Skip language detection if already verified
+  sourceLanguage?: string; // Explicitly set source language
 }
 
 /**
@@ -740,16 +741,24 @@ export async function translateToSpanish(
     onProgress,
     preferredProvider,
     skipLanguageDetection = false,
+    sourceLanguage: explicitSourceLanguage,
   } = options;
+
+  console.log("[translateToSpanish] Called with:", {
+    textLength: text?.length,
+    skipLanguageDetection,
+    explicitSourceLanguage,
+  });
 
   if (!text || text.trim().length === 0) {
     throw new Error("No text provided for translation");
   }
 
-  let sourceLanguage = "en";
+  let sourceLanguage = explicitSourceLanguage || "en";
+  console.log("[translateToSpanish] Using sourceLanguage:", sourceLanguage);
 
-  // Only detect language if not skipped
-  if (!skipLanguageDetection) {
+  // Only detect language if not skipped and no explicit source language provided
+  if (!skipLanguageDetection && !explicitSourceLanguage) {
     onProgress?.({
       status: "detecting",
       progress: 0,
@@ -896,10 +905,11 @@ export function extractTextFromHtml(html: string): string {
  */
 export async function translateHtml(
   html: string,
-  onProgress?: (progress: TranslationProgress) => void
+  onProgress?: (progress: TranslationProgress) => void,
+  sourceLanguage?: string
 ): Promise<TranslationResult> {
   // Use the format-preserving translation
-  return translateHtmlPreservingFormat(html, onProgress);
+  return translateHtmlPreservingFormat(html, onProgress, sourceLanguage);
 }
 
 /**
@@ -912,13 +922,17 @@ export async function translateHtml(
  */
 export async function translateHtmlPreservingFormat(
   html: string,
-  onProgress?: (progress: TranslationProgress) => void
+  onProgress?: (progress: TranslationProgress) => void,
+  sourceLanguage?: string
 ): Promise<TranslationResult> {
+  console.log("[translateHtmlPreservingFormat] Called with sourceLanguage:", sourceLanguage);
+  console.log("[translateHtmlPreservingFormat] HTML length:", html?.length);
+  
   if (!html || html.trim().length === 0) {
     return {
       translatedText: "",
       provider: "none",
-      sourceLanguage: "en",
+      sourceLanguage: sourceLanguage || "en",
       targetLanguage: "es",
       timestamp: Date.now(),
     };
@@ -1022,10 +1036,20 @@ export async function translateHtmlPreservingFormat(
   processedHtml = processedHtml.replace(/\n{3,}/g, "\n\n").trim();
 
   // Translate the processed text
+  console.log("[translateHtmlPreservingFormat] Calling translateToSpanish with sourceLanguage:", sourceLanguage);
+  console.log("[translateHtmlPreservingFormat] processedHtml length:", processedHtml.length);
+  
   const result = await translateToSpanish({
     text: processedHtml,
     onProgress,
     skipLanguageDetection: true,
+    sourceLanguage,
+  });
+  
+  console.log("[translateHtmlPreservingFormat] Translation result:", {
+    provider: result.provider,
+    sourceLanguage: result.sourceLanguage,
+    translatedTextLength: result.translatedText?.length,
   });
 
   // Restore tags from placeholders
@@ -1109,5 +1133,234 @@ export async function getTranslationCacheSize(): Promise<string> {
     return `~${usedMB} MB`;
   } catch {
     return "Unknown";
+  }
+}
+
+export interface CachedModel {
+  id: string;
+  size: number;
+  fileCount: number;
+  source: "transformers" | "chrome";
+}
+
+/**
+ * Check Chrome Translator API availability for common language pairs
+ */
+export async function getChromeTranslatorModels(): Promise<CachedModel[]> {
+  const models: CachedModel[] = [];
+  
+  // Check if Chrome Translator API is available
+  if (typeof Translator === "undefined") return models;
+  
+  // Common language pairs to check (source -> es)
+  const languagePairs = [
+    { source: "en", name: "English → Spanish" },
+    { source: "fr", name: "French → Spanish" },
+    { source: "de", name: "German → Spanish" },
+    { source: "it", name: "Italian → Spanish" },
+    { source: "pt", name: "Portuguese → Spanish" },
+  ];
+  
+  for (const pair of languagePairs) {
+    try {
+      const availability = await Translator.availability({
+        sourceLanguage: pair.source,
+        targetLanguage: "es",
+      });
+      
+      // "available" means downloaded, "downloadable" means not yet downloaded
+      if (availability === "available") {
+        models.push({
+          id: `Chrome Translator: ${pair.name}`,
+          size: 0, // Chrome doesn't expose size
+          fileCount: 1,
+          source: "chrome",
+        });
+      }
+    } catch (e) {
+      // Ignore errors for unsupported pairs
+    }
+  }
+  
+  // Check Language Detector
+  if (typeof LanguageDetector !== "undefined") {
+    try {
+      const availability = await LanguageDetector.availability();
+      if (availability === "available") {
+        models.push({
+          id: "Chrome Language Detector",
+          size: 0,
+          fileCount: 1,
+          source: "chrome",
+        });
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+  
+  return models;
+}
+
+/**
+ * Get list of downloaded models and their sizes
+ */
+export async function getDownloadedModels(): Promise<CachedModel[]> {
+  if (typeof caches === "undefined") return [];
+
+  const cacheNames = await caches.keys();
+  console.log("[CacheManager] Scanning caches:", cacheNames);
+  
+  const modelMap = new Map<string, { size: number; fileCount: number }>();
+
+  for (const cacheName of cacheNames) {
+    // More inclusive filter for AI models
+    // Transformers.js usually uses 'transformers-cache', but let's be safe
+    const isLikelyModelCache = 
+      cacheName.toLowerCase().includes("transformers") ||
+      cacheName.toLowerCase().includes("onnx") ||
+      cacheName.toLowerCase().includes("huggingface") ||
+      cacheName.toLowerCase().includes("xenova") ||
+      cacheName.toLowerCase().includes("model");
+
+    if (!isLikelyModelCache) {
+      continue;
+    }
+
+    try {
+      const cache = await caches.open(cacheName);
+      const requests = await cache.keys();
+
+      for (const request of requests) {
+        const url = new URL(request.url);
+        const parts = url.pathname.split("/");
+        
+        // Heuristic to find model ID (e.g. Owner/ModelName)
+        let modelId = "Unknown Model";
+        
+        // Strategy 1: Look for "resolve" pattern common in HuggingFace URLs
+        // .../Owner/Model/resolve/...
+        const resolveIndex = parts.indexOf("resolve");
+        if (resolveIndex > 2) {
+          modelId = `${parts[resolveIndex - 2]}/${parts[resolveIndex - 1]}`;
+        } 
+        // Strategy 2: Look for Xenova models explicitly
+        else {
+          const xenovaIdx = parts.indexOf("Xenova");
+          const xenovaLowerIdx = parts.findIndex(p => p.toLowerCase() === "xenova");
+          
+          if (xenovaIdx !== -1 && parts[xenovaIdx + 1]) {
+            modelId = `Xenova/${parts[xenovaIdx + 1]}`;
+          } else if (xenovaLowerIdx !== -1 && parts[xenovaLowerIdx + 1]) {
+            modelId = `Xenova/${parts[xenovaLowerIdx + 1]}`;
+          } else if (url.hostname === "huggingface.co" && parts.length >= 3) {
+             // Fallback: assume path starts with Owner/Model
+             // parts[0] is empty because pathname starts with /
+             modelId = `${parts[1]}/${parts[2]}`;
+          }
+        }
+        
+        // Fallback Strategy 3: Use cache name if URL parsing failed
+        if (modelId === "Unknown Model" || modelId.includes("undefined")) {
+          modelId = `Cache: ${cacheName}`;
+        }
+
+        // Get size
+        let size = 0;
+        try {
+          const response = await cache.match(request);
+          if (response) {
+            const blob = await response.blob();
+            size = blob.size;
+          }
+        } catch (e) {
+          console.warn("Failed to get size for", request.url);
+        }
+
+        const current = modelMap.get(modelId) || { size: 0, fileCount: 0 };
+        modelMap.set(modelId, {
+          size: current.size + size,
+          fileCount: current.fileCount + 1,
+        });
+      }
+    } catch (err) {
+      console.error(`[CacheManager] Error reading cache ${cacheName}:`, err);
+    }
+  }
+
+  return Array.from(modelMap.entries()).map(([id, data]) => ({
+    id,
+    ...data,
+    source: "transformers" as const,
+  }));
+}
+
+/**
+ * Get all raw cache names (for debugging)
+ */
+export async function getAllCacheNames(): Promise<string[]> {
+  if (typeof caches === "undefined") return [];
+  try {
+    return await caches.keys();
+  } catch (e) {
+    console.error("Failed to get cache keys:", e);
+    return [];
+  }
+}
+
+/**
+ * Delete a specific model from cache
+ */
+export async function deleteModel(modelId: string): Promise<void> {
+  if (typeof caches === "undefined") return;
+
+  const cacheNames = await caches.keys();
+  
+  // Also clear from in-memory pipelines if it matches
+  for (const [key] of transformersPipelines) {
+    if (key.includes(modelId) || (modelId.startsWith("Cache: ") && key.includes(modelId.replace("Cache: ", "")))) {
+        transformersPipelines.delete(key);
+    }
+  }
+  
+  // Clear loading promises
+  for (const [key] of transformersLoadPromises) {
+     if (key.includes(modelId) || (modelId.startsWith("Cache: ") && key.includes(modelId.replace("Cache: ", "")))) {
+         transformersLoadPromises.delete(key);
+     }
+  }
+
+  for (const cacheName of cacheNames) {
+    // If the modelId is actually a cache name (Fallback Strategy 3)
+    if (modelId === `Cache: ${cacheName}`) {
+        await caches.delete(cacheName);
+        continue;
+    }
+
+    const isLikelyModelCache = 
+      cacheName.toLowerCase().includes("transformers") ||
+      cacheName.toLowerCase().includes("onnx") ||
+      cacheName.toLowerCase().includes("huggingface") ||
+      cacheName.toLowerCase().includes("xenova") ||
+      cacheName.toLowerCase().includes("model");
+
+    if (isLikelyModelCache) {
+      const cache = await caches.open(cacheName);
+      const requests = await cache.keys();
+      let deletedCount = 0;
+
+      for (const request of requests) {
+        if (request.url.includes(modelId)) {
+          await cache.delete(request);
+          deletedCount++;
+        }
+      }
+      
+      // Check if cache is empty after deletions
+      const remaining = await cache.keys();
+      if (remaining.length === 0 && deletedCount > 0) {
+          await caches.delete(cacheName);
+      }
+    }
   }
 }
