@@ -59,6 +59,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import { clearTranslationModelCache } from "@/lib/translation";
 import { toast } from "sonner";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -400,6 +417,85 @@ const DEFAULT_FEEDS = ORGANIZED_FEEDS.flatMap((category) =>
   )
 );
 
+interface SortableFeedItemProps {
+  feed: Feed;
+  selectedFeedId: number | null;
+  setSelectedFeedId: (id: number | null) => void;
+  openEditDialog: (feed: Feed) => void;
+  removeFeed: (id: number) => void;
+}
+
+function SortableFeedItem({
+  feed,
+  selectedFeedId,
+  setSelectedFeedId,
+  openEditDialog,
+  removeFeed,
+}: SortableFeedItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: feed.id! });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 1 : 0,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="group relative flex items-center px-1 mb-1"
+    >
+      <Button
+        variant={selectedFeedId === feed.id ? "secondary" : "ghost"}
+        className="w-full justify-start text-sm font-normal pr-20 overflow-hidden cursor-grab active:cursor-grabbing"
+        onClick={() => setSelectedFeedId(feed.id!)}
+      >
+        <MarqueeText
+          text={feed.customTitle || feed.title}
+          className="flex-1 text-left"
+        />
+      </Button>
+      <div className="absolute right-5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={(e) => {
+            e.stopPropagation();
+            openEditDialog(feed);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Pencil className="w-3 h-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-destructive hover:text-destructive"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (feed.id) removeFeed(feed.id);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 interface SidebarContentProps {
   feeds: Feed[];
   selectedFeedId: number | null;
@@ -408,6 +504,7 @@ interface SidebarContentProps {
   addNewFeed: (url: string, customTitle?: string) => Promise<void>;
   updateFeedTitle: (id: number, customTitle: string) => Promise<void>;
   clearCache: () => Promise<void>;
+  reorderFeeds: (feeds: Feed[]) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -419,6 +516,7 @@ function SidebarContent({
   addNewFeed,
   updateFeedTitle,
   clearCache,
+  reorderFeeds,
   isLoading,
 }: SidebarContentProps) {
   const [newFeedUrl, setNewFeedUrl] = useState("");
@@ -454,6 +552,31 @@ function SidebarContent({
   const openEditDialog = (feed: Feed) => {
     setEditingFeed(feed);
     setEditTitle(feed.customTitle || feed.title);
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = feeds.findIndex((f) => f.id === active.id);
+      const newIndex = feeds.findIndex((f) => f.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newFeeds = arrayMove(feeds, oldIndex, newIndex);
+        reorderFeeds(newFeeds);
+      }
+    }
   };
 
   return (
@@ -589,47 +712,27 @@ function SidebarContent({
             <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
               Your Feeds
             </h3>
-            {(feeds || []).map((feed) => (
-              <div
-                key={feed.id}
-                className="group relative flex items-center px-1"
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={feeds.map((f) => f.id!)}
+                strategy={verticalListSortingStrategy}
               >
-                <Button
-                  variant={selectedFeedId === feed.id ? "secondary" : "ghost"}
-                  className="w-full justify-start text-sm font-normal pr-20 overflow-hidden"
-                  onClick={() => setSelectedFeedId(feed.id!)}
-                >
-                  <MarqueeText
-                    text={feed.customTitle || feed.title}
-                    className="flex-1 text-left"
+                {(feeds || []).map((feed) => (
+                  <SortableFeedItem
+                    key={feed.id}
+                    feed={feed}
+                    selectedFeedId={selectedFeedId}
+                    setSelectedFeedId={setSelectedFeedId}
+                    openEditDialog={openEditDialog}
+                    removeFeed={removeFeed}
                   />
-                </Button>
-                <div className="absolute right-5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditDialog(feed);
-                    }}
-                  >
-                    <Pencil className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-destructive hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (feed.id) removeFeed(feed.id);
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
 
           <div className="px-2 py-4 border-t space-y-4 mt-4 pb-32">
@@ -808,6 +911,7 @@ export function AppShell({
     selectedFeedId,
     setSelectedFeedId,
     clearCache,
+    reorderFeeds,
     isLoading,
   } = feedState;
   const [menuTop, setMenuTop] = useState<number | null>(null);
@@ -965,6 +1069,7 @@ export function AppShell({
             addNewFeed={addNewFeed}
             updateFeedTitle={updateFeedTitle}
             clearCache={clearCache}
+            reorderFeeds={reorderFeeds}
             isLoading={isLoading}
           />
           {/* Resize Indicator */}

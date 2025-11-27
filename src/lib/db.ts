@@ -8,6 +8,7 @@ export interface Feed {
   description?: string;
   icon?: string;
   addedAt: number;
+  order?: number; // Display order
 }
 
 export interface Article {
@@ -134,7 +135,13 @@ export const addFeed = async (feed: Omit<Feed, "id">) => {
     // Return existing feed's id instead of throwing ConstraintError
     return existing.id;
   }
-  return db.add("feeds", feed);
+  
+  // Get max order to append to end
+  const allFeeds = await db.getAll("feeds");
+  const maxOrder = allFeeds.reduce((max, f) => Math.max(max, f.order || 0), -1);
+  const newFeed = { ...feed, order: maxOrder + 1 };
+  
+  return db.add("feeds", newFeed);
 };
 
 export const getFeedByUrl = async (url: string): Promise<Feed | undefined> => {
@@ -144,7 +151,31 @@ export const getFeedByUrl = async (url: string): Promise<Feed | undefined> => {
 
 export const getAllFeeds = async () => {
   const db = await getDB();
-  return db.getAll("feeds");
+  const feeds = await db.getAll("feeds");
+  return feeds.sort((a, b) => {
+    // Sort by order if both have it
+    if (a.order !== undefined && b.order !== undefined) {
+      return a.order - b.order;
+    }
+    // If one has order, it comes first (or last depending on preference, usually first)
+    if (a.order !== undefined) return -1;
+    if (b.order !== undefined) return 1;
+    // Fallback to ID or addedAt
+    return (a.id || 0) - (b.id || 0);
+  });
+};
+
+export const updateFeedsOrder = async (feeds: Feed[]) => {
+  const db = await getDB();
+  const tx = db.transaction("feeds", "readwrite");
+  const store = tx.objectStore("feeds");
+  await Promise.all(
+    feeds.map((feed, index) => {
+      const updatedFeed = { ...feed, order: index };
+      return store.put(updatedFeed);
+    })
+  );
+  await tx.done;
 };
 
 export const deleteFeed = async (id: number) => {

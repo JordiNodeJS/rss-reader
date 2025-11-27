@@ -13,6 +13,7 @@ import {
   updateArticleScrapedContent,
   updateFeed,
   getFeedByUrl,
+  updateFeedsOrder,
 } from "@/lib/db";
 import { toast } from "sonner";
 import { logDBEvent } from "@/lib/db-monitor";
@@ -103,6 +104,7 @@ export function useFeeds() {
         description: f.description,
         icon: f.icon,
         addedAt: f.addedAt,
+        order: f.order,
       }));
       localStorage.setItem(FEEDS_BACKUP_KEY, JSON.stringify(minimal));
     } catch (err) {
@@ -582,6 +584,19 @@ export function useFeeds() {
     }
   };
 
+  const reorderFeeds = async (newFeeds: Feed[]) => {
+    setFeeds(newFeeds);
+    try {
+      await updateFeedsOrder(newFeeds);
+    } catch (error) {
+      console.error("Failed to save feed order:", error);
+      toast.error("Failed to save feed order");
+      // Revert on error? Or just let it be... reloading will fix it or it will be out of sync until refresh
+      // Ideally we should revert, but for now let's keep it simple
+      refreshFeeds();
+    }
+  };
+
   return {
     feeds,
     articles,
@@ -593,6 +608,7 @@ export function useFeeds() {
     setSelectedFeedId,
     scrapeArticle,
     clearCache,
+    reorderFeeds,
   };
 }
 

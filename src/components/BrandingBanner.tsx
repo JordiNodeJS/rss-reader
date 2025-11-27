@@ -199,32 +199,64 @@ export function BrandingBanner() {
       delay: 1,
     });
 
-    // Hover effect on letters
-    allLetters.forEach((letter) => {
-      // Get the computed primary color to avoid CSS variable issues in GSAP
-      const computedStyle = window.getComputedStyle(letter);
-      const primaryColor =
-        computedStyle.getPropertyValue("--primary") ||
-        computedStyle.color ||
-        "#3b82f6"; // fallback to blue-500
+    // Magnetic Wave Hover Effect
+    const handleMouseMove = (e: MouseEvent) => {
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
 
-      letter.addEventListener("mouseenter", () => {
-        gsap.to(letter, {
-          scale: 1.3,
-          color: primaryColor,
-          duration: 0.3,
-          ease: "back.out(2)",
-        });
-      });
+      allLetters.forEach((letter) => {
+        const rect = letter.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
 
-      letter.addEventListener("mouseleave", () => {
-        gsap.to(letter, {
-          scale: 1,
-          duration: 0.3,
-          ease: "power2.out",
-        });
+        const distance = Math.hypot(mouseX - centerX, mouseY - centerY);
+        const maxDistance = 150;
+
+        if (distance < maxDistance) {
+          const intensity = Math.pow(1 - distance / maxDistance, 2);
+          
+          // Get primary color dynamically
+          const primaryColor = window.getComputedStyle(document.documentElement).getPropertyValue("--primary");
+
+          gsap.to(letter, {
+            scale: 1 + 0.5 * intensity,
+            y: -15 * intensity,
+            color: primaryColor ? "var(--primary)" : "#3b82f6",
+            duration: 0.2,
+            overwrite: "auto",
+            ease: "power2.out",
+          });
+        } else {
+          gsap.to(letter, {
+            scale: 1,
+            y: 0,
+            color: "inherit",
+            duration: 0.4,
+            overwrite: "auto",
+            ease: "power2.out",
+          });
+        }
       });
-    });
+    };
+
+    const handleMouseLeave = () => {
+      gsap.to(allLetters, {
+        scale: 1,
+        y: 0,
+        color: "inherit",
+        duration: 0.5,
+        overwrite: true,
+        ease: "power2.out",
+      });
+    };
+
+    title.addEventListener("mousemove", handleMouseMove);
+    title.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      title.removeEventListener("mousemove", handleMouseMove);
+      title.removeEventListener("mouseleave", handleMouseLeave);
+    };
   }, []);
 
   return (

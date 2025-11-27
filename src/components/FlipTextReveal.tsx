@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useMemo, useLayoutEffect } from "react";
+import { useRef, useCallback, useLayoutEffect } from "react";
 import gsap from "gsap";
 import { TextPlugin } from "gsap/TextPlugin";
 
@@ -99,19 +99,24 @@ export function FlipHtmlReveal({
     // Initial state for incoming element - more dramatic starting position
     gsap.set(showEl, {
       opacity: 0,
-      y: 40,
+      y: 20, // Reduced from 40 to prevent layout shift/expansion
       filter: "blur(8px)",
       visibility: "visible",
     });
 
     // Animate out the old content with a more visible "flip up" feel
-    tl.to(hideEl, {
-      opacity: 0,
-      y: -40,
-      filter: "blur(8px)",
-      duration: duration * 0.45,
-      ease: "power2.in",
-    });
+    // Use fromTo for y to ensure it starts at 0
+    tl.fromTo(hideEl, 
+      { y: 0, filter: "blur(0px)", opacity: 1 },
+      {
+        opacity: 0,
+        y: -20, // Reduced from -40 to prevent layout shift/expansion
+        filter: "blur(8px)",
+        duration: duration * 0.45,
+        ease: "power2.in",
+      }
+    );
+
 
     // Animate in the new content
     tl.to(
@@ -136,34 +141,27 @@ export function FlipHtmlReveal({
     };
   }, [showTranslation, duration, onComplete]);
 
-  // Calculate positions - the visible one is relative, hidden is absolute
-  const originalStyle = useMemo(
-    (): React.CSSProperties => ({
-      position: showTranslation ? "absolute" : "relative",
-      top: 0,
-      left: 0,
-      right: 0,
-    }),
-    [showTranslation]
-  );
-
-  const translatedStyle = useMemo(
-    (): React.CSSProperties => ({
-      position: !showTranslation ? "absolute" : "relative",
-      top: 0,
-      left: 0,
-      right: 0,
-    }),
-    [showTranslation]
-  );
+  // Calculate positions - using grid stack to prevent height collapse/jumps
+  // We make the invisible layer "hidden" but still taking up space if needed,
+  // OR use the grid approach where both are in the same cell and the cell takes the max height.
+  // The grid approach is best: both elements in row 1, col 1.
+  const commonStyle: React.CSSProperties = {
+    gridArea: "1 / 1",
+    width: "100%",
+    height: "fit-content", // Ensure content height is respected
+  };
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div 
+      ref={containerRef} 
+      className={`grid items-start overflow-hidden ${className}`} // items-start ensures content aligns to top, overflow-hidden prevents scrollbars/expansion
+      style={{ gridTemplateColumns: "100%" }} // Force single column
+    >
       {/* Original content layer */}
       <div
         ref={originalRef}
         className="flip-html-layer"
-        style={originalStyle}
+        style={commonStyle}
         dangerouslySetInnerHTML={{ __html: originalHtml }}
       />
 
@@ -171,7 +169,7 @@ export function FlipHtmlReveal({
       <div
         ref={translatedRef}
         className="flip-html-layer"
-        style={translatedStyle}
+        style={commonStyle}
         dangerouslySetInnerHTML={{ __html: translatedHtml }}
       />
     </div>
