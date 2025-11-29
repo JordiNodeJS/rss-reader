@@ -61,8 +61,25 @@ Or use Chrome DevTools MCP / Next.js DevTools MCP configured in `.vscode/mcp.jso
 | Add site-specific scraper | Hostname switch in `src/app/api/scrape/route.ts`                           |
 | Modify sanitization rules | `sanitizeHtml` options in `src/app/api/scrape/route.ts` ⚠️ security review |
 | DB schema changes         | `src/lib/db.ts` — bump `DB_VERSION`, add migration                         |
-| New translation languages | `SUPPORTED_LANGUAGES` in `src/components/articles/ArticleView.tsx`         |
+| New translation languages | Chrome Translator in `src/lib/translation.ts`                              |
+| Summarization models      | `SUMMARIZATION_MODELS` in `src/lib/summarization-models.ts`                |
 | Theme customization       | `public/styles/themes/*.css`                                               |
+
+### AI Features Architecture
+
+| Feature       | Implementation                                                                       |
+| ------------- | ------------------------------------------------------------------------------------ |
+| Translation   | Chrome Translator API only (native, Chrome 131+). No Transformers.js fallback.       |
+| Summarization | Transformers.js with DistilBART models (local, browser-based). No Chrome Summarizer. |
+
+**Key files:**
+
+- `src/lib/translation.ts` — Chrome Translator API wrapper (multi-language → Spanish)
+- `src/lib/summarization.ts` — Re-exports from summarization-transformers
+- `src/lib/summarization-transformers.ts` — Transformers.js summarization with Web Worker
+- `src/lib/summarization-models.ts` — Model definitions (DistilBART variants)
+- `src/hooks/useSummary.ts` — React hook for summarization + optional translation to Spanish
+- `src/hooks/useTranslation.ts` — React hook for article translation
 
 ### Security Considerations
 

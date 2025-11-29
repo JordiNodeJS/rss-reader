@@ -2,22 +2,18 @@
  * useSummary Hook
  *
  * React hook for generating AI summaries of article content.
- * Supports two backends:
- * 1. Chrome's Summarizer API (Gemini Nano - Chrome 138+) - Primary
- * 2. Transformers.js with smaller models (DistilBART) - Fallback
+ * Uses Transformers.js with DistilBART models for local summarization.
+ * Summaries are generated in English and optionally translated to Spanish
+ * using Chrome's native Translator API.
  */
 
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useSyncExternalStore } from "react";
 import { Article, updateArticleSummary, getArticleById } from "@/lib/db";
 import {
-  summarizeText,
   extractTextForSummary,
-  isSummarizerAvailable,
-  getSummarizerAvailability,
   SummarizationStatus,
-  SummarizationProgress,
   SummaryType,
   SummaryLength,
   // Transformers.js exports
@@ -33,22 +29,22 @@ import { translateToSpanish } from "@/lib/translation";
 // Types
 // ============================================
 
-export type SummarizationBackend = "chrome" | "transformers" | "auto";
+export type SummarizationBackend = "transformers"; // Only Transformers.js is supported now
 
 export interface UseSummaryOptions {
   /** Article to summarize */
   article: Article | null;
-  /** Summary type (default: tldr) - Only used with Chrome API */
+  /** Summary type (default: tldr) - Kept for API compatibility */
   type?: SummaryType;
-  /** Summary length (default: medium) - Only used with Chrome API */
+  /** Summary length (default: medium) - Controls Transformers.js output length */
   length?: SummaryLength;
   /** Cache summaries in IndexedDB */
   cacheSummaries?: boolean;
-  /** Preferred backend: 'chrome', 'transformers', or 'auto' (default) */
+  /** Backend is always 'transformers' now - kept for API compatibility */
   backend?: SummarizationBackend;
   /** Model to use for Transformers.js (default: distilbart-cnn-12-6) */
   modelId?: SummarizationModelKey;
-  /** Translate summary to Spanish after generation (useful for Transformers.js which only outputs English) */
+  /** Translate summary to Spanish after generation (default: true) */
   translateSummary?: boolean;
 }
 
@@ -67,13 +63,13 @@ export interface UseSummaryReturn {
   summaryLength: SummaryLength;
   /** Error message if summarization failed */
   error: string | null;
-  /** Availability error (e.g., insufficient space) */
+  /** Availability error (kept for API compatibility) */
   availabilityError: string | null;
-  /** Whether Chrome Summarizer API is available */
+  /** Always false - Chrome Summarizer is no longer used */
   isChromeAvailable: boolean;
   /** Whether Transformers.js is available */
   isTransformersAvailable: boolean;
-  /** Current active backend */
+  /** Current active backend - always 'transformers' */
   activeBackend: SummarizationBackend | null;
   /** Whether summarization can be triggered */
   canSummarize: boolean;
@@ -103,9 +99,8 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     type: defaultType = "tldr",
     length: defaultLength = "medium",
     cacheSummaries = true,
-    backend = "auto",
     modelId = "distilbart-cnn-12-6",
-    translateSummary = false,
+    translateSummary = true, // Default to true now - always translate to Spanish
   } = options;
 
   // State
@@ -117,82 +112,21 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
   const [summaryLength, setSummaryLength] =
     useState<SummaryLength>(defaultLength);
   const [error, setError] = useState<string | null>(null);
-  const [isChromeAvailable, setIsChromeAvailable] = useState(false);
   const [isTransformersAvailable, setIsTransformersAvailable] = useState(false);
   const [hasCachedSummary, setHasCachedSummary] = useState(false);
-  const [availabilityError, setAvailabilityError] = useState<string | null>(
-    null
-  );
   const [activeBackend, setActiveBackend] =
     useState<SummarizationBackend | null>(null);
 
-  // Derived state - can summarize if any backend is available
+  // Derived state - can summarize if Transformers.js is available
   const canSummarize =
     !!article &&
-    (isChromeAvailable || isTransformersAvailable) &&
+    isTransformersAvailable &&
     status !== "summarizing" &&
     status !== "downloading";
 
-  // Check API availability on mount
+  // Check Transformers.js availability on mount
   useEffect(() => {
-    let mounted = true;
-
-    // Check Transformers.js availability (always available in browser)
     setIsTransformersAvailable(isTransformersSummarizationAvailable());
-
-    // Check Chrome Summarizer API availability
-    isSummarizerAvailable()
-      .then((available) => {
-        if (mounted) {
-          setIsChromeAvailable(available);
-          if (!available) {
-            // Get detailed availability info to check for specific errors
-            getSummarizerAvailability()
-              .then((result) => {
-                if (
-                  mounted &&
-                  result.status === "insufficient-space" &&
-                  result.error
-                ) {
-                  setAvailabilityError(result.error);
-                  console.warn(
-                    "[useSummary] Insufficient disk space detected:",
-                    result.error
-                  );
-                } else if (mounted && result.error) {
-                  setAvailabilityError(result.error);
-                }
-              })
-              .catch(() => {
-                // Ignore errors in detailed check
-              });
-            console.log(
-              "[useSummary] Chrome Summarizer API not available, Transformers.js fallback ready"
-            );
-          }
-        }
-      })
-      .catch((error) => {
-        console.error(
-          "[useSummary] Error checking Chrome availability:",
-          error
-        );
-        if (mounted) {
-          setIsChromeAvailable(false);
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          if (
-            errorMessage.includes("space") ||
-            errorMessage.includes("enough space")
-          ) {
-            setAvailabilityError(errorMessage);
-          }
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
   }, []);
 
   // Load cached summary when article changes
@@ -219,13 +153,6 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     }
   }, [article]);
 
-  // Progress callback
-  const handleProgress = useCallback((progressData: SummarizationProgress) => {
-    setStatus(progressData.status);
-    setProgress(progressData.progress);
-    setMessage(progressData.message);
-  }, []);
-
   // Progress callback for Transformers.js
   const handleTransformersProgress = useCallback(
     (progressData: TransformersSummarizationProgress) => {
@@ -245,7 +172,7 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     []
   );
 
-  // Summarize function - uses the appropriate backend
+  // Summarize function - uses Transformers.js only
   const summarize = useCallback(
     async (
       type?: SummaryType,
@@ -259,9 +186,9 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
         return;
       }
 
-      // Check if we can summarize (has available backends)
-      if (!isChromeAvailable && !isTransformersAvailable) {
-        setError("No hay ningún servicio de resumen disponible");
+      // Check if we can summarize
+      if (!isTransformersAvailable) {
+        setError("Transformers.js no está disponible en este navegador");
         setStatus("error");
         return;
       }
@@ -290,62 +217,37 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
           );
         }
 
-        let resultSummary: string;
+        // Use Transformers.js for summarization
+        setActiveBackend("transformers");
+        const result = await summarizeWithTransformers({
+          text: textContent,
+          modelId,
+          maxLength:
+            useLength === "short" ? 75 : useLength === "long" ? 250 : 150,
+          minLength:
+            useLength === "short" ? 20 : useLength === "long" ? 80 : 40,
+          onProgress: handleTransformersProgress,
+        });
+        let resultSummary = result.summary;
 
-        // Determine which backend to use
-        const useChrome =
-          backend === "chrome" || (backend === "auto" && isChromeAvailable);
-        const useTransformers =
-          backend === "transformers" ||
-          (backend === "auto" && !isChromeAvailable);
-
-        if (useChrome && isChromeAvailable) {
-          // Use Chrome Summarizer API
-          setActiveBackend("chrome");
-          const result = await summarizeText({
-            text: textContent,
-            type: useType,
-            length: useLength,
-            sharedContext: "This is a news article from an RSS feed.",
-            context: `Article title: ${article.title}`,
-            onProgress: handleProgress,
-          });
-          resultSummary = result.summary;
-        } else if (useTransformers && isTransformersAvailable) {
-          // Use Transformers.js
-          setActiveBackend("transformers");
-          const result = await summarizeWithTransformers({
-            text: textContent,
-            modelId,
-            maxLength:
-              useLength === "short" ? 75 : useLength === "long" ? 250 : 150,
-            minLength:
-              useLength === "short" ? 20 : useLength === "long" ? 80 : 40,
-            onProgress: handleTransformersProgress,
-          });
-          resultSummary = result.summary;
-
-          // Translate summary to Spanish if option enabled (Transformers.js only outputs English)
-          if (translateSummary && resultSummary) {
-            setStatus("summarizing");
-            setMessage("Traduciendo resumen al español...");
-            try {
-              const translationResult = await translateToSpanish({
-                text: resultSummary,
-                skipLanguageDetection: true,
-                sourceLanguage: "en",
-              });
-              resultSummary = translationResult.translatedText;
-            } catch (translateError) {
-              console.warn(
-                "[useSummary] Failed to translate summary:",
-                translateError
-              );
-              // Keep original English summary if translation fails
-            }
+        // Translate summary to Spanish using Chrome Translator API
+        if (translateSummary && resultSummary) {
+          setStatus("summarizing");
+          setMessage("Traduciendo resumen al español...");
+          try {
+            const translationResult = await translateToSpanish({
+              text: resultSummary,
+              skipLanguageDetection: true,
+              sourceLanguage: "en",
+            });
+            resultSummary = translationResult.translatedText;
+          } catch (translateError) {
+            console.warn(
+              "[useSummary] Failed to translate summary:",
+              translateError
+            );
+            // Keep original English summary if translation fails
           }
-        } else {
-          throw new Error("No hay ningún servicio de resumen disponible");
         }
 
         setSummary(resultSummary);
@@ -379,12 +281,9 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
       hasCachedSummary,
       summary,
       cacheSummaries,
-      handleProgress,
       handleTransformersProgress,
       defaultType,
       defaultLength,
-      backend,
-      isChromeAvailable,
       isTransformersAvailable,
       modelId,
       translateSummary,
@@ -487,8 +386,8 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     summaryType,
     summaryLength,
     error,
-    availabilityError,
-    isChromeAvailable,
+    availabilityError: null, // Chrome Summarizer no longer used
+    isChromeAvailable: false, // Chrome Summarizer no longer used
     isTransformersAvailable,
     activeBackend,
     canSummarize,
@@ -501,18 +400,20 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
 }
 
 // ============================================
-// Utility Hook: Check Availability
+// Utility Hook: Check Availability (simplified)
 // ============================================
 
+// Use useSyncExternalStore pattern to avoid cascading renders
+const emptySubscribe = () => () => {};
+const getAvailabilitySnapshot = () => isTransformersSummarizationAvailable();
+const getServerAvailabilitySnapshot = () => false;
+
 export function useSummarizerAvailability() {
-  const [isAvailable, setIsAvailable] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const isAvailable = useSyncExternalStore(
+    emptySubscribe,
+    getAvailabilitySnapshot,
+    getServerAvailabilitySnapshot
+  );
 
-  useEffect(() => {
-    isSummarizerAvailable()
-      .then(setIsAvailable)
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { isAvailable, loading };
+  return { isAvailable, loading: false };
 }

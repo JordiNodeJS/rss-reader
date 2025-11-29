@@ -1,9 +1,8 @@
 /**
  * Translation Service
  *
- * Provides English to Spanish translation using a hybrid approach:
- * 1. Chrome's Translator API (primary) - fastest, best quality
- * 2. Transformers.js with Opus-MT (fallback) - cross-browser support
+ * Provides multi-language to Spanish translation using Chrome's native Translator API.
+ * No fallback to Transformers.js - requires Chrome 131+ with built-in translation support.
  *
  * @see docs/research/ai-api-lang.md for detailed documentation
  */
@@ -445,62 +444,13 @@ const CONFIDENCE_THRESHOLD = 0.7;
 const MAX_CHUNK_LENGTH = 500; // Characters per chunk for translation
 
 // ============================================
-// Transformers.js Pipeline (lazy loaded)
+// Translation Types (kept for compatibility, but simplified)
 // ============================================
 
-type TranslationPipeline = (
-  text: string
-) => Promise<Array<{ translation_text: string }>>;
-
-const transformersPipelines: Map<string, TranslationPipeline> = new Map();
-const transformersLoadPromises: Map<string, Promise<TranslationPipeline>> = new Map();
-
-async function loadTransformersPipeline(
-  sourceLanguage: string = "en",
-  onProgress?: (progress: number) => void
-): Promise<TranslationPipeline> {
-  // Check if model is available for this language pair
-  // We currently assume target is always 'es' (Spanish)
-  const modelName = `Xenova/opus-mt-${sourceLanguage}-es`;
-  
-  if (transformersPipelines.has(modelName)) {
-    return transformersPipelines.get(modelName)!;
-  }
-  
-  if (transformersLoadPromises.has(modelName)) {
-    return transformersLoadPromises.get(modelName)!;
-  }
-
-  const loadPromise = (async () => {
-    try {
-      // Dynamic import to avoid loading if Chrome API is available
-      const { pipeline, env } = await import("@huggingface/transformers");
-
-      // Configure cache
-      env.allowLocalModels = true;
-
-      // Load the model with progress callback
-      const translator = await pipeline("translation", modelName, {
-        dtype: "q8", // Quantized for smaller size
-        progress_callback: (data: { progress?: number; status?: string }) => {
-          if (data.progress !== undefined && onProgress) {
-            onProgress(Math.round(data.progress));
-          }
-        },
-      });
-
-      const tp = translator as unknown as TranslationPipeline;
-      transformersPipelines.set(modelName, tp);
-      return tp;
-    } catch (error) {
-      transformersLoadPromises.delete(modelName);
-      throw error;
-    }
-  })();
-
-  transformersLoadPromises.set(modelName, loadPromise);
-  return loadPromise;
-}
+// Note: Transformers.js is no longer used for translation.
+// These variables are kept for cache management compatibility.
+const transformersPipelines: Map<string, unknown> = new Map();
+const transformersLoadPromises: Map<string, unknown> = new Map();
 
 // ============================================
 // Chrome Translator API Wrapper
@@ -515,7 +465,7 @@ async function getChromeTranslator(
 ): Promise<Translator | null> {
   const targetLanguage = "es";
   const key = `${sourceLanguage}-${targetLanguage}`;
-  
+
   // Check if already initialized
   if (chromeTranslators.has(key)) return chromeTranslators.get(key)!;
 
@@ -549,7 +499,10 @@ async function getChromeTranslator(
     chromeTranslators.set(key, translator);
     return translator;
   } catch (error) {
-    console.warn(`[Translation] Chrome Translator API error (${sourceLanguage}->${targetLanguage}):`, error);
+    console.warn(
+      `[Translation] Chrome Translator API error (${sourceLanguage}->${targetLanguage}):`,
+      error
+    );
     return null;
   }
 }
@@ -588,7 +541,12 @@ function detectLanguageHeuristic(text: string): LanguageDetectionResult {
     .filter((w) => w.length > 1);
 
   if (words.length === 0) {
-    return { language: "unknown", confidence: 0, isEnglish: false, isSpanish: false };
+    return {
+      language: "unknown",
+      confidence: 0,
+      isEnglish: false,
+      isSpanish: false,
+    };
   }
 
   const languages = [
@@ -620,18 +578,26 @@ function detectLanguageHeuristic(text: string): LanguageDetectionResult {
   // Lower threshold for better detection (was 0.15, now 0.1)
   // This helps detect languages even with shorter texts
   if (maxScore < 0.1) {
-    return { language: "unknown", confidence: maxScore, isEnglish: false, isSpanish: false };
+    return {
+      language: "unknown",
+      confidence: maxScore,
+      isEnglish: false,
+      isSpanish: false,
+    };
   }
 
   // If scores are very close, prefer the language with more matches
   // This helps avoid false positives when multiple languages have similar scores
-  const sortedScores = Object.entries(scores)
-    .sort((a, b) => b[1] - a[1]);
-  
+  const sortedScores = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+
   // If top two scores are within 0.05 of each other, check for more specific indicators
-  if (sortedScores.length >= 2 && sortedScores[0][1] - sortedScores[1][1] < 0.05) {
+  if (
+    sortedScores.length >= 2 &&
+    sortedScores[0][1] - sortedScores[1][1] < 0.05
+  ) {
     // Check for French-specific patterns
-    const frenchPatterns = /\b(les|des|est|sont|pour|avec|dans|sur|par|une|deux|trois|quatre|cinq|budget|sécu|syndicats|médecins|libéraux)\b/i;
+    const frenchPatterns =
+      /\b(les|des|est|sont|pour|avec|dans|sur|par|une|deux|trois|quatre|cinq|budget|sécu|syndicats|médecins|libéraux)\b/i;
     if (frenchPatterns.test(text)) {
       bestLang = "fr";
       maxScore = Math.max(maxScore, sortedScores[0][1] + 0.1);
@@ -733,13 +699,16 @@ async function translateWithChrome(
   sourceLanguage: string = "en",
   onProgress?: (progress: TranslationProgress) => void
 ): Promise<string> {
-  const translator = await getChromeTranslator(sourceLanguage, (downloadProgress) => {
-    onProgress?.({
-      status: "downloading",
-      progress: downloadProgress,
-      message: `Downloading translation model: ${downloadProgress}%`,
-    });
-  });
+  const translator = await getChromeTranslator(
+    sourceLanguage,
+    (downloadProgress) => {
+      onProgress?.({
+        status: "downloading",
+        progress: downloadProgress,
+        message: `Downloading translation model: ${downloadProgress}%`,
+      });
+    }
+  );
 
   if (!translator) {
     throw new Error("Chrome Translator not available");
@@ -769,46 +738,6 @@ async function translateWithChrome(
   return translatedChunks.join(" ");
 }
 
-/**
- * Translate text using Transformers.js
- */
-async function translateWithTransformers(
-  text: string,
-  sourceLanguage: string = "en",
-  onProgress?: (progress: TranslationProgress) => void
-): Promise<string> {
-  const pipeline = await loadTransformersPipeline(sourceLanguage, (downloadProgress) => {
-    onProgress?.({
-      status: "downloading",
-      progress: downloadProgress,
-      message: `Downloading translation model: ${downloadProgress}%`,
-    });
-  });
-
-  onProgress?.({
-    status: "translating",
-    progress: 0,
-    message: "Translating...",
-  });
-
-  // Split into chunks for better quality
-  const chunks = splitIntoChunks(text);
-  const translatedChunks: string[] = [];
-
-  for (let i = 0; i < chunks.length; i++) {
-    const result = await pipeline(chunks[i]);
-    translatedChunks.push(result[0].translation_text);
-
-    onProgress?.({
-      status: "translating",
-      progress: Math.round(((i + 1) / chunks.length) * 100),
-      message: `Translating... ${i + 1}/${chunks.length}`,
-    });
-  }
-
-  return translatedChunks.join(" ");
-}
-
 // ============================================
 // Main Translation API
 // ============================================
@@ -816,15 +745,15 @@ async function translateWithTransformers(
 export interface TranslateOptions {
   text: string;
   onProgress?: (progress: TranslationProgress) => void;
-  preferredProvider?: TranslationProvider;
+  preferredProvider?: TranslationProvider; // Kept for API compatibility, but only 'chrome' is supported
   skipLanguageDetection?: boolean; // Skip language detection if already verified
   sourceLanguage?: string; // Explicitly set source language
 }
 
 /**
- * Translate English text to Spanish
+ * Translate text to Spanish using Chrome's native Translator API
  *
- * Uses Chrome Translator API when available, falls back to Transformers.js
+ * Note: Only Chrome Translator API is supported. Requires Chrome 131+.
  */
 export async function translateToSpanish(
   options: TranslateOptions
@@ -863,45 +792,25 @@ export async function translateToSpanish(
 
     if (detection.isSpanish) {
       throw new Error(
-        `Text is already in Spanish (confidence: ${(detection.confidence * 100).toFixed(1)}%)`
+        `Text is already in Spanish (confidence: ${(
+          detection.confidence * 100
+        ).toFixed(1)}%)`
       );
     }
-    
+
     // If detected language is known and supported, use it
     if (detection.language !== "unknown") {
-        sourceLanguage = detection.language;
+      sourceLanguage = detection.language;
     }
   }
 
-  // Try Chrome API first (unless explicitly requesting transformers)
-  if (preferredProvider !== "transformers") {
-    try {
-      const translatedText = await translateWithChrome(text, sourceLanguage, onProgress);
-
-      onProgress?.({
-        status: "completed",
-        progress: 100,
-        message: "Translation completed",
-      });
-
-      return {
-        translatedText,
-        provider: "chrome",
-        sourceLanguage,
-        targetLanguage: "es",
-        timestamp: Date.now(),
-      };
-    } catch (error) {
-      console.info(
-        `[Translation] Chrome API unavailable for ${sourceLanguage}->es, falling back to Transformers.js:`,
-        error
-      );
-    }
-  }
-
-  // Fallback to Transformers.js
+  // Use Chrome Translator API only
   try {
-    const translatedText = await translateWithTransformers(text, sourceLanguage, onProgress);
+    const translatedText = await translateWithChrome(
+      text,
+      sourceLanguage,
+      onProgress
+    );
 
     onProgress?.({
       status: "completed",
@@ -911,18 +820,29 @@ export async function translateToSpanish(
 
     return {
       translatedText,
-      provider: "transformers",
+      provider: "chrome",
       sourceLanguage,
       targetLanguage: "es",
       timestamp: Date.now(),
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[Translation] Chrome Translator API failed for ${sourceLanguage}->es:`,
+      errorMessage
+    );
+
     onProgress?.({
       status: "error",
       progress: 0,
-      message: error instanceof Error ? error.message : "Translation failed",
+      message: `Chrome Translator no disponible: ${errorMessage}`,
     });
-    throw error;
+
+    throw new Error(
+      `Chrome Translator API no disponible para ${sourceLanguage}→es. ` +
+        `Asegúrate de usar Chrome 131+ y que los modelos de traducción estén descargados. ` +
+        `Puedes gestionarlos en chrome://on-device-translation-internals/`
+    );
   }
 }
 
@@ -932,6 +852,7 @@ export async function translateToSpanish(
 
 /**
  * Check which translation providers are available
+ * Note: Only Chrome Translator API is supported now
  */
 export async function getAvailableProviders(): Promise<{
   chrome: boolean;
@@ -946,23 +867,25 @@ export async function getAvailableProviders(): Promise<{
 
   return {
     chrome: chromeAvailable,
-    transformers: true, // Always available as fallback (lazy loaded)
+    transformers: false, // Transformers.js no longer used for translation
   };
 }
 
 /**
  * Pre-load translation model for faster subsequent translations
+ * Note: Only Chrome Translator API is supported now
  */
 export async function preloadTranslationModel(
   onProgress?: (progress: number) => void
 ): Promise<TranslationProvider> {
-  // Try Chrome first
+  // Only Chrome Translator is supported
   const chromeTranslator = await getChromeTranslator("en", onProgress);
   if (chromeTranslator) return "chrome";
 
-  // Otherwise preload Transformers.js
-  await loadTransformersPipeline("en", onProgress);
-  return "transformers";
+  throw new Error(
+    "Chrome Translator API no disponible. " +
+      "Asegúrate de usar Chrome 131+ y que los modelos de traducción estén instalados."
+  );
 }
 
 /**
@@ -1018,9 +941,12 @@ export async function translateHtmlPreservingFormat(
   onProgress?: (progress: TranslationProgress) => void,
   sourceLanguage?: string
 ): Promise<TranslationResult> {
-  console.log("[translateHtmlPreservingFormat] Called with sourceLanguage:", sourceLanguage);
+  console.log(
+    "[translateHtmlPreservingFormat] Called with sourceLanguage:",
+    sourceLanguage
+  );
   console.log("[translateHtmlPreservingFormat] HTML length:", html?.length);
-  
+
   if (!html || html.trim().length === 0) {
     return {
       translatedText: "",
@@ -1129,16 +1055,22 @@ export async function translateHtmlPreservingFormat(
   processedHtml = processedHtml.replace(/\n{3,}/g, "\n\n").trim();
 
   // Translate the processed text
-  console.log("[translateHtmlPreservingFormat] Calling translateToSpanish with sourceLanguage:", sourceLanguage);
-  console.log("[translateHtmlPreservingFormat] processedHtml length:", processedHtml.length);
-  
+  console.log(
+    "[translateHtmlPreservingFormat] Calling translateToSpanish with sourceLanguage:",
+    sourceLanguage
+  );
+  console.log(
+    "[translateHtmlPreservingFormat] processedHtml length:",
+    processedHtml.length
+  );
+
   const result = await translateToSpanish({
     text: processedHtml,
     onProgress,
     skipLanguageDetection: true,
     sourceLanguage,
   });
-  
+
   console.log("[translateHtmlPreservingFormat] Translation result:", {
     provider: result.provider,
     sourceLanguage: result.sourceLanguage,
@@ -1241,10 +1173,10 @@ export interface CachedModel {
  */
 export async function getChromeTranslatorModels(): Promise<CachedModel[]> {
   const models: CachedModel[] = [];
-  
+
   // Check if Chrome Translator API is available
   if (typeof Translator === "undefined") return models;
-  
+
   // Common language pairs to check (source -> es)
   const languagePairs = [
     { source: "en", name: "English → Spanish" },
@@ -1253,14 +1185,14 @@ export async function getChromeTranslatorModels(): Promise<CachedModel[]> {
     { source: "it", name: "Italian → Spanish" },
     { source: "pt", name: "Portuguese → Spanish" },
   ];
-  
+
   for (const pair of languagePairs) {
     try {
       const availability = await Translator.availability({
         sourceLanguage: pair.source,
         targetLanguage: "es",
       });
-      
+
       // "available" means downloaded, "downloadable" means not yet downloaded
       if (availability === "available") {
         models.push({
@@ -1274,7 +1206,7 @@ export async function getChromeTranslatorModels(): Promise<CachedModel[]> {
       // Ignore errors for unsupported pairs
     }
   }
-  
+
   // Check Language Detector
   if (typeof LanguageDetector !== "undefined") {
     try {
@@ -1291,7 +1223,7 @@ export async function getChromeTranslatorModels(): Promise<CachedModel[]> {
       // Ignore
     }
   }
-  
+
   return models;
 }
 
@@ -1303,13 +1235,13 @@ export async function getDownloadedModels(): Promise<CachedModel[]> {
 
   const cacheNames = await caches.keys();
   console.log("[CacheManager] Scanning caches:", cacheNames);
-  
+
   const modelMap = new Map<string, { size: number; fileCount: number }>();
 
   for (const cacheName of cacheNames) {
     // More inclusive filter for AI models
     // Transformers.js usually uses 'transformers-cache', but let's be safe
-    const isLikelyModelCache = 
+    const isLikelyModelCache =
       cacheName.toLowerCase().includes("transformers") ||
       cacheName.toLowerCase().includes("onnx") ||
       cacheName.toLowerCase().includes("huggingface") ||
@@ -1327,32 +1259,34 @@ export async function getDownloadedModels(): Promise<CachedModel[]> {
       for (const request of requests) {
         const url = new URL(request.url);
         const parts = url.pathname.split("/");
-        
+
         // Heuristic to find model ID (e.g. Owner/ModelName)
         let modelId = "Unknown Model";
-        
+
         // Strategy 1: Look for "resolve" pattern common in HuggingFace URLs
         // .../Owner/Model/resolve/...
         const resolveIndex = parts.indexOf("resolve");
         if (resolveIndex > 2) {
           modelId = `${parts[resolveIndex - 2]}/${parts[resolveIndex - 1]}`;
-        } 
+        }
         // Strategy 2: Look for Xenova models explicitly
         else {
           const xenovaIdx = parts.indexOf("Xenova");
-          const xenovaLowerIdx = parts.findIndex(p => p.toLowerCase() === "xenova");
-          
+          const xenovaLowerIdx = parts.findIndex(
+            (p) => p.toLowerCase() === "xenova"
+          );
+
           if (xenovaIdx !== -1 && parts[xenovaIdx + 1]) {
             modelId = `Xenova/${parts[xenovaIdx + 1]}`;
           } else if (xenovaLowerIdx !== -1 && parts[xenovaLowerIdx + 1]) {
             modelId = `Xenova/${parts[xenovaLowerIdx + 1]}`;
           } else if (url.hostname === "huggingface.co" && parts.length >= 3) {
-             // Fallback: assume path starts with Owner/Model
-             // parts[0] is empty because pathname starts with /
-             modelId = `${parts[1]}/${parts[2]}`;
+            // Fallback: assume path starts with Owner/Model
+            // parts[0] is empty because pathname starts with /
+            modelId = `${parts[1]}/${parts[2]}`;
           }
         }
-        
+
         // Fallback Strategy 3: Use cache name if URL parsing failed
         if (modelId === "Unknown Model" || modelId.includes("undefined")) {
           modelId = `Cache: ${cacheName}`;
@@ -1409,47 +1343,66 @@ async function diagnoseChromeTranslatorAPI(): Promise<void> {
     console.log("[Translation] Translator API not available");
     return;
   }
-  
+
   console.log("[Translation] Translator API available. Checking methods...");
   console.log("[Translation] Translator methods:", Object.keys(Translator));
-  console.log("[Translation] Translator prototype:", Object.getOwnPropertyNames(Object.getPrototypeOf(Translator)));
-  
+  console.log(
+    "[Translation] Translator prototype:",
+    Object.getOwnPropertyNames(Object.getPrototypeOf(Translator))
+  );
+
   // Check if deleteModel exists
   const translatorAny = Translator as unknown as Record<string, unknown>;
-  console.log("[Translation] Translator.deleteModel exists:", typeof translatorAny.deleteModel);
-  console.log("[Translation] Translator.deleteModel type:", typeof translatorAny.deleteModel);
-  
+  console.log(
+    "[Translation] Translator.deleteModel exists:",
+    typeof translatorAny.deleteModel
+  );
+  console.log(
+    "[Translation] Translator.deleteModel type:",
+    typeof translatorAny.deleteModel
+  );
+
   if (typeof LanguageDetector !== "undefined") {
     const detectorAny = LanguageDetector as unknown as Record<string, unknown>;
-    console.log("[Translation] LanguageDetector.deleteModel exists:", typeof detectorAny.deleteModel);
+    console.log(
+      "[Translation] LanguageDetector.deleteModel exists:",
+      typeof detectorAny.deleteModel
+    );
   }
-  
+
   // Check storage APIs
   if (typeof navigator !== "undefined" && navigator.storage) {
-    console.log("[Translation] navigator.storage available:", !!navigator.storage);
+    console.log(
+      "[Translation] navigator.storage available:",
+      !!navigator.storage
+    );
     if (navigator.storage.estimate) {
       const estimate = await navigator.storage.estimate();
       console.log("[Translation] Storage estimate:", estimate);
     }
   }
-  
+
   // Check IndexedDB for Chrome Translator storage
   if (typeof indexedDB !== "undefined") {
     const databases = await indexedDB.databases?.();
     if (databases) {
-      const chromeDBs = databases.filter(db => 
-        db.name?.toLowerCase().includes("translator") ||
-        db.name?.toLowerCase().includes("chrome") ||
-        db.name?.toLowerCase().includes("on-device")
+      const chromeDBs = databases.filter(
+        (db) =>
+          db.name?.toLowerCase().includes("translator") ||
+          db.name?.toLowerCase().includes("chrome") ||
+          db.name?.toLowerCase().includes("on-device")
       );
-      console.log("[Translation] Chrome Translator related IndexedDB databases:", chromeDBs);
+      console.log(
+        "[Translation] Chrome Translator related IndexedDB databases:",
+        chromeDBs
+      );
     }
   }
 }
 
 /**
  * Delete a specific Chrome Translator model from memory and storage
- * 
+ *
  * Note: Chrome Translator API doesn't provide a direct deleteModel() method.
  * Models are stored in Chrome's internal storage which is not directly accessible.
  * We can only:
@@ -1459,7 +1412,7 @@ async function diagnoseChromeTranslatorAPI(): Promise<void> {
  */
 async function deleteChromeModel(modelId: string): Promise<void> {
   if (typeof Translator === "undefined") return;
-  
+
   // Run diagnostics first time to understand what's available
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deleteChromeModelAny = deleteChromeModel as any;
@@ -1467,7 +1420,7 @@ async function deleteChromeModel(modelId: string): Promise<void> {
     await diagnoseChromeTranslatorAPI();
     deleteChromeModelAny.diagnosticsRun = true;
   }
-  
+
   // Handle Language Detector
   if (modelId.includes("Language Detector")) {
     // Destroy the detector instance if it exists
@@ -1476,32 +1429,47 @@ async function deleteChromeModel(modelId: string): Promise<void> {
         chromeLanguageDetector.destroy();
         console.log("[Translation] Language Detector instance destroyed");
       } catch (error) {
-        console.warn("[Translation] Error destroying Language Detector:", error);
+        console.warn(
+          "[Translation] Error destroying Language Detector:",
+          error
+        );
       }
       chromeLanguageDetector = null;
     }
-    
+
     // Try to use deleteModel() if available
     try {
-      if (typeof LanguageDetector !== "undefined" && LanguageDetector.deleteModel) {
+      if (
+        typeof LanguageDetector !== "undefined" &&
+        LanguageDetector.deleteModel
+      ) {
         await LanguageDetector.deleteModel();
-        console.log("[Translation] Language Detector model deleted via deleteModel()");
+        console.log(
+          "[Translation] Language Detector model deleted via deleteModel()"
+        );
         return;
       }
     } catch (error) {
-      console.warn("[Translation] deleteModel() not available or failed for Language Detector:", error);
+      console.warn(
+        "[Translation] deleteModel() not available or failed for Language Detector:",
+        error
+      );
     }
-    
-    console.warn("[Translation] Language Detector: Only cleared from memory. Model may still be 'available' in Chrome storage.");
+
+    console.warn(
+      "[Translation] Language Detector: Only cleared from memory. Model may still be 'available' in Chrome storage."
+    );
     return;
   }
-  
+
   // Extract language pair from modelId
   // Format: "Chrome Translator: English → Spanish"
   const match = modelId.match(/Chrome Translator: (\w+) → Spanish/);
   if (!match) {
     // If we can't parse the model ID, try to clear all chrome translators
-    console.warn("[Translation] Could not parse model ID, clearing all translators");
+    console.warn(
+      "[Translation] Could not parse model ID, clearing all translators"
+    );
     for (const translator of chromeTranslators.values()) {
       try {
         translator.destroy();
@@ -1512,7 +1480,7 @@ async function deleteChromeModel(modelId: string): Promise<void> {
     chromeTranslators.clear();
     return;
   }
-  
+
   const sourceLang = match[1].toLowerCase();
   // Map common language names to codes
   const langMap: Record<string, string> = {
@@ -1525,9 +1493,11 @@ async function deleteChromeModel(modelId: string): Promise<void> {
   const sourceCode = langMap[sourceLang] || "en";
   const targetCode = "es";
   const key = `${sourceCode}-${targetCode}`;
-  
-  console.log(`[Translation] Attempting to delete Chrome Translator model: ${sourceCode}->${targetCode}`);
-  
+
+  console.log(
+    `[Translation] Attempting to delete Chrome Translator model: ${sourceCode}->${targetCode}`
+  );
+
   // Destroy the Translator instance if it exists
   const translator = chromeTranslators.get(key);
   if (translator) {
@@ -1535,13 +1505,18 @@ async function deleteChromeModel(modelId: string): Promise<void> {
       translator.destroy();
       console.log(`[Translation] Translator instance (${key}) destroyed`);
     } catch (error) {
-      console.warn(`[Translation] Error destroying Translator (${key}):`, error);
+      console.warn(
+        `[Translation] Error destroying Translator (${key}):`,
+        error
+      );
     }
     chromeTranslators.delete(key);
   } else {
-    console.log(`[Translation] No Translator instance found in memory for ${key}`);
+    console.log(
+      `[Translation] No Translator instance found in memory for ${key}`
+    );
   }
-  
+
   // Try to use deleteModel() if available
   // This should actually remove the model from browser storage
   try {
@@ -1550,38 +1525,59 @@ async function deleteChromeModel(modelId: string): Promise<void> {
         sourceLanguage: sourceCode,
         targetLanguage: targetCode,
       });
-      console.log(`[Translation] ✅ Model ${sourceCode}->${targetCode} deleted via deleteModel()`);
-      
+      console.log(
+        `[Translation] ✅ Model ${sourceCode}->${targetCode} deleted via deleteModel()`
+      );
+
       // Verify deletion by checking availability
       const availability = await Translator.availability({
         sourceLanguage: sourceCode,
         targetLanguage: targetCode,
       });
-      console.log(`[Translation] Model availability after deleteModel(): ${availability}`);
-      
+      console.log(
+        `[Translation] Model availability after deleteModel(): ${availability}`
+      );
+
       if (availability === "available") {
-        console.warn(`[Translation] ⚠️ Model still shows as 'available' after deleteModel(). Chrome may cache it internally.`);
+        console.warn(
+          `[Translation] ⚠️ Model still shows as 'available' after deleteModel(). Chrome may cache it internally.`
+        );
       }
     } else {
-      console.warn("[Translation] ⚠️ Translator.deleteModel() not available. Model will persist in Chrome's internal storage.");
-      console.warn("[Translation] 💡 Tip: Use chrome://on-device-translation-internals/ to manage models manually.");
+      console.warn(
+        "[Translation] ⚠️ Translator.deleteModel() not available. Model will persist in Chrome's internal storage."
+      );
+      console.warn(
+        "[Translation] 💡 Tip: Use chrome://on-device-translation-internals/ to manage models manually."
+      );
     }
   } catch (error) {
-    console.warn(`[Translation] deleteModel() failed for ${sourceCode}->${targetCode}:`, error);
+    console.warn(
+      `[Translation] deleteModel() failed for ${sourceCode}->${targetCode}:`,
+      error
+    );
   }
-  
+
   // Final verification
   try {
     const finalAvailability = await Translator.availability({
       sourceLanguage: sourceCode,
       targetLanguage: targetCode,
     });
-    console.log(`[Translation] Final model availability check: ${finalAvailability}`);
-    
+    console.log(
+      `[Translation] Final model availability check: ${finalAvailability}`
+    );
+
     if (finalAvailability === "available") {
-      console.warn(`[Translation] ⚠️ Model ${sourceCode}->${targetCode} is still 'available' after deletion attempt.`);
-      console.warn("[Translation] This is expected - Chrome Translator API stores models in internal storage that cannot be directly accessed.");
-      console.warn("[Translation] The model will be re-used from Chrome's cache on next translation request.");
+      console.warn(
+        `[Translation] ⚠️ Model ${sourceCode}->${targetCode} is still 'available' after deletion attempt.`
+      );
+      console.warn(
+        "[Translation] This is expected - Chrome Translator API stores models in internal storage that cannot be directly accessed."
+      );
+      console.warn(
+        "[Translation] The model will be re-used from Chrome's cache on next translation request."
+      );
     }
   } catch (error) {
     console.warn("[Translation] Error checking final availability:", error);
@@ -1602,29 +1598,37 @@ export async function deleteModel(modelId: string): Promise<void> {
   if (typeof caches === "undefined") return;
 
   const cacheNames = await caches.keys();
-  
+
   // Also clear from in-memory pipelines if it matches
   for (const [key] of transformersPipelines) {
-    if (key.includes(modelId) || (modelId.startsWith("Cache: ") && key.includes(modelId.replace("Cache: ", "")))) {
-        transformersPipelines.delete(key);
+    if (
+      key.includes(modelId) ||
+      (modelId.startsWith("Cache: ") &&
+        key.includes(modelId.replace("Cache: ", "")))
+    ) {
+      transformersPipelines.delete(key);
     }
   }
-  
+
   // Clear loading promises
   for (const [key] of transformersLoadPromises) {
-     if (key.includes(modelId) || (modelId.startsWith("Cache: ") && key.includes(modelId.replace("Cache: ", "")))) {
-         transformersLoadPromises.delete(key);
-     }
+    if (
+      key.includes(modelId) ||
+      (modelId.startsWith("Cache: ") &&
+        key.includes(modelId.replace("Cache: ", "")))
+    ) {
+      transformersLoadPromises.delete(key);
+    }
   }
 
   for (const cacheName of cacheNames) {
     // If the modelId is actually a cache name (Fallback Strategy 3)
     if (modelId === `Cache: ${cacheName}`) {
-        await caches.delete(cacheName);
-        continue;
+      await caches.delete(cacheName);
+      continue;
     }
 
-    const isLikelyModelCache = 
+    const isLikelyModelCache =
       cacheName.toLowerCase().includes("transformers") ||
       cacheName.toLowerCase().includes("onnx") ||
       cacheName.toLowerCase().includes("huggingface") ||
@@ -1642,11 +1646,11 @@ export async function deleteModel(modelId: string): Promise<void> {
           deletedCount++;
         }
       }
-      
+
       // Check if cache is empty after deletions
       const remaining = await cache.keys();
       if (remaining.length === 0 && deletedCount > 0) {
-          await caches.delete(cacheName);
+        await caches.delete(cacheName);
       }
     }
   }
