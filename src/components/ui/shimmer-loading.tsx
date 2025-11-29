@@ -155,7 +155,10 @@ export function ShimmerLoadingInline({
 
       {/* Content */}
       <Loader2
-        className={cn("w-3 h-3 animate-spin flex-shrink-0 relative z-10", styles.icon)}
+        className={cn(
+          "w-3 h-3 animate-spin flex-shrink-0 relative z-10",
+          styles.icon
+        )}
       />
       <span className={cn("relative z-10 line-clamp-1", styles.text)}>
         {message}
