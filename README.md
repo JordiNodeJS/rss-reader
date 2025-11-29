@@ -1,104 +1,105 @@
-# RSS Reader Antigravity
+# RSS Reader Antigravity 🚀
 
-A modern, offline-capable RSS reader built with Next.js 16, React 19, and Tailwind CSS. Designed for speed, aesthetics, and a premium user experience.
+> **Un experimento de desarrollo asistido por IA Multi-Agente**
 
-📚 **[View Learning Report](docs/aprendizajes.md)** - Comprehensive analysis of technical architecture, implementation challenges, and key learnings from this project.
+Este proyecto no es solo un lector RSS moderno y capaz de funcionar sin conexión; es el resultado de un experimento de aprendizaje colaborativo entre un desarrollador humano y un ecosistema de agentes de IA avanzados, editores de código de próxima generación y modelos de lenguaje de vanguardia.
+
+📚 **[Ver Reporte de Aprendizajes](docs/aprendizajes.md)** - Análisis detallado de la arquitectura técnica, desafíos de implementación y lecciones clave de este proyecto.
 
 ![Home Light](public/screenshots/home-populated-light.webp)
 
-## Features
+## 🤖 El Experimento: "Meta-Desarrollo"
 
-- **Offline Support**: Persists feeds and articles using IndexedDB for offline reading.
-- **RSS Parsing**: Robust server-side parsing using `rss-parser`.
-- **Web Scraping**: Hybrid scraper using Mozilla Readability (primary) with Cheerio fallback for robust article extraction from Spanish news sites.
-- **Modern UI**: Beautiful, responsive interface built with Tailwind CSS and Shadcn UI.
-- **Dark Mode**: Fully supported dark mode with smooth transitions.
-- **Image Optimization**: Automatic image processing and optimization.
+El objetivo principal de este repositorio es explorar los límites del desarrollo de software asistido por IA, orquestando múltiples herramientas y "cerebros" digitales para construir una aplicación compleja, pulida y funcional.
 
-## Screenshots
+### La "Tripulación" de IA y Herramientas
+
+Este proyecto ha sido forjado utilizando una combinación sinérgica de tecnologías:
+
+*   **Editores y Entornos**:
+    *   **VS Code**: La base sólida y extensible.
+    *   **Cursor**: Para la edición de código fluida impulsada por IA.
+    *   **Antigravity**: El entorno agéntico avanzado de Google Deepmind para tareas complejas y razonamiento profundo.
+
+*   **Modelos de Inteligencia Artificial**:
+    *   **Gemmi 3**: Utilizado para razonamiento lógico y estructuración de datos.
+    *   **Opus 4.5**: Encargado de la arquitectura de alto nivel y soluciones creativas.
+    *   **Minimax M2**: Optimización de código y refactorización rápida.
+    *   *Y otros modelos auxiliares para tareas específicas.*
+
+---
+
+## 📱 Sobre la Aplicación
+
+RSS Reader Antigravity es un lector de noticias minimalista, rápido y estéticamente cuidado, diseñado para ofrecer una experiencia de lectura premium.
+
+### Características Principales
+
+- **Soporte Offline**: Persistencia total de feeds y artículos usando IndexedDB. Lee tus noticias sin conexión.
+- **Parsing RSS Robusto**: Proxy de servidor con `rss-parser` para evitar problemas de CORS y compatibilidad.
+- **Web Scraping Híbrido**: Extracción inteligente de contenido utilizando Mozilla Readability como primario y Cheerio como fallback, optimizado para medios en español.
+- **UI Moderna y Fluida**: Interfaz construida con Tailwind CSS, Shadcn UI y animaciones suaves.
+- **Modo Oscuro**: Soporte nativo con transiciones elegantes.
+- **Optimización de Imágenes**: Procesamiento automático con Sharp para servir imágenes optimizadas en formato WebP.
+
+## 📸 Capturas de Pantalla
 
 ### Home Screen (Dark Mode)
 
 ![Home Dark](public/screenshots/home-populated-dark.webp)
 
-### Reading Experience
+### Experiencia de Lectura
 
 ![Article View](public/screenshots/article-view-light.webp)
 
-## Tech Stack
+## 🛠️ Stack Tecnológico
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
 - **Frontend**: React 19, Tailwind CSS, Lucide Icons
-- **State/Storage**: IndexedDB (via `idb`), Custom Hooks
+- **Estado/Almacenamiento**: IndexedDB (via `idb`), Custom Hooks
 - **Backend API**: Next.js API Routes
 - **Scraping**: Mozilla Readability, JSDOM, Cheerio, Sanitize-HTML, Sharp
-- **Utilities**: Luxon (Dates), Sonner (Toasts)
+- **Utilidades**: Luxon (Fechas), Sonner (Toasts)
 
-## Getting Started
+## 🚀 Getting Started
 
-1. **Install dependencies:**
+1. **Instalar dependencias:**
 
 ```bash
 pnpm install
-# or
+# o
 npm install
 ```
 
-2. **Run the development server:**
+2. **Iniciar el servidor de desarrollo:**
 
 ```bash
 pnpm dev
-# or
+# o
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
-## Key Technical Highlights
+## 🧪 E2E Tests (Playwright)
 
-This project demonstrates advanced techniques in:
-
-- **Hybrid Web Scraping**: Combines Mozilla Readability's intelligent article extraction with site-specific CSS selectors
-- **Offline-First Architecture**: Full offline capability with IndexedDB persistence
-- **Image Processing**: Automatic optimization and WebP conversion with Sharp
-- **Modern React Patterns**: Custom hooks, TypeScript, and component composition
-
-For detailed technical analysis and implementation insights, see our [Learning Report](docs/aprendizajes.md).
-
-## License
-
-MIT
-
-## Credits
-
-## E2E Tests (Playwright)
-
-This repository includes an example Playwright test under `tests/playwright/article-regenerate.spec.ts` that demonstrates how to seed IndexedDB and validate Idle/Regenerating/Retry states in the article modal using deterministic data-qa attributes.
-
-Install and run the test:
-
-1. Install Playwright (dev dependency):
+El repositorio incluye pruebas end-to-end con Playwright para validar flujos críticos como la regeneración de artículos y la persistencia en IndexedDB.
 
 ```bash
+# Instalar Playwright
 pnpm add -D @playwright/test
 npx playwright install
-```
 
-2. Start the dev server:
-
-```bash
-pnpm dev
-```
-
-3. Run the test:
-
-```bash
+# Ejecutar tests
 pnpm run test:e2e
 ```
 
-Notes:
+## 📄 Licencia
 
-- The test seeds IndexedDB (client-side) and uses DOM mutation for deterministic states so it runs reliably in CI/headless environments.
-- You can enable test-only feature flags (see tests/playwright/README.md) if you prefer to test the real summarizer gating behavior.
+MIT
 
-Esta aplicación fue creada por [webcode.es](https://webcode.es). Para consultas o soporte, contacta a: <info@webcode.es>.
+## 👥 Créditos
+
+Esta aplicación fue creada como parte de un proyecto de aprendizaje en [webcode.es](https://webcode.es), explorando el futuro del desarrollo con IA.
+
+Para consultas o soporte, contacta a: <info@webcode.es>.

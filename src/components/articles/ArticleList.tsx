@@ -577,13 +577,13 @@ export function ArticleList({
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
         <Image
-          src="/empty-state.svg"
+          src="/empty-state-creative.png"
           alt="Sin artículos"
-          width={256}
-          height={256}
+          width={400}
+          height={400}
           priority
           style={{ width: "auto", height: "auto" }}
-          className="w-64 h-64 mb-6 opacity-80"
+          className="w-80 h-80 mb-6 opacity-90 rounded-2xl shadow-2xl"
         />
         <h3 className="text-xl font-semibold mb-2 text-foreground">
           No se encontraron artículos
