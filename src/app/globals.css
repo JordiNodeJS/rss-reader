@@ -356,3 +356,154 @@
 .animate-blink {
   animation: blink 0.8s steps(1) infinite;
 }
+
+/* ===== Spring Expand Animation ===== */
+/* Smooth spring-like expansion for streaming content */
+
+@keyframes spring-expand {
+  0% {
+    transform: scaleY(0.98);
+  }
+  40% {
+    transform: scaleY(1.01);
+  }
+  60% {
+    transform: scaleY(0.995);
+  }
+  80% {
+    transform: scaleY(1.005);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+.spring-expand-container {
+  transition: height 150ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              max-height 150ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              padding 100ms ease-out;
+  transform-origin: top center;
+}
+
+.spring-expand-container.streaming {
+  /* Soft bounce on content changes */
+  animation: spring-expand 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ===== Shimmer Loading Effect ===== */
+/* A sweeping shine animation for loading states */
+
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(-15deg);
+  }
+}
+
+.shimmer-effect {
+  pointer-events: none;
+}
+
+.shimmer-effect::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  animation: shimmer-sweep 2s ease-in-out infinite;
+}
+
+/* Default (gray) shimmer */
+.shimmer-default::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 25%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 100%
+  );
+}
+
+.dark .shimmer-default::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.08) 75%,
+    transparent 100%
+  );
+}
+
+/* Purple shimmer */
+.shimmer-purple::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(168, 85, 247, 0.15) 25%,
+    rgba(168, 85, 247, 0.35) 50%,
+    rgba(168, 85, 247, 0.15) 75%,
+    transparent 100%
+  );
+}
+
+.dark .shimmer-purple::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(192, 132, 252, 0.1) 25%,
+    rgba(192, 132, 252, 0.25) 50%,
+    rgba(192, 132, 252, 0.1) 75%,
+    transparent 100%
+  );
+}
+
+/* Green shimmer */
+.shimmer-green::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(34, 197, 94, 0.15) 25%,
+    rgba(34, 197, 94, 0.35) 50%,
+    rgba(34, 197, 94, 0.15) 75%,
+    transparent 100%
+  );
+}
+
+.dark .shimmer-green::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(74, 222, 128, 0.1) 25%,
+    rgba(74, 222, 128, 0.25) 50%,
+    rgba(74, 222, 128, 0.1) 75%,
+    transparent 100%
+  );
+}
+
+/* Blue shimmer */
+.shimmer-blue::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(59, 130, 246, 0.15) 25%,
+    rgba(59, 130, 246, 0.35) 50%,
+    rgba(59, 130, 246, 0.15) 75%,
+    transparent 100%
+  );
+}
+
+.dark .shimmer-blue::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(96, 165, 250, 0.1) 25%,
+    rgba(96, 165, 250, 0.25) 50%,
+    rgba(96, 165, 250, 0.1) 75%,
+    transparent 100%
+  );
+}
