@@ -1,8 +1,8 @@
 "use client";
 
+import { lazy, Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ArticleList } from "@/components/articles/ArticleList";
-import { ArticleView } from "@/components/articles/ArticleView";
 import { Footer } from "@/components/Footer";
 import { useFeeds } from "@/hooks/useFeeds";
 import { useState, useMemo } from "react";
@@ -16,7 +16,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
+
+// Lazy load ArticleView - it's a heavy component only needed when viewing an article
+const ArticleView = lazy(() =>
+  import("@/components/articles/ArticleView").then((mod) => ({
+    default: mod.ArticleView,
+  }))
+);
+
+// Loading fallback for ArticleView
+function ArticleViewFallback() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Cargando artículo...</p>
+      </div>
+    </div>
+  );
+}
 
 interface HomeClientProps {
   initialSidebarWidth?: number;
@@ -109,11 +128,16 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
         </div>
       </AppShell>
 
-      <ArticleView
-        article={viewingArticle}
-        isOpen={!!viewingArticle}
-        onClose={() => setViewingArticle(null)}
-      />
+      {/* Lazy load ArticleView only when needed */}
+      {viewingArticle && (
+        <Suspense fallback={<ArticleViewFallback />}>
+          <ArticleView
+            article={viewingArticle}
+            isOpen={!!viewingArticle}
+            onClose={() => setViewingArticle(null)}
+          />
+        </Suspense>
+      )}
 
       <Footer />
       <Toaster />
