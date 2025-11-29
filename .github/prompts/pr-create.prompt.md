@@ -2,7 +2,27 @@
 name: pr-create
 description: "MCP — crear, revisar y mergear Pull Request (adaptado a gh CLI). Guía para automatizar PRs usando la GitHub CLI (gh)."
 argument-hint: "tags: pr, gh, cli, workflow; version: 3.0"
-tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'github-mpc/*', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'extensions', 'todos', 'runSubagent']
+tools:
+  [
+    "edit",
+    "runNotebooks",
+    "search",
+    "new",
+    "runCommands",
+    "runTasks",
+    "github-mpc/*",
+    "usages",
+    "vscodeAPI",
+    "problems",
+    "changes",
+    "testFailure",
+    "openSimpleBrowser",
+    "fetch",
+    "githubRepo",
+    "extensions",
+    "todos",
+    "runSubagent",
+  ]
 ---
 
 ## Prompt: MCP — crear, revisar y mergear Pull Request (adaptado a gh CLI)
@@ -70,37 +90,46 @@ Asignación y revisores
 Flujo operativo (resumen de pasos que debe ejecutar el agente — abstracción de acciones)
 
 1. Preparación
+
    - Detectar la rama actual (`git rev-parse --abbrev-ref HEAD`).
    - Leer archivos de contexto relevantes: `.github/project/PROJECT-STATE.md`, `.github/prompts/`, `docs/`, y cualquier otra referencia útil.
 
 2. Validaciones locales
+
    - Ejecutar `pnpm lint:fix`, `pnpm test` (si existe) y `pnpm build`.
    - Recoger resultados; si hay fallos bloqueantes, añadir `ci/failed` y reportar errores en la PR.
 
 3. Comprobar existencia de PR
+
    - Usar `gh pr list --head <branch>` para saber si ya existe una PR desde esta rama.
 
 4. Crear o actualizar PR con `gh`
+
    - Si no existe: `gh pr create --title "..." --body-file <archivo.md> --base main --head <branch> --assignee JordiNodeJS`.
    - Si existe: `gh pr edit <pr-number> --title "..." --body-file <archivo.md>` para actualizar contenido.
    - **IMPORTANTE**: Usar `--body-file` en lugar de `--body` para evitar problemas de codificación UTF-8 en Windows.
    - **IMPORTANTE**: Evitar emojis en comentarios de PR, usar bullets estándar (`-` o `*`) para evitar caracteres raros.
 
 5. Etiquetas y assignación
+
    - Listar labels (`gh label list`). Crear las faltantes (`gh label create`) y asignarlas a la PR (`gh pr edit <pr> --add-label "..."`).
    - Asegurar `assignee` y solicitar `reviewer` mediante `gh pr edit` o `gh pr review`.
 
 6. Comentario de contexto y checklist
+
    - Añadir un comentario en la PR con los extractos de contexto relevantes y el resultado de las comprobaciones locales.
-   - **IMPORTANTE**: En comentarios usar `gh pr comment`, NO incluir emojis (evitar `✅`, `🚀`, etc.). Usar bullets estándar (`-` o `*`) y checkmarks en texto (`- [x] Done`).
+   - **IMPORTANTE**: Usar `--body-file` SIEMPRE para comentarios (igual que para el body de la PR). El flag `--body "..."` con `\n` literales NO interpreta saltos de línea y los muestra como texto.
+   - **IMPORTANTE**: NO incluir emojis (evitar `✅`, `🚀`, etc.). Usar bullets estándar (`-` o `*`) y checkmarks en texto (`- [x] Done`).
 
 7. Merge condicional (opcional)
+
    - Sólo intentar merge automático si:
      - Todas las comprobaciones automáticas pasan (CI green)
      - PR tiene `status/ready-for-review` y aprobaciones requeridas
    - Estrategia preferida: `squash and merge` (usar `gh pr merge <pr> --squash --delete-branch`).
 
 8. Limpieza post-merge
+
    - Si mergeado, borrar rama remota: `git push origin --delete <branch>` (o `gh` flag `--delete-branch`).
    - Borrar rama local si procede: `git branch -D <branch>`.
 
@@ -180,27 +209,32 @@ Este bloque es sólo un ejemplo que el agente actualizará dinámicamente según
 **Soluciones**:
 
 1. **Para body de PR**: Usar `--body-file` SIEMPRE
+
    ```bash
    # ✅ CORRECTO
    gh pr create --body-file .pr-body-temp.md
-   
+
    # ❌ INCORRECTO
    gh pr create --body "Texto con emojis 🚀"
    ```
 
-2. **Para comentarios en PR**: Evitar emojis
+2. **Para comentarios en PR**: Usar `--body-file` SIEMPRE
+
    ```bash
-   # ✅ CORRECTO - Usar bullets estándar
-   gh pr comment 42 --body "## Validaciones
-   - ESLint: OK
-   - Build: OK"
-   
-   # ❌ INCORRECTO - Emojis se convertirán en
-   gh pr comment 42 --body "## Validaciones
-   ✅ ESLint: OK"
+   # CORRECTO - Crear archivo temporal y usar --body-file
+   echo "## Validaciones" > .pr-comment-temp.md
+   echo "- ESLint: OK" >> .pr-comment-temp.md
+   echo "- Build: OK" >> .pr-comment-temp.md
+   gh pr comment 42 --body-file .pr-comment-temp.md
+   rm .pr-comment-temp.md
+
+   # INCORRECTO - \n literales NO se interpretan como saltos de línea
+   gh pr comment 42 --body "## Validaciones\n- ESLint: OK\n- Build: OK"
+   # Resultado: muestra "\n" como texto visible en GitHub
    ```
 
 3. **Alternativa**: Usar checkmarks en texto
+
    ```bash
    gh pr comment 42 --body "## Validaciones
    - [x] ESLint: OK
