@@ -3,7 +3,7 @@
 // Created by webcode.es
 // Contact: info@webcode.es
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import {
   Sheet,
   SheetContent,
@@ -76,7 +76,12 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CacheManager } from "@/components/CacheManager";
+// Lazy load CacheManager - heavy component with model management
+const CacheManager = lazy(() =>
+  import("@/components/CacheManager").then((mod) => ({
+    default: mod.CacheManager,
+  }))
+);
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -751,8 +756,16 @@ function SidebarContent({
             {/* Theme Switcher */}
             <ThemeSwitcher />
 
-            {/* Clear Translation Model Cache Button */}
-            <CacheManager />
+            {/* Clear Translation Model Cache Button - Lazy loaded */}
+            <Suspense
+              fallback={
+                <Button variant="outline" size="sm" className="w-full" disabled>
+                  <span className="animate-pulse">Cargando...</span>
+                </Button>
+              }
+            >
+              <CacheManager />
+            </Suspense>
 
             {/* View DB Events (dev/debug) */}
             <Dialog>

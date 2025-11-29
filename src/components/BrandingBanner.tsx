@@ -1,25 +1,75 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  lazy,
+  Suspense,
+} from "react";
 import Link from "next/link";
 import gsap from "gsap";
 import { Rss, HelpCircle } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { ThemeCarousel } from "@/components/ThemeCarousel";
 import { cn } from "@/lib/utils";
 import {
   useActivityStatus,
   ACTIVITY_CONFIG,
 } from "@/contexts/ActivityStatusContext";
 
+// Lazy load ThemeCarousel - it has animations and is not critical for initial render
+const ThemeCarousel = lazy(() =>
+  import("@/components/ThemeCarousel").then((mod) => ({
+    default: mod.ThemeCarousel,
+  }))
+);
+
 interface BrandingBannerProps {
   isScrolled?: boolean;
+}
+
+/**
+ * Hook that waits for the page to be fully ready before returning true.
+ * Uses requestIdleCallback to ensure the main thread is free,
+ * which prevents animation stuttering on page load.
+ */
+function usePageReady(): boolean {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // Function to set ready state using requestIdleCallback for best timing
+    const setReadyWhenIdle = () => {
+      if ("requestIdleCallback" in window) {
+        requestIdleCallback(
+          () => setIsReady(true),
+          { timeout: 1000 } // Max wait 1 second
+        );
+      } else {
+        // Fallback for Safari which doesn't support requestIdleCallback
+        setTimeout(() => setIsReady(true), 100);
+      }
+    };
+
+    // If document is already complete, wait for idle
+    if (document.readyState === "complete") {
+      setReadyWhenIdle();
+    } else {
+      // Wait for load event first, then idle
+      const handleLoad = () => setReadyWhenIdle();
+      window.addEventListener("load", handleLoad);
+      return () => window.removeEventListener("load", handleLoad);
+    }
+  }, []);
+
+  return isReady;
 }
 
 export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
   const { activity } = useActivityStatus();
   const activityConfig = ACTIVITY_CONFIG[activity.status];
+  const isPageReady = usePageReady();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -96,8 +146,10 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
     };
   }, []);
 
-  // Entrance Animation - per-letter animation
+  // Entrance Animation - per-letter animation (waits for page to be ready)
   useEffect(() => {
+    // Wait for page to be ready before starting animation to prevent stuttering
+    if (!isPageReady) return;
     if (!containerRef.current || hasAnimated.current) return;
     hasAnimated.current = true;
     const title = titleRef.current;
@@ -305,7 +357,7 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
         cancelAnimationFrame(rafId);
       }
     };
-  }, []);
+  }, [isPageReady]);
 
   return (
     <div
@@ -328,14 +380,16 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
         <div className="absolute inset-0 bg-primary/10 mix-blend-overlay" />
       </div>
 
-      {/* Theme Carousel - Hide when scrolled */}
-      <div 
+      {/* Theme Carousel - Hide when scrolled, lazy loaded */}
+      <div
         className={cn(
           "absolute bottom-0 left-0 right-0 z-20 py-1.5 bg-background/40 backdrop-blur-sm border-t border-border/20 transition-opacity duration-300",
           isScrolled ? "opacity-0 pointer-events-none" : "opacity-100"
         )}
       >
-        <ThemeCarousel isPaused={isScrolled} />
+        <Suspense fallback={<div className="h-[36px]" />}>
+          <ThemeCarousel isPaused={isScrolled} />
+        </Suspense>
       </div>
 
       <div
@@ -356,11 +410,11 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
             )}
             style={{ willChange: "transform" }}
           >
-            <Rss 
+            <Rss
               className={cn(
                 "text-primary transition-all duration-300",
                 isScrolled ? "w-5 h-5" : "w-7 h-7 md:w-9 md:h-9"
-              )} 
+              )}
             />
           </div>
           <div className="flex flex-col justify-center">
@@ -385,10 +439,12 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
                 READER
               </span>
             </h1>
-            <span 
+            <span
               className={cn(
                 "text-xs md:text-sm font-bold tracking-[0.2em] uppercase text-muted-foreground mt-1 transition-all duration-300 origin-left",
-                isScrolled ? "h-0 opacity-0 overflow-hidden mt-0 scale-0" : "h-auto opacity-100 scale-100"
+                isScrolled
+                  ? "h-0 opacity-0 overflow-hidden mt-0 scale-0"
+                  : "h-auto opacity-100 scale-100"
               )}
             >
               Level Up Your Feed
@@ -396,18 +452,24 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
           </div>
         </div>
 
-        <div 
+        <div
           className={cn(
             "flex items-center bg-background/80 rounded-full backdrop-blur-md border border-border/50 shadow-lg transition-all duration-300",
-             isScrolled ? "gap-1.5 pl-2 pr-0.5 py-0.5 scale-75 origin-right" : "gap-2 pl-3 pr-1 py-1 scale-90"
+            isScrolled
+              ? "gap-1.5 pl-2 pr-0.5 py-0.5 scale-75 origin-right"
+              : "gap-2 pl-3 pr-1 py-1 scale-90"
           )}
         >
           <div className="hidden md:flex items-center">
             <div className="flex flex-col items-end">
-              <span className={cn(
-                "text-[8px] uppercase tracking-wider text-muted-foreground whitespace-nowrap transition-all duration-300",
-                isScrolled ? "h-0 opacity-0 mb-0 scale-0" : "h-auto opacity-100 mb-0.5 scale-100"
-              )}>
+              <span
+                className={cn(
+                  "text-[8px] uppercase tracking-wider text-muted-foreground whitespace-nowrap transition-all duration-300",
+                  isScrolled
+                    ? "h-0 opacity-0 mb-0 scale-0"
+                    : "h-auto opacity-100 mb-0.5 scale-100"
+                )}
+              >
                 System Status
               </span>
               <div className="flex items-center gap-1.5">
