@@ -64,10 +64,10 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
                     ? feedState.feeds.find(
                         (f) => f.id === feedState.selectedFeedId
                       )?.title
-                    : "All Articles"}
+                    : "Todos los artículos"}
                 </h2>
                 <p className="text-muted-foreground mt-1">
-                  {filteredArticles.length} articles available
+                  {filteredArticles.length} artículos disponibles
                 </p>
               </div>
 
@@ -75,7 +75,7 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search articles..."
+                    placeholder="Buscar artículos..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-8"
@@ -88,11 +88,11 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
                   }
                 >
                   <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Sort by" />
+                    <SelectValue placeholder="Ordenar" />
                   </SelectTrigger>
                   <SelectContent id="select-sort-order">
-                    <SelectItem value="newest">Newest first</SelectItem>
-                    <SelectItem value="oldest">Oldest first</SelectItem>
+                    <SelectItem value="newest">Más recientes</SelectItem>
+                    <SelectItem value="oldest">Más antiguos</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

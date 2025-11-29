@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useCallback, useLayoutEffect, useEffect } from "react";
+import {
+  useRef,
+  useCallback,
+  useLayoutEffect,
+  useEffect,
+  useState,
+} from "react";
 import gsap from "gsap";
 import { TextPlugin } from "gsap/TextPlugin";
 
@@ -50,7 +56,7 @@ export function FlipHtmlReveal({
   // Track container height changes to maintain the "last known stable height"
   useEffect(() => {
     if (!containerRef.current) return;
-    
+
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         // Use borderBoxSize if available for accurate height including padding/border
@@ -61,9 +67,9 @@ export function FlipHtmlReveal({
         }
       }
     });
-    
+
     resizeObserver.observe(containerRef.current);
-    
+
     return () => resizeObserver.disconnect();
   }, []);
 
@@ -107,7 +113,8 @@ export function FlipHtmlReveal({
       animationRef.current.kill();
     }
 
-    if (!originalRef.current || !translatedRef.current || !containerRef.current) return;
+    if (!originalRef.current || !translatedRef.current || !containerRef.current)
+      return;
 
     const showEl = showTranslation
       ? translatedRef.current
@@ -124,7 +131,7 @@ export function FlipHtmlReveal({
         onComplete?.();
       },
     });
-    
+
     // --- HEIGHT ANIMATION ---
     // 1. Prepare the incoming element (make it part of layout but invisible)
     gsap.set(showEl, {
@@ -141,10 +148,10 @@ export function FlipHtmlReveal({
     // We want to animate from hideEl.height to showEl.height.
     // However, we only have the 'current composite height'.
     // We rely on previousHeight.current to be the height of the SINGLE visible element before this change.
-    
+
     const newHeight = containerRef.current.offsetHeight;
     const oldHeight = previousHeight.current;
-    
+
     // 3. Animate height if needed
     if (oldHeight > 0 && Math.abs(newHeight - oldHeight) > 2) {
       gsap.fromTo(
@@ -154,14 +161,15 @@ export function FlipHtmlReveal({
           height: newHeight,
           duration: duration,
           ease: "power2.inOut",
-          clearProps: "height"
+          clearProps: "height",
         }
       );
     }
 
     // --- CONTENT ANIMATION ---
     // Animate out the old content
-    tl.fromTo(hideEl, 
+    tl.fromTo(
+      hideEl,
       { y: 0, filter: "blur(0px)", opacity: 1 },
       {
         opacity: 0,
@@ -200,10 +208,10 @@ export function FlipHtmlReveal({
   };
 
   return (
-    <div 
-      ref={containerRef} 
-      className={`grid items-start overflow-hidden ${className}`} 
-      style={{ gridTemplateColumns: "100%" }} 
+    <div
+      ref={containerRef}
+      className={`grid items-start overflow-hidden ${className}`}
+      style={{ gridTemplateColumns: "100%" }}
     >
       {/* Original content layer */}
       <div
@@ -251,8 +259,22 @@ export function FlipTitleReveal({
     translated: string;
   } | null>(null);
 
+  // Store the original height to prevent container expansion
+  const originalHeightRef = useRef<number | null>(null);
+  const [lockedHeight, setLockedHeight] = useState<number | null>(null);
+
   // Calculate target text based on current state
   const targetText = showTranslation ? translatedTitle : originalTitle;
+
+  // Measure and lock the original title height on mount
+  useLayoutEffect(() => {
+    if (titleRef.current && originalHeightRef.current === null) {
+      // Get the computed height of the original title
+      const height = titleRef.current.offsetHeight;
+      originalHeightRef.current = height;
+      setLockedHeight(height);
+    }
+  }, []);
 
   // Scramble function - creates the flip board effect
   const scrambleText = useCallback(
@@ -378,8 +400,17 @@ export function FlipTitleReveal({
     scrambleText,
   ]);
 
+  // Apply locked height to prevent container expansion when translated title has more lines
+  const style: React.CSSProperties = lockedHeight
+    ? {
+        display: "block",
+        maxHeight: lockedHeight,
+        overflow: "hidden",
+      }
+    : {};
+
   return (
-    <span ref={titleRef} className={`flip-title ${className}`}>
+    <span ref={titleRef} className={`flip-title ${className}`} style={style}>
       {targetText}
     </span>
   );
