@@ -11,6 +11,7 @@ import {
   getArticlesByFeed,
   getAllArticles,
   updateArticleScrapedContent,
+  clearArticleScrapedContent,
   updateFeed,
   getFeedByUrl,
   updateFeedsOrder,
@@ -555,6 +556,44 @@ export function useFeeds() {
     }
   };
 
+  const unsaveArticle = async (articleId: number) => {
+    setActivity("saving", "Removing saved article...");
+    try {
+      await clearArticleScrapedContent(articleId);
+      // Update local state immediately
+      setArticles((prev) =>
+        (prev || []).map((a) =>
+          a.id === articleId
+            ? {
+                ...a,
+                scrapedContent: undefined,
+                translatedTitle: undefined,
+                translatedContent: undefined,
+                translationLanguage: undefined,
+                translatedAt: undefined,
+                summary: undefined,
+                summaryType: undefined,
+                summaryLength: undefined,
+              }
+            : a
+        )
+      );
+      toast.success("Article unsaved");
+      clearActivity();
+    } catch (error) {
+      if (error instanceof UserError) {
+        console.warn(error.message);
+      } else {
+        console.error(error);
+      }
+      const errorMsg =
+        error instanceof Error ? error.message : "Failed to unsave article";
+      toast.error(`Failed to unsave article: ${errorMsg}`);
+      setActivity("error", errorMsg);
+      setTimeout(() => clearActivity(), 3000);
+    }
+  };
+
   const clearCache = async () => {
     try {
       const { clearAllData } = await import("@/lib/db");
@@ -607,6 +646,7 @@ export function useFeeds() {
     selectedFeedId,
     setSelectedFeedId,
     scrapeArticle,
+    unsaveArticle,
     clearCache,
     reorderFeeds,
   };

@@ -217,6 +217,7 @@ interface ArticleListProps {
   articles?: Article[] | null;
   feeds: Feed[];
   onScrape: (id: number, url: string, withTranslation?: boolean) => void;
+  onUnsave: (id: number) => void;
   onView: (article: Article) => void;
 }
 
@@ -256,6 +257,7 @@ interface ArticleCardProps {
   article: Article;
   feeds: Feed[];
   onSaveClick: (article: Article) => void;
+  onUnsaveClick: (article: Article) => void;
   onView: (article: Article) => void;
   isCheckingLanguage: boolean;
   articleToSaveId: number | undefined;
@@ -265,6 +267,7 @@ function ArticleCard({
   article,
   feeds,
   onSaveClick,
+  onUnsaveClick,
   onView,
   isCheckingLanguage,
   articleToSaveId,
@@ -358,16 +361,21 @@ function ArticleCard({
 
         <CardFooter className="pt-2 pb-4 flex justify-between gap-3">
           <Button
-            variant="outline"
+            variant={article.scrapedContent ? "secondary" : "outline"}
             size="sm"
             className="flex-1"
-            onClick={() => onSaveClick(article)}
-            disabled={
-              !!article.scrapedContent ||
-              (isCheckingLanguage && articleToSaveId === article.id)
+            onClick={() =>
+              article.scrapedContent
+                ? onUnsaveClick(article)
+                : onSaveClick(article)
             }
+            disabled={isCheckingLanguage && articleToSaveId === article.id}
           >
-            <Download className="w-4 h-4 mr-2" />
+            {article.scrapedContent ? (
+              <CheckCircle className="w-4 h-4 mr-2" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
             {article.scrapedContent
               ? "Saved"
               : isCheckingLanguage && articleToSaveId === article.id
@@ -464,16 +472,21 @@ function ArticleCard({
 
       <CardFooter className="pt-2 pb-4 flex justify-between gap-3">
         <Button
-          variant="outline"
+          variant={article.scrapedContent ? "secondary" : "outline"}
           size="sm"
           className="flex-1"
-          onClick={() => onSaveClick(article)}
-          disabled={
-            !!article.scrapedContent ||
-            (isCheckingLanguage && articleToSaveId === article.id)
+          onClick={() =>
+            article.scrapedContent
+              ? onUnsaveClick(article)
+              : onSaveClick(article)
           }
+          disabled={isCheckingLanguage && articleToSaveId === article.id}
         >
-          <Download className="w-4 h-4 mr-2" />
+          {article.scrapedContent ? (
+            <CheckCircle className="w-4 h-4 mr-2" />
+          ) : (
+            <Download className="w-4 h-4 mr-2" />
+          )}
           {article.scrapedContent
             ? "Saved"
             : isCheckingLanguage && articleToSaveId === article.id
@@ -498,6 +511,7 @@ export function ArticleList({
   articles = [],
   feeds = [],
   onScrape,
+  onUnsave,
   onView,
 }: ArticleListProps) {
   // Ensure articles is always an array to avoid runtime errors
@@ -551,6 +565,14 @@ export function ArticleList({
     setSaveDialogOpen(false);
     setArticleToSave(null);
   };
+
+  // Handle unsave click
+  const handleUnsaveClick = (article: Article) => {
+    if (article.id) {
+      onUnsave(article.id);
+    }
+  };
+
   if (safeArticles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
@@ -582,6 +604,7 @@ export function ArticleList({
           article={article}
           feeds={feeds}
           onSaveClick={handleSaveClick}
+          onUnsaveClick={handleUnsaveClick}
           onView={onView}
           isCheckingLanguage={isCheckingLanguage}
           articleToSaveId={articleToSave?.id}
