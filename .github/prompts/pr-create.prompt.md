@@ -92,7 +92,8 @@ Flujo operativo (resumen de pasos que debe ejecutar el agente — abstracción d
 
 6. Comentario de contexto y checklist
    - Añadir un comentario en la PR con los extractos de contexto relevantes y el resultado de las comprobaciones locales.
-   - **IMPORTANTE**: En comentarios usar `gh pr comment`, NO incluir emojis (evitar `✅`, `🚀`, etc.). Usar bullets estándar (`-` o `*`) y checkmarks en texto (`- [x] Done`).
+   - **IMPORTANTE**: Usar `--body-file` SIEMPRE para comentarios (igual que para el body de la PR). El flag `--body "..."` con `\n` literales NO interpreta saltos de línea y los muestra como texto.
+   - **IMPORTANTE**: NO incluir emojis (evitar `✅`, `🚀`, etc.). Usar bullets estándar (`-` o `*`) y checkmarks en texto (`- [x] Done`).
 
 7. Merge condicional (opcional)
    - Sólo intentar merge automático si:
@@ -188,16 +189,18 @@ Este bloque es sólo un ejemplo que el agente actualizará dinámicamente según
    gh pr create --body "Texto con emojis 🚀"
    ```
 
-2. **Para comentarios en PR**: Evitar emojis
+2. **Para comentarios en PR**: Usar `--body-file` SIEMPRE
    ```bash
-   # ✅ CORRECTO - Usar bullets estándar
-   gh pr comment 42 --body "## Validaciones
-   - ESLint: OK
-   - Build: OK"
+   # CORRECTO - Crear archivo temporal y usar --body-file
+   echo "## Validaciones" > .pr-comment-temp.md
+   echo "- ESLint: OK" >> .pr-comment-temp.md
+   echo "- Build: OK" >> .pr-comment-temp.md
+   gh pr comment 42 --body-file .pr-comment-temp.md
+   rm .pr-comment-temp.md
    
-   # ❌ INCORRECTO - Emojis se convertirán en
-   gh pr comment 42 --body "## Validaciones
-   ✅ ESLint: OK"
+   # INCORRECTO - \n literales NO se interpretan como saltos de línea
+   gh pr comment 42 --body "## Validaciones\n- ESLint: OK\n- Build: OK"
+   # Resultado: muestra "\n" como texto visible en GitHub
    ```
 
 3. **Alternativa**: Usar checkmarks en texto
