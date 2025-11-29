@@ -140,12 +140,12 @@ export const addFeed = async (feed: Omit<Feed, "id">) => {
     // Return existing feed's id instead of throwing ConstraintError
     return existing.id;
   }
-  
+
   // Get max order to append to end
   const allFeeds = await db.getAll("feeds");
   const maxOrder = allFeeds.reduce((max, f) => Math.max(max, f.order || 0), -1);
   const newFeed = { ...feed, order: maxOrder + 1 };
-  
+
   return db.add("feeds", newFeed);
 };
 

@@ -5,6 +5,7 @@ import {
   useRef,
   useCallback,
   useEffect,
+  useMemo,
   useSyncExternalStore,
 } from "react";
 import { Article } from "@/lib/db";
@@ -507,6 +508,9 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
     },
   });
 
+  // Cached server snapshot - MUST be stable reference to avoid infinite loop
+  const serverSnapshot = useMemo(() => ({ text: "", isStreaming: false }), []);
+
   // Use external store to avoid direct setState in effect
   const streamState = useSyncExternalStore(
     useCallback(
@@ -514,7 +518,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
       []
     ),
     useCallback(() => streamStoreRef.current.getSnapshot(), []),
-    useCallback(() => ({ text: "", isStreaming: false }), [])
+    () => serverSnapshot
   );
 
   const displayedSummary = streamState.text;
