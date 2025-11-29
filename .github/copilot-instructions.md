@@ -73,3 +73,48 @@ Or use Chrome DevTools MCP / Next.js DevTools MCP configured in `.vscode/mcp.jso
 
 - `sharp` is a native module — CI must support native builds. Windows: `pnpm rebuild sharp` if needed.
 - Node 22.x required (see `engines` in `package.json`).
+
+### ⚠️ Hydration & SSR Rules (CRITICAL)
+
+**NEVER use `suppressHydrationWarning`** — it only hides problems, doesn't fix them.
+
+Browser extensions like Dark Reader modify inline styles (`backgroundColor`, `color`, etc.) before React hydrates, causing mismatches. The correct solution:
+
+#### Pattern: Client-only inline styles
+
+Use `useSyncExternalStore` to detect client-side rendering:
+
+```tsx
+// Hook to detect client-side rendering without hydration issues
+const emptySubscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+function useIsClient() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    getClientSnapshot,
+    getServerSnapshot
+  );
+}
+
+// Usage in component
+const isClient = useIsClient();
+
+// Only apply inline styles on client
+<span style={isClient ? { backgroundColor: color } : undefined} />;
+```
+
+#### Why this works:
+
+- Server renders without inline styles → no content for extensions to modify
+- Client hydrates with same empty styles → perfect match
+- After hydration, `isClient` becomes `true` → styles apply
+- No flash, no warnings, proper solution
+
+#### Common pitfalls to avoid:
+
+- ❌ `suppressHydrationWarning` — hides the problem
+- ❌ `useState` + `useEffect` for mount detection — React 19 linter warns about cascading renders
+- ❌ Inline styles with dynamic values during SSR — extensions will modify them
+- ✅ `useSyncExternalStore` — the React-recommended approach for this pattern

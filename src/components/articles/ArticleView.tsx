@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useSyncExternalStore,
+} from "react";
 import { Article } from "@/lib/db";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSummary } from "@/hooks/useSummary";
@@ -470,6 +476,51 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
   const [showSummary, setShowSummary] = useState(false);
   const [summaryType, setSummaryType] = useState<SummaryType>("tldr");
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("medium");
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showStopAnimation, setShowStopAnimation] = useState(false);
+
+  // Streaming text store - external mutable state for useSyncExternalStore
+  const streamStoreRef = useRef({
+    text: "",
+    isStreaming: false,
+    snapshot: { text: "", isStreaming: false }, // Memoized snapshot object
+    listeners: new Set<() => void>(),
+    subscribe(listener: () => void) {
+      this.listeners.add(listener);
+      return () => this.listeners.delete(listener);
+    },
+    emit() {
+      this.listeners.forEach((l) => l());
+    },
+    setText(newText: string, streaming: boolean) {
+      // Only update if values actually changed
+      if (this.text !== newText || this.isStreaming !== streaming) {
+        this.text = newText;
+        this.isStreaming = streaming;
+        // Create new snapshot object only when values change
+        this.snapshot = { text: newText, isStreaming: streaming };
+        this.emit();
+      }
+    },
+    getSnapshot() {
+      return this.snapshot;
+    },
+  });
+
+  // Use external store to avoid direct setState in effect
+  const streamState = useSyncExternalStore(
+    useCallback(
+      (onStoreChange) => streamStoreRef.current.subscribe(onStoreChange),
+      []
+    ),
+    useCallback(() => streamStoreRef.current.getSnapshot(), []),
+    useCallback(() => ({ text: "", isStreaming: false }), [])
+  );
+
+  const displayedSummary = streamState.text;
+  const isStreaming = streamState.isStreaming;
+  const streamingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const prevSummaryRef = useRef<string>("");
 
   // Translation hook
   const translation = useTranslation({
@@ -486,6 +537,60 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
     cacheSummaries: true,
     translateSummary: true, // Translate summaries to Spanish when using local model
   });
+
+  // Streaming effect - updates external store, not React state
+  useEffect(() => {
+    const fullSummary = summaryHook.summary;
+    const store = streamStoreRef.current;
+
+    // Clear any existing streaming
+    if (streamingIntervalRef.current) {
+      clearInterval(streamingIntervalRef.current);
+      streamingIntervalRef.current = null;
+    }
+
+    // No summary - reset store
+    if (!fullSummary) {
+      if (prevSummaryRef.current) {
+        prevSummaryRef.current = "";
+        store.setText("", false);
+      }
+      return;
+    }
+
+    // Same summary - ensure fully displayed
+    if (fullSummary === prevSummaryRef.current) {
+      return;
+    }
+
+    // New summary - start streaming
+    prevSummaryRef.current = fullSummary;
+    store.setText("", true);
+
+    let currentIndex = 0;
+    const streamSpeed = 12;
+    const chunkSize = 3;
+
+    streamingIntervalRef.current = setInterval(() => {
+      currentIndex += chunkSize;
+      if (currentIndex >= fullSummary.length) {
+        store.setText(fullSummary, false);
+        if (streamingIntervalRef.current) {
+          clearInterval(streamingIntervalRef.current);
+          streamingIntervalRef.current = null;
+        }
+      } else {
+        store.setText(fullSummary.slice(0, currentIndex), true);
+      }
+    }, streamSpeed);
+
+    return () => {
+      if (streamingIntervalRef.current) {
+        clearInterval(streamingIntervalRef.current);
+        streamingIntervalRef.current = null;
+      }
+    };
+  }, [summaryHook.summary]);
 
   // Reset iframe and summary panel when dialog closes
   const handleClose = () => {
@@ -505,7 +610,22 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
     setSummaryType(useType);
     setSummaryLength(useLength);
     setShowSummary(true);
+
+    // Track regeneration state for animation
+    if (forceRegenerate) {
+      setIsRegenerating(true);
+      setShowStopAnimation(false);
+    }
+
     await summaryHook.summarize(useType, useLength, forceRegenerate);
+
+    // Show stop animation when regeneration completes
+    if (forceRegenerate) {
+      setIsRegenerating(false);
+      setShowStopAnimation(true);
+      // Clear stop animation after it plays
+      setTimeout(() => setShowStopAnimation(false), 600);
+    }
   };
 
   if (!article) return null;
@@ -649,18 +769,36 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                   <span className="text-muted-foreground">|</span>
                   {summaryHook.hasCachedSummary ||
                   summaryHook.status === "completed" ? (
-                    <button
-                      onClick={() => setShowSummary(!showSummary)}
-                      className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      {showSummary ? "Ocultar resumen" : "Ver resumen"}
-                      {showSummary ? (
-                        <ChevronUp className="w-3 h-3" />
-                      ) : (
-                        <ChevronDown className="w-3 h-3" />
-                      )}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowSummary(!showSummary)}
+                        className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        {showSummary ? "Ocultar resumen" : "Ver resumen"}
+                        {showSummary ? (
+                          <ChevronUp className="w-3 h-3" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleGenerateSummary(undefined, undefined, true)
+                        }
+                        className={`text-purple-400 hover:text-purple-500 cursor-pointer p-1 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors ${
+                          isRegenerating ? "animate-regenerate-spin" : ""
+                        } ${
+                          showStopAnimation
+                            ? "animate-regenerate-stop text-green-500"
+                            : ""
+                        }`}
+                        title="Regenerar resumen"
+                        disabled={isRegenerating}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   ) : summaryHook.status === "summarizing" ||
                     summaryHook.status === "downloading" ||
                     summaryHook.status === "checking" ? (
@@ -796,7 +934,11 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
             <div className="mx-6 mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-purple-500" />
+                  <Sparkles
+                    className={`w-4 h-4 text-purple-500 ${
+                      isStreaming ? "animate-pulse" : ""
+                    }`}
+                  />
                   <span className="font-medium text-sm text-purple-600 dark:text-purple-400">
                     Resumen IA
                   </span>
@@ -821,6 +963,11 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                       local
                     </Badge>
                   )}
+                  {isStreaming && (
+                    <span className="text-xs text-purple-400 animate-pulse">
+                      escribiendo...
+                    </span>
+                  )}
                 </div>
                 <button
                   onClick={() => setShowSummary(false)}
@@ -833,7 +980,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 {summaryHook.summaryType === "key-points" ? (
                   <div
                     dangerouslySetInnerHTML={{
-                      __html: summaryHook.summary
+                      __html: displayedSummary
                         .replace(/^[-•*]\s*/gm, "")
                         .split("\n")
                         .filter((line) => line.trim())
@@ -844,7 +991,10 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                   />
                 ) : (
                   <p className="text-foreground/90 leading-relaxed">
-                    {summaryHook.summary}
+                    {displayedSummary}
+                    {isStreaming && (
+                      <span className="inline-block w-0.5 h-4 bg-purple-500 ml-0.5 animate-blink align-middle" />
+                    )}
                   </p>
                 )}
               </div>
