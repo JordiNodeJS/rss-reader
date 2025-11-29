@@ -942,7 +942,11 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
 
           {/* AI Summary Panel */}
           {showSummary && summaryHook.summary && (
-            <div className={`mx-6 mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 spring-expand-container ${isStreaming ? 'streaming' : ''}`}>
+            <div
+              className={`mx-6 mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 spring-expand-container ${
+                isStreaming ? "streaming" : ""
+              }`}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles
