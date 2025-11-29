@@ -38,8 +38,8 @@ import {
   GripVertical,
   AlertTriangle,
   Loader2,
+  RefreshCw,
   Languages,
-  RotateCcw,
   Sparkles,
   ChevronDown,
   ChevronUp,
@@ -798,9 +798,10 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                             : ""
                         }`}
                         title="Regenerar resumen"
+                        data-qa="article-regenerate-button"
                         disabled={isRegenerating}
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
+                        <RefreshCw className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ) : summaryHook.status === "summarizing" ||
@@ -822,8 +823,9 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                       <button
                         onClick={() => handleGenerateSummary()}
                         className="ml-1 hover:underline"
+                        data-qa="article-regenerate-button-retry"
                       >
-                        <RotateCcw className="w-3 h-3" />
+                        <RefreshCw className="w-3 h-3" />
                       </button>
                     </span>
                   ) : (
@@ -837,6 +839,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                           ? "Resumen generado localmente y traducido al español"
                           : undefined
                       }
+                      data-qa="article-generate-button"
                     >
                       <Sparkles className="w-3 h-3" />
                       Generar resumen con IA
@@ -899,6 +902,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                       <button
                         onClick={translation.toggleTranslation}
                         className="text-blue-500 hover:text-blue-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
+                        data-qa="article-translate-button"
                       >
                         <Languages className="w-3 h-3" />
                         {translation.isShowingTranslation
@@ -922,7 +926,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                           onClick={translation.translate}
                           className="ml-1 hover:underline"
                         >
-                          <RotateCcw className="w-3 h-3" />
+                          <RefreshCw className="w-3 h-3" />
                         </button>
                       </span>
                     ) : (

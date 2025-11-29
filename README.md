@@ -71,4 +71,34 @@ MIT
 
 ## Credits
 
+## E2E Tests (Playwright)
+
+This repository includes an example Playwright test under `tests/playwright/article-regenerate.spec.ts` that demonstrates how to seed IndexedDB and validate Idle/Regenerating/Retry states in the article modal using deterministic data-qa attributes.
+
+Install and run the test:
+
+1. Install Playwright (dev dependency):
+
+```bash
+pnpm add -D @playwright/test
+npx playwright install
+```
+
+2. Start the dev server:
+
+```bash
+pnpm dev
+```
+
+3. Run the test:
+
+```bash
+pnpm run test:e2e
+```
+
+Notes:
+
+- The test seeds IndexedDB (client-side) and uses DOM mutation for deterministic states so it runs reliably in CI/headless environments.
+- You can enable test-only feature flags (see tests/playwright/README.md) if you prefer to test the real summarizer gating behavior.
+
 Esta aplicación fue creada por [webcode.es](https://webcode.es). Para consultas o soporte, contacta a: <info@webcode.es>.
