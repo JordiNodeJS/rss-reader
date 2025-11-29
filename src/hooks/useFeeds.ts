@@ -210,7 +210,7 @@ export function useFeeds() {
                 message: "Feeds restored from localStorage backup",
               });
             } catch (_) {}
-            toast.success("Feeds restored from local backup");
+            toast.success("Feeds restaurados desde copia de seguridad local");
           } catch (err) {
             console.warn("Failed to restore feeds from local backup", err);
           }
@@ -283,7 +283,7 @@ export function useFeeds() {
 
       // Validate we got items
       if (!data.items || data.items.length === 0) {
-        toast.warning("Feed loaded but contains no articles yet");
+        toast.warning("Feed cargado pero todavía no contiene artículos");
       }
 
       // 2. Check if feed already exists before saving
@@ -393,7 +393,7 @@ export function useFeeds() {
 
   const removeFeed = async (id: number) => {
     await deleteFeed(id);
-    toast.success("Feed removed");
+    toast.success("Feed eliminado");
     await refreshFeeds();
     if (selectedFeedId === id) setSelectedFeedId(null);
     await refreshArticles();
@@ -402,7 +402,7 @@ export function useFeeds() {
   const updateFeedTitle = async (id: number, customTitle: string) => {
     try {
       await updateFeed(id, { customTitle: customTitle || undefined });
-      toast.success("Feed title updated");
+      toast.success("Título del feed actualizado");
       await refreshFeeds();
     } catch (error) {
       if (error instanceof UserError) {
@@ -410,7 +410,7 @@ export function useFeeds() {
       } else {
         console.error(error);
       }
-      toast.error("Failed to update feed title");
+      toast.error("Error al actualizar el título del feed");
     }
   };
 
@@ -464,7 +464,7 @@ export function useFeeds() {
         // If translation is requested, translate the content
         if (withTranslation) {
           setActivity("translating", "Translating article to Spanish...");
-          toast.info("Translating article to Spanish...");
+          toast.info("Traduciendo artículo al español...");
 
           try {
             // Import translation functions dynamically
@@ -515,7 +515,7 @@ export function useFeeds() {
               )
             );
 
-            toast.success("Article scraped and translated to Spanish");
+            toast.success("Artículo guardado y traducido al español");
           } catch (translationError) {
             console.error("Translation failed:", translationError);
             // Still save the scraped content even if translation fails
@@ -525,7 +525,7 @@ export function useFeeds() {
               )
             );
             toast.warning(
-              "Article saved, but translation failed. You can translate it later."
+              "Artículo guardado, pero la traducción falló. Puedes traducirlo más tarde."
             );
           }
         } else {
@@ -535,11 +535,11 @@ export function useFeeds() {
               a.id === articleId ? { ...a, scrapedContent: data.content } : a
             )
           );
-          toast.success("Article scraped and saved offline");
+          toast.success("Artículo guardado para lectura sin conexión");
         }
         clearActivity();
       } else {
-        toast.warning("No content found to scrape");
+        toast.warning("No se encontró contenido para extraer");
         clearActivity();
       }
     } catch (error) {
@@ -578,7 +578,7 @@ export function useFeeds() {
             : a
         )
       );
-      toast.success("Article unsaved");
+      toast.success("Artículo eliminado de guardados");
       clearActivity();
     } catch (error) {
       if (error instanceof UserError) {
@@ -616,10 +616,10 @@ export function useFeeds() {
       } catch {
         /* ignore */
       }
-      toast.success("Cache cleared successfully");
+      toast.success("Caché limpiada correctamente");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to clear cache");
+      toast.error("Error al limpiar la caché");
     }
   };
 
@@ -629,7 +629,7 @@ export function useFeeds() {
       await updateFeedsOrder(newFeeds);
     } catch (error) {
       console.error("Failed to save feed order:", error);
-      toast.error("Failed to save feed order");
+      toast.error("Error al guardar el orden de los feeds");
       // Revert on error? Or just let it be... reloading will fix it or it will be out of sync until refresh
       // Ideally we should revert, but for now let's keep it simple
       refreshFeeds();

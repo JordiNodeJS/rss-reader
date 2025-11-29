@@ -299,7 +299,7 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
               size="icon"
               className="h-8 w-8"
               onClick={() => window.open(url, "_blank")}
-              title="Open in new tab"
+              title="Abrir en pestaña nueva"
             >
               <ExternalLink className="h-4 w-4" />
             </Button>
@@ -308,7 +308,7 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
               size="icon"
               className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
               onClick={onClose}
-              title="Close (Esc)"
+              title="Cerrar (Esc)"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -324,8 +324,8 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
                 <Loader2 className="h-8 w-8 animate-spin" />
                 <span className="text-sm">
                   {loadState === "checking"
-                    ? "Checking if page can be embedded..."
-                    : "Loading article..."}
+                    ? "Verificando si la página puede ser incrustada..."
+                    : "Cargando artículo..."}
                 </span>
               </div>
             </div>
@@ -341,13 +341,13 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
                     {loadState === "blocked"
-                      ? "Page cannot be embedded"
-                      : "Cannot load this page"}
+                      ? "La página no puede ser incrustada"
+                      : "No se puede cargar esta página"}
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    This website doesn&apos;t allow embedding in iframes for
-                    security reasons. This is a common restriction on many
-                    websites.
+                    Este sitio web no permite incrustar su contenido en iframes
+                    por razones de seguridad. Esta es una restricción común en
+                    muchos sitios web.
                     {blockReason && (
                       <span className="block mt-2 text-xs font-mono text-muted-foreground/70">
                         ({blockReason})
@@ -361,10 +361,10 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
                     onClick={() => window.open(url, "_blank")}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Open in new tab
+                    Abrir en pestaña nueva
                   </Button>
                   <Button variant="outline" onClick={onClose}>
-                    Close
+                    Cerrar
                   </Button>
                 </div>
               </div>
@@ -380,7 +380,7 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
                 loadState !== "loaded" ? "invisible" : ""
               }`}
               sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation allow-popups-to-escape-sandbox allow-downloads allow-modals"
-              title="Article content"
+              title="Contenido del artículo"
               onLoad={() => {
                 // For cross-origin iframes, we can't reliably detect if they loaded correctly
                 // Many sites block iframes with X-Frame-Options or CSP
@@ -461,7 +461,7 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
           <div
             className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             onMouseDown={handleMouseDown}
-            title="Drag to resize"
+            title="Arrastra para redimensionar"
           >
             <GripVertical className="h-4 w-4 rotate-[-45deg]" />
           </div>
@@ -672,7 +672,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 {new Date(article.pubDate).toLocaleDateString()}
               </Badge>
               {article.scrapedContent && (
-                <Badge variant="secondary">Offline Ready</Badge>
+                <Badge variant="secondary">Disponible sin conexión</Badge>
               )}
               {translation.isShowingTranslation && (
                 <Badge
@@ -689,7 +689,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                   className="bg-purple-500 hover:bg-purple-600"
                 >
                   <Sparkles className="w-3 h-3 mr-1" />
-                  AI Summary
+                  Resumen IA
                 </Badge>
               )}
               {translation.sourceLanguage !== "es" &&
@@ -754,7 +754,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 onClick={handleVisitOriginal}
                 className="text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
-                Visit Original <ExternalLink className="w-3 h-3" />
+                Ver original <ExternalLink className="w-3 h-3" />
               </button>
               <span className="text-muted-foreground">|</span>
               <a
@@ -763,7 +763,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 text-sm"
               >
-                Open in new tab <ExternalLink className="w-3 h-3" />
+                Abrir en pestaña nueva <ExternalLink className="w-3 h-3" />
               </a>
 
               {/* AI Summary controls */}
@@ -879,7 +879,7 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                     <details className="text-xs text-muted-foreground">
                       <summary className="cursor-pointer hover:text-foreground flex items-center gap-1">
                         <Sparkles className="w-3 h-3 opacity-50" />
-                        <span className="hidden sm:inline">AI Summary</span>
+                        <span className="hidden sm:inline">Resumen IA</span>
                       </summary>
                       <div className="mt-2 p-2 bg-muted rounded border">
                         <SummaryDiagnostics />
@@ -908,9 +908,11 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                     ) : translation.status === "translating" ||
                       translation.status === "downloading" ||
                       translation.status === "detecting" ? (
-                      <span className="text-muted-foreground flex items-center gap-1 text-sm">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        {translation.message || "Traduciendo..."}
+                      <span className="text-muted-foreground flex items-center gap-1 text-sm min-h-[2.5em] max-w-[300px]">
+                        <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
+                        <span className="line-clamp-2">
+                          {translation.message || "Traduciendo..."}
+                        </span>
                       </span>
                     ) : translation.status === "error" ? (
                       <span className="text-destructive flex items-center gap-1 text-sm">

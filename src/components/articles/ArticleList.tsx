@@ -322,7 +322,7 @@ function ArticleCard({
                 className="text-[10px] px-1.5 py-0 h-5 bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300 font-medium"
               >
                 <CheckCircle className="w-3 h-3 mr-1" />
-                Saved
+                Guardado
               </Badge>
             )}
           </div>
@@ -345,7 +345,7 @@ function ArticleCard({
               <div className="float-left mr-3 mb-2 relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted">
                 <Image
                   src={article.image!}
-                  alt={article.title || "Article image"}
+                  alt={article.title || "Imagen del artículo"}
                   fill
                   sizes="96px"
                   className="object-cover"
@@ -377,10 +377,10 @@ function ArticleCard({
               <Download className="w-4 h-4 mr-2" />
             )}
             {article.scrapedContent
-              ? "Saved"
+              ? "Guardado"
               : isCheckingLanguage && articleToSaveId === article.id
               ? "..."
-              : "Save"}
+              : "Guardar"}
           </Button>
           <Button
             variant="default"
@@ -389,7 +389,7 @@ function ArticleCard({
             onClick={() => onView(article)}
           >
             <BookOpen className="w-4 h-4 mr-2" />
-            Read
+            Leer
           </Button>
         </CardFooter>
       </Card>
@@ -402,7 +402,7 @@ function ArticleCard({
       <div className="aspect-video w-full overflow-hidden bg-muted relative">
         <Image
           src={article.image!}
-          alt={article.title || "Article image"}
+          alt={article.title || "Imagen del artículo"}
           fill
           sizes="(max-width: 640px) 100vw, 33vw"
           className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -410,7 +410,7 @@ function ArticleCard({
         {article.scrapedContent && (
           <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm flex items-center gap-1">
             <CheckCircle className="w-3 h-3 text-green-500" />
-            <span>Saved</span>
+            <span>Guardado</span>
           </div>
         )}
       </div>
@@ -488,10 +488,10 @@ function ArticleCard({
             <Download className="w-4 h-4 mr-2" />
           )}
           {article.scrapedContent
-            ? "Saved"
+            ? "Guardado"
             : isCheckingLanguage && articleToSaveId === article.id
             ? "..."
-            : "Save"}
+            : "Guardar"}
         </Button>
         <Button
           variant="default"
@@ -500,7 +500,7 @@ function ArticleCard({
           onClick={() => onView(article)}
         >
           <BookOpen className="w-4 h-4 mr-2" />
-          Read
+          Leer
         </Button>
       </CardFooter>
     </Card>
@@ -578,7 +578,7 @@ export function ArticleList({
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
         <Image
           src="/empty-state.svg"
-          alt="No articles"
+          alt="Sin artículos"
           width={256}
           height={256}
           priority
@@ -586,11 +586,11 @@ export function ArticleList({
           className="w-64 h-64 mb-6 opacity-80"
         />
         <h3 className="text-xl font-semibold mb-2 text-foreground">
-          No articles found
+          No se encontraron artículos
         </h3>
         <p className="text-sm max-w-sm mx-auto">
-          Add a feed to start reading the latest news from your favorite
-          sources.
+          Añade un feed para empezar a leer las últimas noticias de tus fuentes
+          favoritas.
         </p>
       </div>
     );
@@ -619,7 +619,7 @@ export function ArticleList({
               <Languages className="w-5 h-5 text-blue-500" />
               Artículo en {LANGUAGE_NAMES[detectedLanguage] ||
                 detectedLanguage}{" "}
-              detected
+              detectado
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
@@ -668,7 +668,7 @@ export function ArticleList({
 }
 
 function tryFormatDate(dateStr: string) {
-  if (!dateStr) return "Unknown date";
+  if (!dateStr) return "Fecha desconocida";
 
   try {
     // Try ISO format first (e.g., "2024-12-10T12:30:00Z")
@@ -698,8 +698,8 @@ function tryFormatDate(dateStr: string) {
       }
     }
 
-    return "Unknown date";
+    return "Fecha desconocida";
   } catch {
-    return "Unknown date";
+    return "Fecha desconocida";
   }
 }
