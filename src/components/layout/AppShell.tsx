@@ -625,25 +625,27 @@ function SidebarContent({
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full gap-2" size="sm">
-                  <Plus className="w-4 h-4" /> Add Feed
+                  <Plus className="w-4 h-4" /> Añadir feed
                 </Button>
               </DialogTrigger>
               <DialogContent id="dialog-add-feed">
                 <DialogHeader>
-                  <DialogTitle>Add New Feed</DialogTitle>
+                  <DialogTitle>Añadir nuevo feed</DialogTitle>
                   <VisuallyHidden>
                     <DialogDescription>
-                      Add a new RSS feed by selecting from presets or entering a
-                      custom URL
+                      Añade un nuevo feed RSS seleccionando de los
+                      preestablecidos o introduciendo una URL personalizada
                     </DialogDescription>
                   </VisuallyHidden>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Preset Feeds</label>
+                    <label className="text-sm font-medium">
+                      Feeds preestablecidos
+                    </label>
                     <Select onValueChange={handleAddDefault}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a feed source" />
+                        <SelectValue placeholder="Selecciona una fuente" />
                       </SelectTrigger>
                       <SelectContent
                         id="select-addfeed-presets"
@@ -684,25 +686,25 @@ function SidebarContent({
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Feed URL</label>
+                    <label className="text-sm font-medium">URL del feed</label>
                     <Input
-                      placeholder="https://example.com/rss"
+                      placeholder="https://ejemplo.com/rss"
                       value={newFeedUrl}
                       onChange={(e) => setNewFeedUrl(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
-                      Custom Title (optional)
+                      Título personalizado (opcional)
                     </label>
                     <Input
-                      placeholder="My Custom Feed Name"
+                      placeholder="Mi feed personalizado"
                       value={newFeedTitle}
                       onChange={(e) => setNewFeedTitle(e.target.value)}
                     />
                   </div>
                   <Button onClick={handleAddFeed} disabled={isLoading}>
-                    {isLoading ? "Adding..." : "Add Feed"}
+                    {isLoading ? "Añadiendo..." : "Añadir feed"}
                   </Button>
                 </div>
               </DialogContent>
@@ -716,11 +718,11 @@ function SidebarContent({
               onClick={() => setSelectedFeedId(null)}
             >
               <Inbox className="w-4 h-4" />
-              All Articles
+              Todos los artículos
             </Button>
             <Separator className="my-2" />
             <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-              Your Feeds
+              Tus feeds
             </h3>
             <DndContext
               sensors={sensors}
@@ -760,14 +762,15 @@ function SidebarContent({
                   className="w-full max-w-full gap-2"
                   size="sm"
                 >
-                  <span className="truncate">View DB Events</span>
+                  <span className="truncate">Ver eventos de BD</span>
                 </Button>
               </DialogTrigger>
               <DialogContent id="dialog-db-events">
                 <DialogHeader>
-                  <DialogTitle>IndexedDB Event Log</DialogTitle>
+                  <DialogTitle>Registro de eventos IndexedDB</DialogTitle>
                   <DialogDescription>
-                    Shows recent IndexedDB events detected by the monitor.
+                    Muestra los eventos recientes de IndexedDB detectados por el
+                    monitor.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="mt-2">
@@ -781,13 +784,13 @@ function SidebarContent({
                     onClick={() => {
                       try {
                         clearDBEvents();
-                        toast.success("DB events cleared");
+                        toast.success("Registro de eventos limpiado");
                       } catch (e) {
                         console.error(e);
                       }
                     }}
                   >
-                    Clear Log
+                    Limpiar registro
                   </Button>
                 </div>
               </DialogContent>
@@ -802,24 +805,27 @@ function SidebarContent({
                   size="sm"
                 >
                   <Trash className="w-4 h-4 shrink-0" />
-                  <span className="truncate">Clear Cache</span>
+                  <span className="truncate">Limpiar caché</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent id="alert-clear-cache">
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Clear all cached data?</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    ¿Limpiar todos los datos en caché?
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete all your RSS feeds and articles
-                    from the local cache. This action cannot be undone.
+                    Esto eliminará permanentemente todos tus feeds RSS y
+                    artículos de la caché local. Esta acción no se puede
+                    deshacer.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={clearCache}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Clear Cache
+                    Limpiar caché
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -835,18 +841,18 @@ function SidebarContent({
       >
         <DialogContent id="dialog-edit-feed">
           <DialogHeader>
-            <DialogTitle>Edit Feed</DialogTitle>
+            <DialogTitle>Editar feed</DialogTitle>
             <VisuallyHidden>
               <DialogDescription>
-                Change the display name for this feed
+                Cambia el nombre de este feed
               </DialogDescription>
             </VisuallyHidden>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Feed Title</label>
+              <label className="text-sm font-medium">Título del feed</label>
               <Input
-                placeholder="Custom feed name"
+                placeholder="Nombre personalizado"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
               />
@@ -856,7 +862,7 @@ function SidebarContent({
                 Original: {editingFeed?.title}
               </label>
             </div>
-            <Button onClick={handleEditFeed}>Save Changes</Button>
+            <Button onClick={handleEditFeed}>Guardar cambios</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -902,7 +908,7 @@ export function AppShell({
         // Notify user in the UI (non-intrusive) — devs can see console and localStorage logs
         if (e.type === "deleted") {
           try {
-            toast.warning(`IndexedDB ${e.name} removed`);
+            toast.warning(`IndexedDB ${e.name} eliminada`);
           } catch {}
         }
       },
@@ -1051,7 +1057,7 @@ export function AppShell({
           {/* Resize Indicator */}
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-ew-resize z-10 flex items-center justify-center transition-all duration-200 hover:w-2"
-            aria-label="Resize sidebar"
+            aria-label="Redimensionar barra lateral"
             onMouseDown={handleResizeStart}
             role="separator"
             aria-orientation="vertical"

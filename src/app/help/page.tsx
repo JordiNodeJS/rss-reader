@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import HelpClient from "./help-client";
 
 export const metadata: Metadata = {
-  title: "Help & Documentation",
+  title: "Ayuda y Documentación",
   description:
-    "Learn how to use the RSS Reader, manage feeds, and customize themes.",
+    "Aprende a usar el lector RSS, gestionar feeds y personalizar temas.",
 };
 
 export default function Page() {
