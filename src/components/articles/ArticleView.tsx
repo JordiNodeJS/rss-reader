@@ -14,6 +14,7 @@ import { useSummary } from "@/hooks/useSummary";
 import { SummaryType, SummaryLength } from "@/lib/summarization";
 import { SummaryDiagnostics } from "./SummaryDiagnostics";
 import { FlipTitleReveal, FlipHtmlReveal } from "@/components/FlipTextReveal";
+import { ShimmerLoadingInline } from "@/components/ui/shimmer-loading";
 import {
   Dialog,
   DialogContent,
@@ -807,15 +808,10 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                   ) : summaryHook.status === "summarizing" ||
                     summaryHook.status === "downloading" ||
                     summaryHook.status === "checking" ? (
-                    <span
-                      className="text-muted-foreground flex items-center gap-1 text-sm min-h-[2.5em]"
-                      title={summaryHook.message || "Generando resumen..."}
-                    >
-                      <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
-                      <span className="line-clamp-2">
-                        {summaryHook.message || "Generando resumen..."}
-                      </span>
-                    </span>
+                    <ShimmerLoadingInline
+                      message={summaryHook.message || "Generando resumen..."}
+                      variant="purple"
+                    />
                   ) : summaryHook.status === "error" ? (
                     <span className="text-destructive flex items-center gap-1 text-sm">
                       <AlertTriangle className="w-3 h-3" />
