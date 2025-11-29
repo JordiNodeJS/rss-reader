@@ -215,10 +215,13 @@ export function CacheManager() {
             </Button>
           </DialogTitle>
           <DialogDescription>
-            Los modelos de traducción se descargan localmente para funcionar sin
+            Los modelos de IA se descargan localmente para funcionar sin
             conexión.
             <br />
             <span className="text-xs opacity-70">
+              <strong>Traducciones:</strong> Chrome Translator API (nativa).{" "}
+              <strong>Resúmenes:</strong> Transformers.js (local).
+              <br />
               Los feeds y artículos NO se verán afectados al limpiar esta caché.
             </span>
           </DialogDescription>
@@ -226,12 +229,14 @@ export function CacheManager() {
 
         <ScrollArea className="max-h-[300px] w-full">
           <div className="flex flex-col gap-4 mt-2 pr-4">
-            {/* Transformers.js Models Section */}
+            {/* Transformers.js Models Section - Summarization Only */}
             <div className="rounded-lg border p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="font-medium text-sm">Modelos Locales</span>
+                  <span className="font-medium text-sm">
+                    Modelos de Resumen
+                  </span>
                 </div>
                 <span className="text-xs text-muted-foreground">
                   Transformers.js
@@ -315,28 +320,32 @@ export function CacheManager() {
               )}
             </div>
 
-            {/* Chrome Translator Models Section */}
+            {/* Chrome Translator Models Section - Translation Only */}
             <div className="rounded-lg border p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <span className="font-medium text-sm">Modelos de Chrome</span>
+                  <span className="font-medium text-sm">
+                    Modelos de Traducción
+                  </span>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-[250px]">
                       <p className="text-xs">
-                        Los modelos de Chrome se gestionan internamente por el
-                        navegador. Puedes intentar eliminarlos desde aquí, pero
-                        si Chrome no lo permite, usa
+                        Chrome Translator API proporciona traducciones nativas
+                        de alta calidad. Los modelos se gestionan internamente
+                        por el navegador. Usa
                         chrome://on-device-translation-internals/ para
                         gestionarlos manualmente.
                       </p>
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <span className="text-xs text-muted-foreground">Integrado</span>
+                <span className="text-xs text-muted-foreground">
+                  Chrome API
+                </span>
               </div>
 
               {isLoading ? (
@@ -559,12 +568,13 @@ export function CacheManager() {
                 <span>
                   <strong>¿Qué modelos se utilizan?</strong>
                   <br />
-                  <strong>Traducción:</strong> Chrome incluye traducción
-                  integrada (más rápida). Como fallback, usamos modelos de
-                  Transformers.js.
+                  <strong>Traducción:</strong> Chrome Translator API nativa
+                  (requiere Chrome 131+). Los modelos son gestionados por el
+                  navegador.
                   <br />
                   <strong>Resumen:</strong> Usamos modelos DistilBART ligeros
-                  (~60-270MB) que funcionan completamente en el navegador.
+                  (~60-270MB) de Transformers.js que funcionan completamente en
+                  el navegador.
                 </span>
               </p>
             </div>
