@@ -103,6 +103,7 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
             articles={filteredArticles}
             feeds={feedState.feeds}
             onScrape={feedState.scrapeArticle}
+            onUnsave={feedState.unsaveArticle}
             onView={setViewingArticle}
           />
         </div>

@@ -227,6 +227,22 @@ export const updateArticleScrapedContent = async (
   await db.put("articles", article);
 };
 
+// Clear article scraped content and related fields (unsave)
+export const clearArticleScrapedContent = async (id: number) => {
+  const db = await getDB();
+  const article = await db.get("articles", id);
+  if (!article) throw new Error("Article not found");
+  delete article.scrapedContent;
+  delete article.translatedTitle;
+  delete article.translatedContent;
+  delete article.translationLanguage;
+  delete article.translatedAt;
+  delete article.summary;
+  delete article.summaryType;
+  delete article.summaryLength;
+  await db.put("articles", article);
+};
+
 // Update article translation
 export const updateArticleTranslation = async (
   id: number,
