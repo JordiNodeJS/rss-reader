@@ -692,6 +692,44 @@ function splitIntoChunks(
 }
 
 /**
+ * Clean translation artifacts from Chrome Translator API output
+ *
+ * Chrome Translator internally uses placeholder tags like [[tag_X]] to preserve
+ * HTML structure during translation. Sometimes these tags leak into the output.
+ * This function removes them and cleans up any resulting formatting issues.
+ *
+ * @param text - The translated text that may contain artifact tags
+ * @returns Clean text without translation artifacts
+ */
+function cleanTranslationArtifacts(text: string): string {
+  const cleaned = text
+    // Remove [[tag_X]] patterns (with or without spaces around them)
+    .replace(/\s*\[\[tag_\d+\]\]\s*/gi, " ")
+    // Remove [[/tag_X]] closing patterns
+    .replace(/\s*\[\[\/tag_\d+\]\]\s*/gi, " ")
+    // Remove {tag_X} patterns (alternative format)
+    .replace(/\s*\{tag_\d+\}\s*/gi, " ")
+    // Remove {{tag_X}} patterns (double braces variant)
+    .replace(/\s*\{\{tag_\d+\}\}\s*/gi, " ")
+    // Remove <tag_X> patterns that might slip through
+    .replace(/\s*<\/?tag_\d+>\s*/gi, " ")
+    // Remove [X] numbered placeholders that sometimes appear
+    .replace(/\s*\[\d+\]\s*/gi, " ")
+    // Remove {X} numbered placeholders
+    .replace(/\s*\{\d+\}\s*/gi, " ")
+    // Clean up multiple consecutive spaces
+    .replace(/\s{2,}/g, " ")
+    // Clean up spaces before punctuation
+    .replace(/\s+([.,;:!?)])/g, "$1")
+    // Clean up spaces after opening punctuation
+    .replace(/([(["])\s+/g, "$1")
+    // Trim the result
+    .trim();
+
+  return cleaned;
+}
+
+/**
  * Translate text using Chrome Translator API
  */
 async function translateWithChrome(
@@ -726,7 +764,9 @@ async function translateWithChrome(
 
   for (let i = 0; i < chunks.length; i++) {
     const translated = await translator.translate(chunks[i]);
-    translatedChunks.push(translated);
+    // Clean translation artifacts from each chunk
+    const cleanedTranslation = cleanTranslationArtifacts(translated);
+    translatedChunks.push(cleanedTranslation);
 
     onProgress?.({
       status: "translating",
@@ -735,7 +775,9 @@ async function translateWithChrome(
     });
   }
 
-  return translatedChunks.join(" ");
+  // Join chunks and do a final cleanup pass
+  const result = translatedChunks.join(" ");
+  return cleanTranslationArtifacts(result);
 }
 
 // ============================================
