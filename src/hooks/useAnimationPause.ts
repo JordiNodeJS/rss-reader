@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef, RefObject, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useState,
+  useRef,
+  RefObject,
+  useSyncExternalStore,
+} from "react";
 
 // --- Page Visibility ---
 const pageVisibilitySubscribe = (callback: () => void) => {
@@ -26,7 +32,7 @@ export function usePageVisibility(): boolean {
 // --- Prefers Reduced Motion ---
 const createReducedMotionSubscribe = () => {
   let mediaQuery: MediaQueryList | null = null;
-  
+
   return (callback: () => void) => {
     mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     mediaQuery.addEventListener("change", callback);
@@ -35,7 +41,7 @@ const createReducedMotionSubscribe = () => {
 };
 
 const reducedMotionSubscribe = createReducedMotionSubscribe();
-const getReducedMotionSnapshot = () => 
+const getReducedMotionSnapshot = () =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const getReducedMotionServerSnapshot = () => false;
 
@@ -54,7 +60,7 @@ export function usePrefersReducedMotion(): boolean {
 /**
  * Hook to detect if an element is in the viewport using IntersectionObserver.
  * Useful for pausing animations on off-screen elements.
- * 
+ *
  * @param ref - Reference to the element to observe
  * @param rootMargin - Margin around the root (viewport). Defaults to "50px" to start animation slightly before visible.
  */
@@ -89,7 +95,7 @@ export function useInViewport(
  * - Element is in viewport (optional)
  * - Not explicitly paused
  * - User doesn't prefer reduced motion
- * 
+ *
  * @param ref - Optional reference to an element to check viewport visibility
  * @param isPaused - External pause control
  * @returns boolean - Whether animations should run
