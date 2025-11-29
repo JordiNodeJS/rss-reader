@@ -806,9 +806,14 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
                   ) : summaryHook.status === "summarizing" ||
                     summaryHook.status === "downloading" ||
                     summaryHook.status === "checking" ? (
-                    <span className="text-muted-foreground flex items-center gap-1 text-sm">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      {summaryHook.message || "Generando resumen..."}
+                    <span
+                      className="text-muted-foreground flex items-center gap-1 text-sm min-h-[2.5em]"
+                      title={summaryHook.message || "Generando resumen..."}
+                    >
+                      <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
+                      <span className="line-clamp-2">
+                        {summaryHook.message || "Generando resumen..."}
+                      </span>
                     </span>
                   ) : summaryHook.status === "error" ? (
                     <span className="text-destructive flex items-center gap-1 text-sm">
