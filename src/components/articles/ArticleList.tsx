@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Article } from "@/lib/db";
 import {
   Card,
@@ -32,9 +32,99 @@ import {
   FileText,
 } from "lucide-react";
 import { DateTime } from "luxon";
-import { detectLanguage, extractTextFromHtml, LanguageDetectionResult } from "@/lib/translation";
+import {
+  detectLanguage,
+  extractTextFromHtml,
+  LanguageDetectionResult,
+} from "@/lib/translation";
 import Image from "next/image";
 import { isValidImageUrl } from "@/lib/utils";
+
+// Minimum dimensions for "high quality" images (width or height)
+const MIN_IMAGE_DIMENSION = 300;
+
+// Cache for image dimensions to avoid re-fetching
+const imageDimensionsCache = new Map<
+  string,
+  { width: number; height: number } | null
+>();
+
+// Helper to load image dimensions (returns a promise)
+function loadImageDimensions(
+  imageUrl: string
+): Promise<{ width: number; height: number } | null> {
+  // Check cache first
+  if (imageDimensionsCache.has(imageUrl)) {
+    return Promise.resolve(imageDimensionsCache.get(imageUrl) || null);
+  }
+
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const dims = { width: img.naturalWidth, height: img.naturalHeight };
+      imageDimensionsCache.set(imageUrl, dims);
+      resolve(dims);
+    };
+    img.onerror = () => {
+      imageDimensionsCache.set(imageUrl, null);
+      resolve(null);
+    };
+    img.src = imageUrl;
+  });
+}
+
+// Hook to detect low-resolution images
+function useImageDimensions(imageUrl: string | undefined | null): {
+  isLowRes: boolean;
+  loading: boolean;
+} {
+  const [state, setState] = useState<{
+    dimensions: { width: number; height: number } | null;
+    loading: boolean;
+  }>(() => {
+    // Initialize with cached value if available
+    if (!imageUrl || !isValidImageUrl(imageUrl)) {
+      return { dimensions: null, loading: false };
+    }
+    if (imageDimensionsCache.has(imageUrl)) {
+      return {
+        dimensions: imageDimensionsCache.get(imageUrl) || null,
+        loading: false,
+      };
+    }
+    return { dimensions: null, loading: true };
+  });
+
+  useEffect(() => {
+    // Skip if no valid URL or already cached
+    if (!imageUrl || !isValidImageUrl(imageUrl)) {
+      return;
+    }
+
+    if (imageDimensionsCache.has(imageUrl)) {
+      return;
+    }
+
+    let cancelled = false;
+
+    loadImageDimensions(imageUrl).then((dims) => {
+      if (!cancelled) {
+        setState({ dimensions: dims, loading: false });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl]);
+
+  const isLowRes = state.dimensions
+    ? state.dimensions.width < MIN_IMAGE_DIMENSION &&
+      state.dimensions.height < MIN_IMAGE_DIMENSION
+    : false;
+
+  return { isLowRes, loading: state.loading };
+}
 
 // Language names for display
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -161,6 +251,249 @@ async function getArticleLanguage(
   }
 }
 
+// Article Card component that handles both layouts
+interface ArticleCardProps {
+  article: Article;
+  feeds: Feed[];
+  onSaveClick: (article: Article) => void;
+  onView: (article: Article) => void;
+  isCheckingLanguage: boolean;
+  articleToSaveId: number | undefined;
+}
+
+function ArticleCard({
+  article,
+  feeds,
+  onSaveClick,
+  onView,
+  isCheckingLanguage,
+  articleToSaveId,
+}: ArticleCardProps) {
+  const hasValidImage = isValidImageUrl(article.image);
+  const { isLowRes } = useImageDimensions(hasValidImage ? article.image : null);
+
+  // Use compact layout for low-res images or missing images
+  const useCompactLayout = !hasValidImage || isLowRes;
+
+  if (useCompactLayout) {
+    return (
+      <Card className="flex flex-col h-full hover:shadow-lg transition-all duration-200 border-muted/60 overflow-hidden group">
+        <CardHeader className="pb-2 pt-4">
+          {/* Source and Category Badges */}
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {(() => {
+              const feedTitle = getFeedTitle(article, feeds);
+              if (feedTitle) {
+                return (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 border-primary/20 text-primary font-medium"
+                  >
+                    <Newspaper className="w-3 h-3 mr-1" />
+                    {feedTitle}
+                  </Badge>
+                );
+              }
+              return null;
+            })()}
+            {(() => {
+              const displayCategory = getDisplayCategory(article.categories);
+              if (displayCategory) {
+                return (
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] px-1.5 py-0 h-5 font-medium border ${getCategoryColor(
+                      displayCategory
+                    )}`}
+                  >
+                    <Tag className="w-3 h-3 mr-1" />
+                    {displayCategory}
+                  </Badge>
+                );
+              }
+              return null;
+            })()}
+            {article.scrapedContent && (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 h-5 bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300 font-medium"
+              >
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Saved
+              </Badge>
+            )}
+          </div>
+
+          <div className="flex justify-between items-start gap-2">
+            <CardTitle className="text-lg font-bold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+              {article.title}
+            </CardTitle>
+          </div>
+          <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+            <Clock className="w-3 h-3" />
+            {tryFormatDate(article.pubDate)}
+          </div>
+        </CardHeader>
+
+        <CardContent className="flex-1 text-sm text-muted-foreground">
+          {/* Compact layout: image floats left with text wrapping around */}
+          <div className="leading-relaxed">
+            {hasValidImage && (
+              <div className="float-left mr-3 mb-2 relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted">
+                <Image
+                  src={article.image!}
+                  alt={article.title || "Article image"}
+                  fill
+                  sizes="96px"
+                  className="object-cover"
+                />
+              </div>
+            )}
+            <p className="line-clamp-5">
+              {article.contentSnippet ||
+                article.content?.replace(/<[^>]*>/g, "").slice(0, 250) + "..."}
+            </p>
+          </div>
+        </CardContent>
+
+        <CardFooter className="pt-2 pb-4 flex justify-between gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={() => onSaveClick(article)}
+            disabled={
+              !!article.scrapedContent ||
+              (isCheckingLanguage && articleToSaveId === article.id)
+            }
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {article.scrapedContent
+              ? "Saved"
+              : isCheckingLanguage && articleToSaveId === article.id
+              ? "..."
+              : "Save"}
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="flex-1 shadow-sm"
+            onClick={() => onView(article)}
+          >
+            <BookOpen className="w-4 h-4 mr-2" />
+            Read
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  // Standard layout with large image
+  return (
+    <Card className="flex flex-col h-full hover:shadow-lg transition-all duration-200 border-muted/60 overflow-hidden group">
+      <div className="aspect-video w-full overflow-hidden bg-muted relative">
+        <Image
+          src={article.image!}
+          alt={article.title || "Article image"}
+          fill
+          sizes="(max-width: 640px) 100vw, 33vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        {article.scrapedContent && (
+          <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm flex items-center gap-1">
+            <CheckCircle className="w-3 h-3 text-green-500" />
+            <span>Saved</span>
+          </div>
+        )}
+      </div>
+
+      <CardHeader className="pb-2 pt-4">
+        {/* Source and Category Badges */}
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {(() => {
+            const feedTitle = getFeedTitle(article, feeds);
+            if (feedTitle) {
+              return (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 border-primary/20 text-primary font-medium"
+                >
+                  <Newspaper className="w-3 h-3 mr-1" />
+                  {feedTitle}
+                </Badge>
+              );
+            }
+            return null;
+          })()}
+          {(() => {
+            const displayCategory = getDisplayCategory(article.categories);
+            if (displayCategory) {
+              return (
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] px-1.5 py-0 h-5 font-medium border ${getCategoryColor(
+                    displayCategory
+                  )}`}
+                >
+                  <Tag className="w-3 h-3 mr-1" />
+                  {displayCategory}
+                </Badge>
+              );
+            }
+            return null;
+          })()}
+        </div>
+
+        <div className="flex justify-between items-start gap-2">
+          <CardTitle className="text-lg font-bold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+            {article.title}
+          </CardTitle>
+        </div>
+        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+          <Clock className="w-3 h-3" />
+          {tryFormatDate(article.pubDate)}
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex-1 text-sm text-muted-foreground">
+        <p className="line-clamp-3 leading-relaxed">
+          {article.contentSnippet ||
+            article.content?.replace(/<[^>]*>/g, "").slice(0, 150) + "..."}
+        </p>
+      </CardContent>
+
+      <CardFooter className="pt-2 pb-4 flex justify-between gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          onClick={() => onSaveClick(article)}
+          disabled={
+            !!article.scrapedContent ||
+            (isCheckingLanguage && articleToSaveId === article.id)
+          }
+        >
+          <Download className="w-4 h-4 mr-2" />
+          {article.scrapedContent
+            ? "Saved"
+            : isCheckingLanguage && articleToSaveId === article.id
+            ? "..."
+            : "Save"}
+        </Button>
+        <Button
+          variant="default"
+          size="sm"
+          className="flex-1 shadow-sm"
+          onClick={() => onView(article)}
+        >
+          <BookOpen className="w-4 h-4 mr-2" />
+          Read
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
 export function ArticleList({
   articles = [],
   feeds = [],
@@ -244,110 +577,15 @@ export function ArticleList({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 md:p-6 pb-20">
       {safeArticles.map((article) => (
-        <Card
+        <ArticleCard
           key={article.id || article.guid}
-          className="flex flex-col h-full hover:shadow-lg transition-all duration-200 border-muted/60 overflow-hidden group"
-        >
-          <div className="aspect-video w-full overflow-hidden bg-muted relative">
-            <Image
-              src={isValidImageUrl(article.image) ? article.image! : "/article-placeholder.svg"}
-              alt={article.title || "Article image"}
-              fill
-              sizes="(max-width: 640px) 100vw, 33vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-            {article.scrapedContent && (
-              <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm flex items-center gap-1">
-                <CheckCircle className="w-3 h-3 text-green-500" />
-                <span>Saved</span>
-              </div>
-            )}
-          </div>
-
-          <CardHeader className="pb-2 pt-4">
-            {/* Source and Category Badges */}
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {(() => {
-                const feedTitle = getFeedTitle(article, feeds);
-                if (feedTitle) {
-                  return (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 border-primary/20 text-primary font-medium"
-                    >
-                      <Newspaper className="w-3 h-3 mr-1" />
-                      {feedTitle}
-                    </Badge>
-                  );
-                }
-                return null;
-              })()}
-              {(() => {
-                const displayCategory = getDisplayCategory(article.categories);
-                if (displayCategory) {
-                  return (
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] px-1.5 py-0 h-5 font-medium border ${getCategoryColor(
-                        displayCategory
-                      )}`}
-                    >
-                      <Tag className="w-3 h-3 mr-1" />
-                      {displayCategory}
-                    </Badge>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-
-            <div className="flex justify-between items-start gap-2">
-              <CardTitle className="text-lg font-bold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                {article.title}
-              </CardTitle>
-            </div>
-            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <Clock className="w-3 h-3" />
-              {tryFormatDate(article.pubDate)}
-            </div>
-          </CardHeader>
-
-          <CardContent className="flex-1 text-sm text-muted-foreground">
-            <p className="line-clamp-3 leading-relaxed">
-              {article.contentSnippet ||
-                article.content?.replace(/<[^>]*>/g, "").slice(0, 150) + "..."}
-            </p>
-          </CardContent>
-
-          <CardFooter className="pt-2 pb-4 flex justify-between gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => handleSaveClick(article)}
-              disabled={
-                !!article.scrapedContent ||
-                (isCheckingLanguage && articleToSave?.id === article.id)
-              }
-            >
-              <Download className="w-4 h-4 mr-2" />
-              {article.scrapedContent
-                ? "Saved"
-                : isCheckingLanguage && articleToSave?.id === article.id
-                ? "..."
-                : "Save"}
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="flex-1 shadow-sm"
-              onClick={() => onView(article)}
-            >
-              <BookOpen className="w-4 h-4 mr-2" />
-              Read
-            </Button>
-          </CardFooter>
-        </Card>
+          article={article}
+          feeds={feeds}
+          onSaveClick={handleSaveClick}
+          onView={onView}
+          isCheckingLanguage={isCheckingLanguage}
+          articleToSaveId={articleToSave?.id}
+        />
       ))}
 
       {/* Save with Translation Dialog */}
@@ -356,14 +594,16 @@ export function ArticleList({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Languages className="w-5 h-5 text-blue-500" />
-              Artículo en {LANGUAGE_NAMES[detectedLanguage] || detectedLanguage} detected
+              Artículo en {LANGUAGE_NAMES[detectedLanguage] ||
+                detectedLanguage}{" "}
+              detected
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 <span className="block">
                   Este artículo parece estar en{" "}
-                  {LANGUAGE_NAMES[detectedLanguage] || detectedLanguage}. ¿Deseas
-                  guardar el contenido original o traducirlo al español?
+                  {LANGUAGE_NAMES[detectedLanguage] || detectedLanguage}.
+                  ¿Deseas guardar el contenido original o traducirlo al español?
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   La traducción puede tardar unos segundos dependiendo de la
