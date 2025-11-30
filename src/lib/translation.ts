@@ -638,11 +638,7 @@ export async function detectLanguage(
             topResult.detectedLanguage === "es" &&
             topResult.confidence > CONFIDENCE_THRESHOLD,
         };
-        console.log("[Translation] Chrome Language Detection result:", {
-          language: result.language,
-          confidence: result.confidence.toFixed(3),
-          sampleText: sampleText.substring(0, 100),
-        });
+        // Chrome Language Detection result (debug details removed)
         return result;
       }
     } catch (error) {
@@ -652,11 +648,7 @@ export async function detectLanguage(
 
   // Fallback to heuristic
   const heuristicResult = detectLanguageHeuristic(sampleText);
-  console.log("[Translation] Heuristic Language Detection result:", {
-    language: heuristicResult.language,
-    confidence: heuristicResult.confidence.toFixed(3),
-    sampleText: sampleText.substring(0, 100),
-  });
+  // Heuristic language detection result (debug details removed)
   return heuristicResult;
 }
 
@@ -807,18 +799,14 @@ export async function translateToSpanish(
     sourceLanguage: explicitSourceLanguage,
   } = options;
 
-  console.log("[translateToSpanish] Called with:", {
-    textLength: text?.length,
-    skipLanguageDetection,
-    explicitSourceLanguage,
-  });
+  // translateToSpanish called (debug details removed)
 
   if (!text || text.trim().length === 0) {
     throw new Error("No text provided for translation");
   }
 
   let sourceLanguage = explicitSourceLanguage || "en";
-  console.log("[translateToSpanish] Using sourceLanguage:", sourceLanguage);
+  // Using sourceLanguage for translation (debug removed)
 
   // Only detect language if not skipped and no explicit source language provided
   if (!skipLanguageDetection && !explicitSourceLanguage) {
@@ -982,11 +970,8 @@ export async function translateHtmlPreservingFormat(
   onProgress?: (progress: TranslationProgress) => void,
   sourceLanguage?: string
 ): Promise<TranslationResult> {
-  console.log(
-    "[translateHtmlPreservingFormat] Called with sourceLanguage:",
-    sourceLanguage
-  );
-  console.log("[translateHtmlPreservingFormat] HTML length:", html?.length);
+  // translateHtmlPreservingFormat called (debug log removed)
+  // translateHtmlPreservingFormat: HTML length (debug removed)
 
   if (!html || html.trim().length === 0) {
     return {
@@ -1096,14 +1081,7 @@ export async function translateHtmlPreservingFormat(
   processedHtml = processedHtml.replace(/\n{3,}/g, "\n\n").trim();
 
   // Translate the processed text
-  console.log(
-    "[translateHtmlPreservingFormat] Calling translateToSpanish with sourceLanguage:",
-    sourceLanguage
-  );
-  console.log(
-    "[translateHtmlPreservingFormat] processedHtml length:",
-    processedHtml.length
-  );
+  // translateHtmlPreservingFormat calling translateToSpanish (debug logs removed)
 
   const result = await translateToSpanish({
     text: processedHtml,
@@ -1112,11 +1090,7 @@ export async function translateHtmlPreservingFormat(
     sourceLanguage,
   });
 
-  console.log("[translateHtmlPreservingFormat] Translation result:", {
-    provider: result.provider,
-    sourceLanguage: result.sourceLanguage,
-    translatedTextLength: result.translatedText?.length,
-  });
+  // Translation result received (debug details removed)
 
   // Restore tags from placeholders
   let translatedHtml = result.translatedText;
@@ -1275,7 +1249,7 @@ export async function getDownloadedModels(): Promise<CachedModel[]> {
   if (typeof caches === "undefined") return [];
 
   const cacheNames = await caches.keys();
-  console.log("[CacheManager] Scanning caches:", cacheNames);
+  // Scanning caches (debug log removed)
 
   const modelMap = new Map<string, { size: number; fileCount: number }>();
 
@@ -1381,45 +1355,28 @@ export async function getAllCacheNames(): Promise<string[]> {
  */
 async function diagnoseChromeTranslatorAPI(): Promise<void> {
   if (typeof Translator === "undefined") {
-    console.log("[Translation] Translator API not available");
+    // Translator API not available
     return;
   }
 
-  console.log("[Translation] Translator API available. Checking methods...");
-  console.log("[Translation] Translator methods:", Object.keys(Translator));
-  console.log(
-    "[Translation] Translator prototype:",
-    Object.getOwnPropertyNames(Object.getPrototypeOf(Translator))
-  );
+  // Translator API available. Methods check (debug logs removed)
+  // Translator prototype information (debug removed)
 
   // Check if deleteModel exists
   const translatorAny = Translator as unknown as Record<string, unknown>;
-  console.log(
-    "[Translation] Translator.deleteModel exists:",
-    typeof translatorAny.deleteModel
-  );
-  console.log(
-    "[Translation] Translator.deleteModel type:",
-    typeof translatorAny.deleteModel
-  );
+  // Translator.deleteModel check (debug removed)
 
   if (typeof LanguageDetector !== "undefined") {
     const detectorAny = LanguageDetector as unknown as Record<string, unknown>;
-    console.log(
-      "[Translation] LanguageDetector.deleteModel exists:",
-      typeof detectorAny.deleteModel
-    );
+    // LanguageDetector.deleteModel check (debug removed)
   }
 
   // Check storage APIs
   if (typeof navigator !== "undefined" && navigator.storage) {
-    console.log(
-      "[Translation] navigator.storage available:",
-      !!navigator.storage
-    );
+    // navigator.storage availability check (debug removed)
     if (navigator.storage.estimate) {
       const estimate = await navigator.storage.estimate();
-      console.log("[Translation] Storage estimate:", estimate);
+      // Storage estimate (debug removed)
     }
   }
 
@@ -1433,10 +1390,7 @@ async function diagnoseChromeTranslatorAPI(): Promise<void> {
           db.name?.toLowerCase().includes("chrome") ||
           db.name?.toLowerCase().includes("on-device")
       );
-      console.log(
-        "[Translation] Chrome Translator related IndexedDB databases:",
-        chromeDBs
-      );
+      // Chrome Translator related IndexedDB databases (debug removed)
     }
   }
 }
@@ -1468,7 +1422,7 @@ async function deleteChromeModel(modelId: string): Promise<void> {
     if (chromeLanguageDetector) {
       try {
         chromeLanguageDetector.destroy();
-        console.log("[Translation] Language Detector instance destroyed");
+        // Language Detector instance destroyed
       } catch (error) {
         console.warn(
           "[Translation] Error destroying Language Detector:",
@@ -1485,9 +1439,7 @@ async function deleteChromeModel(modelId: string): Promise<void> {
         LanguageDetector.deleteModel
       ) {
         await LanguageDetector.deleteModel();
-        console.log(
-          "[Translation] Language Detector model deleted via deleteModel()"
-        );
+        // Language Detector model deleted via deleteModel() (debug removed)
         return;
       }
     } catch (error) {
@@ -1535,16 +1487,13 @@ async function deleteChromeModel(modelId: string): Promise<void> {
   const targetCode = "es";
   const key = `${sourceCode}-${targetCode}`;
 
-  console.log(
-    `[Translation] Attempting to delete Chrome Translator model: ${sourceCode}->${targetCode}`
-  );
+  // Attempting to delete Chrome Translator model (debug log removed)
 
   // Destroy the Translator instance if it exists
   const translator = chromeTranslators.get(key);
   if (translator) {
     try {
       translator.destroy();
-      console.log(`[Translation] Translator instance (${key}) destroyed`);
     } catch (error) {
       console.warn(
         `[Translation] Error destroying Translator (${key}):`,
@@ -1553,9 +1502,7 @@ async function deleteChromeModel(modelId: string): Promise<void> {
     }
     chromeTranslators.delete(key);
   } else {
-    console.log(
-      `[Translation] No Translator instance found in memory for ${key}`
-    );
+    // No Translator instance found in memory for this key (debug removed)
   }
 
   // Try to use deleteModel() if available
@@ -1566,18 +1513,14 @@ async function deleteChromeModel(modelId: string): Promise<void> {
         sourceLanguage: sourceCode,
         targetLanguage: targetCode,
       });
-      console.log(
-        `[Translation] ✅ Model ${sourceCode}->${targetCode} deleted via deleteModel()`
-      );
+      // Model deleted via deleteModel() (debug removed)
 
       // Verify deletion by checking availability
       const availability = await Translator.availability({
         sourceLanguage: sourceCode,
         targetLanguage: targetCode,
       });
-      console.log(
-        `[Translation] Model availability after deleteModel(): ${availability}`
-      );
+      // Model availability after deleteModel() (debug removed)
 
       if (availability === "available") {
         console.warn(
@@ -1605,9 +1548,7 @@ async function deleteChromeModel(modelId: string): Promise<void> {
       sourceLanguage: sourceCode,
       targetLanguage: targetCode,
     });
-    console.log(
-      `[Translation] Final model availability check: ${finalAvailability}`
-    );
+    // Final model availability check (debug removed)
 
     if (finalAvailability === "available") {
       console.warn(
