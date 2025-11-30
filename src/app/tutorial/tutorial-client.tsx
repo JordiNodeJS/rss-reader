@@ -21,7 +21,6 @@ import {
   Search,
   Star,
   Download,
-  MousePointer,
   Menu,
   ArrowRight,
 } from "lucide-react";
@@ -48,7 +47,9 @@ function TutorialStep({
 }: TutorialStepProps) {
   return (
     <div
-      className={`flex flex-col ${reverse ? "lg:flex-row-reverse" : "lg:flex-row"} gap-8 items-center`}
+      className={`flex flex-col ${
+        reverse ? "lg:flex-row-reverse" : "lg:flex-row"
+      } gap-8 items-center`}
     >
       <div className="flex-1 space-y-4">
         <div className="flex items-center gap-3">
@@ -122,13 +123,21 @@ function FeatureHighlight({ icon, title, description }: FeatureHighlightProps) {
 
 const tableOfContents = [
   { id: "intro", label: "Introducción", icon: <Rss className="w-4 h-4" /> },
-  { id: "add-feeds", label: "Añadir Feeds", icon: <Plus className="w-4 h-4" /> },
+  {
+    id: "add-feeds",
+    label: "Añadir Feeds",
+    icon: <Plus className="w-4 h-4" />,
+  },
   {
     id: "read-articles",
     label: "Leer Artículos",
     icon: <BookOpen className="w-4 h-4" />,
   },
-  { id: "themes", label: "Personalizar", icon: <Palette className="w-4 h-4" /> },
+  {
+    id: "themes",
+    label: "Personalizar",
+    icon: <Palette className="w-4 h-4" />,
+  },
   {
     id: "features",
     label: "Características",
@@ -225,16 +234,10 @@ export default function TutorialClient() {
                         conexión.
                       </p>
                       <div className="flex flex-wrap gap-3">
-                        <Badge
-                          variant="outline"
-                          className="gap-1 py-1.5 px-3"
-                        >
+                        <Badge variant="outline" className="gap-1 py-1.5 px-3">
                           <Plus className="w-3 h-3" />5 min de lectura
                         </Badge>
-                        <Badge
-                          variant="outline"
-                          className="gap-1 py-1.5 px-3"
-                        >
+                        <Badge variant="outline" className="gap-1 py-1.5 px-3">
                           <Star className="w-3 h-3" />
                           Principiantes
                         </Badge>
@@ -393,10 +396,11 @@ export default function TutorialClient() {
                         +40 temas disponibles
                       </h4>
                       <p className="text-muted-foreground">
-                        Desde estilos minimalistas como <strong>Clean Slate</strong>{" "}
-                        hasta diseños vibrantes como <strong>Retro Arcade</strong>.
-                        Usa el carrusel en la cabecera para cambiar de tema al
-                        instante. Tu preferencia se guarda automáticamente.
+                        Desde estilos minimalistas como{" "}
+                        <strong>Clean Slate</strong> hasta diseños vibrantes
+                        como <strong>Retro Arcade</strong>. Usa el carrusel en
+                        la cabecera para cambiar de tema al instante. Tu
+                        preferencia se guarda automáticamente.
                       </p>
                     </div>
                   </div>

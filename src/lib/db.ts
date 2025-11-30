@@ -100,7 +100,7 @@ export const getDB = () => {
                   message:
                     "IDB versionchange detected on open DB (possible delete or migration)",
                 });
-              } catch (_) {}
+              } catch {}
             });
           } catch (e) {
             console.warn(
@@ -124,7 +124,7 @@ export const getDB = () => {
                   (err as Error)?.message ?? String(err)
                 }`,
               });
-            } catch (_) {}
+            } catch {}
           });
         } catch {}
       }
@@ -318,7 +318,7 @@ export const clearAllData = async () => {
             name: DB_NAME,
             message: "clearAllData() invoked",
           });
-        } catch (_) {}
+        } catch {}
       });
     } catch {
       // ignore dynamic import errors

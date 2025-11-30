@@ -794,7 +794,6 @@ export async function translateToSpanish(
   const {
     text,
     onProgress,
-    preferredProvider: _preferredProvider,
     skipLanguageDetection = false,
     sourceLanguage: explicitSourceLanguage,
   } = options;
@@ -1363,11 +1362,9 @@ async function diagnoseChromeTranslatorAPI(): Promise<void> {
   // Translator prototype information (debug removed)
 
   // Check if deleteModel exists
-  const translatorAny = Translator as unknown as Record<string, unknown>;
   // Translator.deleteModel check (debug removed)
 
   if (typeof LanguageDetector !== "undefined") {
-    const detectorAny = LanguageDetector as unknown as Record<string, unknown>;
     // LanguageDetector.deleteModel check (debug removed)
   }
 
@@ -1375,7 +1372,7 @@ async function diagnoseChromeTranslatorAPI(): Promise<void> {
   if (typeof navigator !== "undefined" && navigator.storage) {
     // navigator.storage availability check (debug removed)
     if (navigator.storage.estimate) {
-      const estimate = await navigator.storage.estimate();
+      await navigator.storage.estimate();
       // Storage estimate (debug removed)
     }
   }
@@ -1384,13 +1381,13 @@ async function diagnoseChromeTranslatorAPI(): Promise<void> {
   if (typeof indexedDB !== "undefined") {
     const databases = await indexedDB.databases?.();
     if (databases) {
-      const chromeDBs = databases.filter(
+      // Filter Chrome Translator related IndexedDB databases (debug removed)
+      databases.filter(
         (db) =>
           db.name?.toLowerCase().includes("translator") ||
           db.name?.toLowerCase().includes("chrome") ||
           db.name?.toLowerCase().includes("on-device")
       );
-      // Chrome Translator related IndexedDB databases (debug removed)
     }
   }
 }
