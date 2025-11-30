@@ -128,7 +128,6 @@ export function useTranslation(
 
       // If article already has a manually set originalLanguage, use it
       if (article.originalLanguage && article.originalLanguage !== "unknown") {
-        console.log("[useTranslation] Using saved originalLanguage:", article.originalLanguage);
         setSourceLanguage(article.originalLanguage);
       } else {
         // Detect language
@@ -145,7 +144,7 @@ export function useTranslation(
 
           if (textContent.length > 20) {
             const detection = await detectLanguage(textContent);
-            console.log("[useTranslation] Language detection for article:", {
+            // Language detection result for article (debugging info removed)
               articleId: article.id,
               title: article.title.substring(0, 50),
               detectedLanguage: detection.language,
@@ -159,10 +158,6 @@ export function useTranslation(
             setSourceLanguage(detection.language);
           } else {
             // Too short to detect, assume English for English-language feeds
-            console.log("[useTranslation] Text too short for detection, defaulting to 'en':", {
-              articleId: article.id,
-              textLength: textContent.length,
-            });
             setSourceLanguage("en");
           }
         };
@@ -234,8 +229,7 @@ export function useTranslation(
       // Translate content preserving HTML formatting
       setMessage("Translating content...");
       
-      console.log("[useTranslation] Translating content with sourceLanguage:", sourceLanguage);
-      console.log("[useTranslation] contentToTranslate length:", contentToTranslate.length);
+      // Translating content (debugging info removed)
 
       const contentResult = await translateHtmlPreservingFormat(
         contentToTranslate,
@@ -243,10 +237,7 @@ export function useTranslation(
         sourceLanguage
       );
       
-      console.log("[useTranslation] Content translation result:", {
-        translatedTextLength: contentResult.translatedText?.length,
-        provider: contentResult.provider,
-      });
+      // Content translation result (debugging info removed)
 
       // Update state
       setTranslatedTitle(titleResult.translatedText);
@@ -345,7 +336,6 @@ export function useTranslation(
     if (article?.id && cacheTranslations) {
       try {
         await updateArticleLanguage(article.id, language);
-        console.log("[useTranslation] Updated article language to:", language);
       } catch (err) {
         console.warn(
           "[useTranslation] Failed to update article language:",

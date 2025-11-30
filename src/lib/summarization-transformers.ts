@@ -98,7 +98,7 @@ function handleWorkerMessage(
 
   // Handle worker ready signal
   if (message.type === "ready" && !("id" in message)) {
-    console.log("[TransformersSummarization] Worker ready");
+    // Worker reported ready
     return;
   }
 
@@ -421,8 +421,6 @@ export async function clearSummarizationModelCache(): Promise<void> {
 
     // Also terminate the worker to release memory
     terminateSummarizationWorker();
-
-    console.log("[TransformersSummarization] Cache cleared");
   } catch (error) {
     console.error("[TransformersSummarization] Error clearing cache:", error);
     throw error;

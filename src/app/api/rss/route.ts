@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
         await new Promise((resolve) =>
           setTimeout(resolve, RETRY_DELAY * attempt)
         );
-        console.log(`Retry attempt ${attempt + 1} for ${feedUrl}`);
+        // Retry attempt for feed parsing
         return tryParseFeed(feedUrl, attempt + 1);
       }
       throw error;
@@ -208,9 +208,7 @@ export async function GET(request: NextRequest) {
           const feedCandidate = await tryParseFeed(discoveredFromHead);
           if (feedCandidate) {
             // Use discovered feed
-            console.log(
-              `HEAD 404: discovered alternate feed ${discoveredFromHead} for ${url}`
-            );
+            // HEAD 404: discovered alternate feed
             const response = NextResponse.json({
               ...feedCandidate,
               _meta: {
@@ -255,7 +253,7 @@ export async function GET(request: NextRequest) {
         try {
           feed = await tryParseFeed(discovered);
           usedUrl = discovered;
-          console.log(`Discovered feed ${discovered} for requested URL ${url}`);
+          // Discovered feed for requested URL
         } catch {
           // ignore discovery failure and continue below to throw error
         }
