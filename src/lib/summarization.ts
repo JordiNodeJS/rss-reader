@@ -96,24 +96,18 @@ function getSummarizerKey(
 export async function isSummarizerAvailable(): Promise<boolean> {
   // Check if running in browser
   if (typeof window === "undefined") {
-    console.log("[Summarization] Not in browser environment");
     return false;
   }
 
   // Check if Summarizer API exists
   if (typeof Summarizer === "undefined") {
-    console.log(
-      "[Summarization] Summarizer API not found. Chrome 138+ required."
-    );
-    console.log("[Summarization] Current user agent:", navigator.userAgent);
+    // Summarizer API not available
 
     // Try to detect Chrome version
     const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+)/);
     if (chromeMatch) {
       const chromeVersion = parseInt(chromeMatch[1], 10);
-      console.log(
-        `[Summarization] Chrome version detected: ${chromeVersion} (need 138+)`
-      );
+      // Detected Chrome version; no log needed here
     }
 
     return false;
@@ -121,14 +115,10 @@ export async function isSummarizerAvailable(): Promise<boolean> {
 
   try {
     const availability = await Summarizer.availability();
-    console.log("[Summarization] API availability:", availability);
     return availability !== "unavailable";
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn(
-      "[Summarization] Error checking Summarizer availability:",
-      errorMessage
-    );
+    // Warning: error checking Summarizer availability
 
     // Check for specific error messages
     if (
