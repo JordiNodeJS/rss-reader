@@ -106,8 +106,7 @@ export async function isSummarizerAvailable(): Promise<boolean> {
     // Try to detect Chrome version
     const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+)/);
     if (chromeMatch) {
-      const chromeVersion = parseInt(chromeMatch[1], 10);
-      // Detected Chrome version; no log needed here
+      // Chrome version detected; no action needed here
     }
 
     return false;

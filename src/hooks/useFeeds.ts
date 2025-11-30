@@ -167,7 +167,7 @@ export function useFeeds() {
           message:
             "IndexedDB feeds emptied unexpectedly (not by user clearCache)",
         });
-      } catch (_e) {}
+      } catch {}
       console.warn("feeds became empty unexpectedly");
       // Restore backup attempt: already implemented elsewhere
     }
@@ -212,7 +212,7 @@ export function useFeeds() {
                 name: "rss-reader-db",
                 message: "Feeds restored from localStorage backup",
               });
-            } catch (_) {}
+            } catch {}
             toast.success("Feeds restaurados desde copia de seguridad local");
           } catch (err) {
             console.warn("Failed to restore feeds from local backup", err);
@@ -232,7 +232,7 @@ export function useFeeds() {
       if (Array.isArray(feeds) && feeds.length > 0) {
         saveFeedsBackupToLocalStorage(feeds);
       }
-    } catch (_e) {
+    } catch {
       /* ignore */
     }
   }, [feeds, saveFeedsBackupToLocalStorage]);
@@ -613,7 +613,7 @@ export function useFeeds() {
           name: "rss-reader-db",
           message: "clearCache() invoked by user",
         });
-      } catch (_) {}
+      } catch {}
       try {
         localStorage.removeItem(FEEDS_BACKUP_KEY);
       } catch {

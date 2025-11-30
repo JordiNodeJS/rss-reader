@@ -1,7 +1,7 @@
 // Minimal no-op service worker stub to avoid 404 requests from browsers
 // This file intentionally does not add caching logic. It simply registers
 // basic lifecycle hooks so dev servers and browsers won't return 404s.
-self.addEventListener("install", (_event) => {
+self.addEventListener("install", () => {
   // Activate immediately without waiting
   self.skipWaiting();
 });
@@ -14,7 +14,7 @@ self.addEventListener("activate", (event) => {
 });
 
 // Optional fetch handler: pass-through
-self.addEventListener("fetch", (_event) => {
+self.addEventListener("fetch", () => {
   // No special handling — allow network requests to proceed.
 });
 
