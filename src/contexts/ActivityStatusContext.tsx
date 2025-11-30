@@ -72,7 +72,7 @@ export const ACTIVITY_CONFIG: Record<
   idle: {
     color: "bg-green-500",
     pulseColor: "bg-green-400",
-    label: "ONLINE",
+    label: "READY",
   },
   "fetching-rss": {
     color: "bg-blue-500",

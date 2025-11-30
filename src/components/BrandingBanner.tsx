@@ -7,10 +7,6 @@ import { Rss, HelpCircle, GraduationCap } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  useActivityStatus,
-  ACTIVITY_CONFIG,
-} from "@/contexts/ActivityStatusContext";
 
 // Lazy load ThemeCarousel - it has animations and is not critical for initial render
 const ThemeCarousel = lazy(() =>
@@ -60,8 +56,6 @@ function usePageReady(): boolean {
 }
 
 export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
-  const { activity } = useActivityStatus();
-  const activityConfig = ACTIVITY_CONFIG[activity.status];
   const isPageReady = usePageReady();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -453,33 +447,6 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
               : "gap-2 pl-3 pr-1 py-1 scale-90"
           )}
         >
-          <div className="hidden md:flex items-center">
-            <div className="flex flex-col items-end">
-              <span
-                className={cn(
-                  "text-[8px] uppercase tracking-wider text-muted-foreground whitespace-nowrap transition-all duration-300",
-                  isScrolled
-                    ? "h-0 opacity-0 mb-0 scale-0"
-                    : "h-auto opacity-100 mb-0.5 scale-100"
-                )}
-              >
-                System Status
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    "w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-300",
-                    activityConfig.color,
-                    activity.status !== "idle" && "animate-pulse"
-                  )}
-                  title={activity.message || activityConfig.label}
-                />
-                <span className="text-xs font-semibold text-foreground/70">
-                  {activityConfig.label}
-                </span>
-              </div>
-            </div>
-          </div>
           <Link href="/tutorial" title="Tutorial">
             <Button
               variant="ghost"
