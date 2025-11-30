@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import Link from "next/link";
 import gsap from "gsap";
-import { Rss, HelpCircle } from "lucide-react";
+import { Rss, HelpCircle, GraduationCap } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -480,6 +480,15 @@ export function BrandingBanner({ isScrolled = false }: BrandingBannerProps) {
               </div>
             </div>
           </div>
+          <Link href="/tutorial" title="Tutorial">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full hover:bg-primary/10 h-7 w-7"
+            >
+              <GraduationCap className="text-muted-foreground hover:text-primary transition-colors h-4 w-4" />
+            </Button>
+          </Link>
           <Link href="/help" title="Centro de Ayuda">
             <Button
               variant="ghost"
