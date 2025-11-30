@@ -781,68 +781,74 @@ function SidebarContent({
             </Button>
             <Separator className="my-2" />
 
-            {/* Favoritos section */}
-            {feeds.some((f) => f.isFavorite) && (
-              <>
-                <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1">
-                  <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
-                  Favoritos
-                </h3>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={feeds.filter((f) => f.isFavorite).map((f) => f.id!)}
-                    strategy={verticalListSortingStrategy}
+            {/* Feeds container with scroll - max height calculated to leave room for footer actions */}
+            <div className="max-h-[calc(100vh-380px)] overflow-y-auto overflow-x-hidden pr-1 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+              {/* Favoritos section */}
+              {feeds.some((f) => f.isFavorite) && (
+                <>
+                  <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                    Favoritos
+                  </h3>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
                   >
-                    {feeds
-                      .filter((f) => f.isFavorite)
-                      .map((feed) => (
-                        <SortableFeedItem
-                          key={feed.id}
-                          feed={feed}
-                          selectedFeedId={selectedFeedId}
-                          setSelectedFeedId={setSelectedFeedId}
-                          openEditDialog={openEditDialog}
-                          removeFeed={removeFeed}
-                          toggleFavorite={toggleFeedFavorite}
-                        />
-                      ))}
-                  </SortableContext>
-                </DndContext>
-                <Separator className="my-2" />
-              </>
-            )}
+                    <SortableContext
+                      items={feeds
+                        .filter((f) => f.isFavorite)
+                        .map((f) => f.id!)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {feeds
+                        .filter((f) => f.isFavorite)
+                        .map((feed) => (
+                          <SortableFeedItem
+                            key={feed.id}
+                            feed={feed}
+                            selectedFeedId={selectedFeedId}
+                            setSelectedFeedId={setSelectedFeedId}
+                            openEditDialog={openEditDialog}
+                            removeFeed={removeFeed}
+                            toggleFavorite={toggleFeedFavorite}
+                          />
+                        ))}
+                    </SortableContext>
+                  </DndContext>
+                  <Separator className="my-2" />
+                </>
+              )}
 
-            <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-              Tus feeds
-            </h3>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={feeds.filter((f) => !f.isFavorite).map((f) => f.id!)}
-                strategy={verticalListSortingStrategy}
+              <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
+                Tus feeds
+              </h3>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
               >
-                {feeds
-                  .filter((f) => !f.isFavorite)
-                  .map((feed) => (
-                    <SortableFeedItem
-                      key={feed.id}
-                      feed={feed}
-                      selectedFeedId={selectedFeedId}
-                      setSelectedFeedId={setSelectedFeedId}
-                      openEditDialog={openEditDialog}
-                      removeFeed={removeFeed}
-                      toggleFavorite={toggleFeedFavorite}
-                    />
-                  ))}
-              </SortableContext>
-            </DndContext>
+                <SortableContext
+                  items={feeds.filter((f) => !f.isFavorite).map((f) => f.id!)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {feeds
+                    .filter((f) => !f.isFavorite)
+                    .map((feed) => (
+                      <SortableFeedItem
+                        key={feed.id}
+                        feed={feed}
+                        selectedFeedId={selectedFeedId}
+                        setSelectedFeedId={setSelectedFeedId}
+                        openEditDialog={openEditDialog}
+                        removeFeed={removeFeed}
+                        toggleFavorite={toggleFeedFavorite}
+                      />
+                    ))}
+                </SortableContext>
+              </DndContext>
+            </div>
+            {/* End of feeds scroll container */}
           </div>
 
           <div className="px-2 py-4 border-t space-y-4 mt-4 pb-32">
