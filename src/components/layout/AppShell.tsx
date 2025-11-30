@@ -8,8 +8,8 @@ import {
   useState,
   lazy,
   Suspense,
-  useSyncExternalStore,
 } from "react";
+import { useIsClient } from "@/hooks/useIsClient";
 import {
   Sheet,
   SheetContent,
@@ -107,27 +107,6 @@ const SIDEBAR_CONFIG = {
   /** Mobile sidebar width */
   MOBILE_WIDTH: 288,
 } as const;
-
-// ============================================================
-// Hydration-safe client detection hook
-// Uses useSyncExternalStore to avoid hydration mismatches
-// See: https://react.dev/reference/react/useSyncExternalStore
-// ============================================================
-const emptySubscribe = () => () => {};
-const getClientSnapshot = () => true;
-const getServerSnapshot = () => false;
-
-/**
- * Hook to detect client-side rendering without hydration issues.
- * Returns false during SSR and initial hydration, true after hydration.
- */
-function useIsClient() {
-  return useSyncExternalStore(
-    emptySubscribe,
-    getClientSnapshot,
-    getServerSnapshot
-  );
-}
 
 interface AppShellProps {
   children: React.ReactNode;

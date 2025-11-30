@@ -10,23 +10,18 @@ import {
 import { preloadAllThemes } from "@/lib/theme-loader";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { useIsClient } from "@/hooks/useIsClient";
 
 export function ThemeSwitcher() {
   const { currentTheme, setTheme, isLoading } = useThemeConfig();
   const [isOpen, setIsOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const isClient = useIsClient();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   // Get current theme info
   const currentThemeInfo = AVAILABLE_THEMES.find((t) => t.id === currentTheme);
-
-  // Track mount state for portal
-  useEffect(() => {
-    const id = window.setTimeout(() => setIsMounted(true), 0);
-    return () => window.clearTimeout(id);
-  }, []);
 
   // Precargar todos los temas cuando el componente se monta
   useEffect(() => {
@@ -172,7 +167,7 @@ export function ThemeSwitcher() {
       </button>
 
       {/* Dropdown menu - rendered via portal to escape overflow:hidden containers */}
-      {isMounted &&
+      {isClient &&
         isOpen &&
         createPortal(
           <div

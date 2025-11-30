@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useSyncExternalStore, useRef } from "react";
+import { memo, useRef } from "react";
 import { AVAILABLE_THEMES, useThemeConfig } from "@/hooks/use-theme-config";
 import { cn } from "@/lib/utils";
 import {
@@ -8,19 +8,7 @@ import {
   useInViewport,
   usePrefersReducedMotion,
 } from "@/hooks/useAnimationPause";
-
-// Hook to detect client-side rendering without causing hydration issues
-const emptySubscribe = () => () => {};
-const getClientSnapshot = () => true;
-const getServerSnapshot = () => false;
-
-function useIsClient() {
-  return useSyncExternalStore(
-    emptySubscribe,
-    getClientSnapshot,
-    getServerSnapshot
-  );
-}
+import { useIsClient } from "@/hooks/useIsClient";
 
 interface ThemeCarouselProps {
   /** When true, animation is paused to save CPU/GPU */
