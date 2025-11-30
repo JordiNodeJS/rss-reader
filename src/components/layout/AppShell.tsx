@@ -18,7 +18,7 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Plus, Trash2, Inbox, Trash, Pencil } from "lucide-react";
+import { Menu, Plus, Trash2, Inbox, Trash, Pencil, Star } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useFeeds } from "@/hooks/useFeeds";
@@ -470,6 +470,7 @@ interface SortableFeedItemProps {
   setSelectedFeedId: (id: number | null) => void;
   openEditDialog: (feed: Feed) => void;
   removeFeed: (id: number) => void;
+  toggleFavorite: (id: number) => void;
 }
 
 function SortableFeedItem({
@@ -478,6 +479,7 @@ function SortableFeedItem({
   setSelectedFeedId,
   openEditDialog,
   removeFeed,
+  toggleFavorite,
 }: SortableFeedItemProps) {
   const {
     attributes,
@@ -505,15 +507,31 @@ function SortableFeedItem({
     >
       <Button
         variant={selectedFeedId === feed.id ? "secondary" : "ghost"}
-        className="w-full justify-start text-sm font-normal pr-20 overflow-hidden cursor-grab active:cursor-grabbing"
+        className="w-full justify-start text-sm font-normal pr-24 overflow-hidden cursor-grab active:cursor-grabbing"
         onClick={() => setSelectedFeedId(feed.id!)}
       >
+        {feed.isFavorite && (
+          <Star className="w-3 h-3 mr-1 fill-yellow-500 text-yellow-500 flex-shrink-0" />
+        )}
         <MarqueeText
           text={feed.customTitle || feed.title}
           className="flex-1 text-left"
         />
       </Button>
       <div className="absolute right-5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`h-6 w-6 ${feed.isFavorite ? "text-yellow-500" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (feed.id) toggleFavorite(feed.id);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          title={feed.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"}
+        >
+          <Star className={`w-3 h-3 ${feed.isFavorite ? "fill-current" : ""}`} />
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -552,6 +570,7 @@ interface SidebarContentProps {
   updateFeedTitle: (id: number, customTitle: string) => Promise<void>;
   clearCache: () => Promise<void>;
   reorderFeeds: (feeds: Feed[]) => Promise<void>;
+  toggleFeedFavorite: (id: number) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -564,6 +583,7 @@ function SidebarContent({
   updateFeedTitle,
   clearCache,
   reorderFeeds,
+  toggleFeedFavorite,
   isLoading,
 }: SidebarContentProps) {
   const [newFeedUrl, setNewFeedUrl] = useState("");
@@ -758,6 +778,42 @@ function SidebarContent({
               Todos los artículos
             </Button>
             <Separator className="my-2" />
+            
+            {/* Favoritos section */}
+            {feeds.some((f) => f.isFavorite) && (
+              <>
+                <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                  Favoritos
+                </h3>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={feeds.filter((f) => f.isFavorite).map((f) => f.id!)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {feeds
+                      .filter((f) => f.isFavorite)
+                      .map((feed) => (
+                        <SortableFeedItem
+                          key={feed.id}
+                          feed={feed}
+                          selectedFeedId={selectedFeedId}
+                          setSelectedFeedId={setSelectedFeedId}
+                          openEditDialog={openEditDialog}
+                          removeFeed={removeFeed}
+                          toggleFavorite={toggleFeedFavorite}
+                        />
+                      ))}
+                  </SortableContext>
+                </DndContext>
+                <Separator className="my-2" />
+              </>
+            )}
+            
             <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
               Tus feeds
             </h3>
@@ -767,19 +823,22 @@ function SidebarContent({
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={feeds.map((f) => f.id!)}
+                items={feeds.filter((f) => !f.isFavorite).map((f) => f.id!)}
                 strategy={verticalListSortingStrategy}
               >
-                {(feeds || []).map((feed) => (
-                  <SortableFeedItem
-                    key={feed.id}
-                    feed={feed}
-                    selectedFeedId={selectedFeedId}
-                    setSelectedFeedId={setSelectedFeedId}
-                    openEditDialog={openEditDialog}
-                    removeFeed={removeFeed}
-                  />
-                ))}
+                {feeds
+                  .filter((f) => !f.isFavorite)
+                  .map((feed) => (
+                    <SortableFeedItem
+                      key={feed.id}
+                      feed={feed}
+                      selectedFeedId={selectedFeedId}
+                      setSelectedFeedId={setSelectedFeedId}
+                      openEditDialog={openEditDialog}
+                      removeFeed={removeFeed}
+                      toggleFavorite={toggleFeedFavorite}
+                    />
+                  ))}
               </SortableContext>
             </DndContext>
           </div>
@@ -933,6 +992,7 @@ export function AppShell({
     setSelectedFeedId,
     clearCache,
     reorderFeeds,
+    toggleFeedFavorite,
     isLoading,
   } = feedState;
   const [menuTop, setMenuTop] = useState<number | null>(null);
@@ -1119,6 +1179,7 @@ export function AppShell({
             updateFeedTitle={updateFeedTitle}
             clearCache={clearCache}
             reorderFeeds={reorderFeeds}
+            toggleFeedFavorite={toggleFeedFavorite}
             isLoading={isLoading}
           />
           {/* Resize Indicator */}
@@ -1173,6 +1234,7 @@ export function AppShell({
                 updateFeedTitle={updateFeedTitle}
                 clearCache={clearCache}
                 reorderFeeds={reorderFeeds}
+                toggleFeedFavorite={toggleFeedFavorite}
                 isLoading={isLoading}
               />
             </div>
