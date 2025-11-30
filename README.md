@@ -81,9 +81,12 @@ pnpm dev
 
 Abre `http://localhost:3000` en tu navegador.
 
-## 🧪 E2E Tests (Playwright)
+## 🔖 Changelog (reciente)
 
-El repositorio incluye pruebas end-to-end con Playwright para validar flujos críticos como la regeneración de artículos y la persistencia en IndexedDB.
+- **PR #6** — feat(articles): añadida imagen de placeholder y mejoras en el estado vacío (`public/empty-state-creative.png`, `src/components/articles/ArticleList.tsx`). Mergeado en `main` (commit `31c2882`).
+- **PR #7** — perf(theme): optimizaciones de rendimiento en `ThemeCarousel`, nueva utilidad `src/hooks/useAnimationPause.ts` y notas de rendimiento en `docs/performance-tasks.md`. Mergeado en `main` (commit `6f781d0`).
+
+## 🧪 Tests E2E
 
 ```bash
 # Instalar dependencias (usa pnpm)
@@ -97,11 +100,6 @@ pnpm run test:e2e
 ```
 
 Nota: el script `test:e2e` usa `pnpm dlx playwright test` tal como está definido en `package.json`.
-
-## 🔖 Changelog (reciente)
-
-- **PR #6** — feat(articles): añadida imagen de placeholder y mejoras en el estado vacío (`public/empty-state-creative.png`, `src/components/articles/ArticleList.tsx`). Mergeado en `main` (commit `31c2882`).
-- **PR #7** — perf(theme): optimizaciones de rendimiento en `ThemeCarousel`, nueva utilidad `src/hooks/useAnimationPause.ts` y notas de rendimiento en `docs/performance-tasks.md`. Mergeado en `main` (commit `6f781d0`).
 
 Consulta `docs/performance-tasks.md` para los detalles de las optimizaciones y recomendaciones de benchmark.
 

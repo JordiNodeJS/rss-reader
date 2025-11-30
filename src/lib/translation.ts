@@ -8,7 +8,6 @@
  */
 
 // Types are declared in src/types/chrome-ai.d.ts as ambient types
-import { logDBEvent } from "@/lib/db-monitor";
 
 // ============================================
 // Types
@@ -803,7 +802,7 @@ export async function translateToSpanish(
   const {
     text,
     onProgress,
-    preferredProvider,
+    preferredProvider: _preferredProvider,
     skipLanguageDetection = false,
     sourceLanguage: explicitSourceLanguage,
   } = options;

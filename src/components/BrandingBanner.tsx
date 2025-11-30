@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  lazy,
-  Suspense,
-} from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import Link from "next/link";
 import gsap from "gsap";
 import { Rss, HelpCircle } from "lucide-react";
