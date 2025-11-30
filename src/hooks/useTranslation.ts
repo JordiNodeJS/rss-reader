@@ -8,7 +8,12 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Article, updateArticleTranslation, updateArticleLanguage, getArticleById } from "@/lib/db";
+import {
+  Article,
+  updateArticleTranslation,
+  updateArticleLanguage,
+  getArticleById,
+} from "@/lib/db";
 import {
   translateToSpanish,
   detectLanguage,
@@ -144,15 +149,7 @@ export function useTranslation(
 
           if (textContent.length > 20) {
             const detection = await detectLanguage(textContent);
-            // Language detection result for article (debugging info removed)
-              articleId: article.id,
-              title: article.title.substring(0, 50),
-              detectedLanguage: detection.language,
-              confidence: detection.confidence.toFixed(3),
-              textLength: textContent.length,
-              sampleText: textContent.substring(0, 100),
-            });
-            // If detection returns 'unknown' but we have content, default to 'en' 
+            // If detection returns 'unknown' but we have content, default to 'en'
             // to allow user to try translating if they want (though canTranslate blocks 'unknown')
             // Let's set it to detection.language and let canTranslate handle it
             setSourceLanguage(detection.language);
@@ -228,7 +225,7 @@ export function useTranslation(
 
       // Translate content preserving HTML formatting
       setMessage("Translating content...");
-      
+
       // Translating content (debugging info removed)
 
       const contentResult = await translateHtmlPreservingFormat(
@@ -236,7 +233,7 @@ export function useTranslation(
         handleProgress,
         sourceLanguage
       );
-      
+
       // Content translation result (debugging info removed)
 
       // Update state
@@ -272,7 +269,13 @@ export function useTranslation(
       setStatus("error");
       setMessage(errorMessage);
     }
-  }, [article, canTranslate, cacheTranslations, handleProgress, sourceLanguage]);
+  }, [
+    article,
+    canTranslate,
+    cacheTranslations,
+    handleProgress,
+    sourceLanguage,
+  ]);
 
   // Toggle between original and translated
   const toggleTranslation = useCallback(() => {
@@ -307,43 +310,51 @@ export function useTranslation(
   }, [article?.id, cacheTranslations]);
 
   // Set source language manually
-  const setSourceLanguageManual = useCallback(async (language: string) => {
-    setSourceLanguage(language);
-    
-    // If there's a cached translation and the language changed, clear it
-    // so the user can retranslate with the correct language
-    if (hasCachedTranslation && language !== article?.originalLanguage) {
-      setTranslatedTitle("");
-      setTranslatedContent("");
-      setHasCachedTranslation(false);
-      setIsShowingTranslation(false);
-      setStatus("idle");
-      
-      // Clear from IndexedDB
+  const setSourceLanguageManual = useCallback(
+    async (language: string) => {
+      setSourceLanguage(language);
+
+      // If there's a cached translation and the language changed, clear it
+      // so the user can retranslate with the correct language
+      if (hasCachedTranslation && language !== article?.originalLanguage) {
+        setTranslatedTitle("");
+        setTranslatedContent("");
+        setHasCachedTranslation(false);
+        setIsShowingTranslation(false);
+        setStatus("idle");
+
+        // Clear from IndexedDB
+        if (article?.id && cacheTranslations) {
+          try {
+            await updateArticleTranslation(article.id, "", "", "", "");
+          } catch (err) {
+            console.warn(
+              "[useTranslation] Failed to clear cached translation:",
+              err
+            );
+          }
+        }
+      }
+
+      // Save to IndexedDB if article exists
       if (article?.id && cacheTranslations) {
         try {
-          await updateArticleTranslation(article.id, "", "", "", "");
+          await updateArticleLanguage(article.id, language);
         } catch (err) {
           console.warn(
-            "[useTranslation] Failed to clear cached translation:",
+            "[useTranslation] Failed to update article language:",
             err
           );
         }
       }
-    }
-    
-    // Save to IndexedDB if article exists
-    if (article?.id && cacheTranslations) {
-      try {
-        await updateArticleLanguage(article.id, language);
-      } catch (err) {
-        console.warn(
-          "[useTranslation] Failed to update article language:",
-          err
-        );
-      }
-    }
-  }, [article?.id, article?.originalLanguage, cacheTranslations, hasCachedTranslation]);
+    },
+    [
+      article?.id,
+      article?.originalLanguage,
+      cacheTranslations,
+      hasCachedTranslation,
+    ]
+  );
 
   // Get displayed content
   const displayedTitle =
