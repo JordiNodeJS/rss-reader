@@ -1019,6 +1019,11 @@ export function ArticleView({
                       ? "Teaser"
                       : "Titular"}
                   </Badge>
+                  {summaryHook.summaryLength === "extended" && (
+                    <Badge variant="default" className="text-xs bg-purple-600">
+                      Extendido
+                    </Badge>
+                  )}
                   {/* Show local badge when using Transformers.js */}
                   {(summaryHook.activeBackend === "transformers" ||
                     (!summaryHook.isChromeAvailable &&
@@ -1074,6 +1079,7 @@ export function ArticleView({
                   onClick={() => handleGenerateSummary("tldr", "short", true)}
                   className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
                   disabled={summaryHook.status === "summarizing"}
+                  title="Resumen rápido de 1-2 frases"
                 >
                   Rápido
                 </button>
@@ -1083,6 +1089,7 @@ export function ArticleView({
                   }
                   className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
                   disabled={summaryHook.status === "summarizing"}
+                  title="Puntos clave en formato lista"
                 >
                   Puntos clave
                 </button>
@@ -1090,8 +1097,20 @@ export function ArticleView({
                   onClick={() => handleGenerateSummary("tldr", "long", true)}
                   className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
                   disabled={summaryHook.status === "summarizing"}
+                  title="Resumen detallado de 5 frases"
                 >
                   Detallado
+                </button>
+                <button
+                  onClick={() =>
+                    handleGenerateSummary("tldr", "extended", true)
+                  }
+                  className="text-xs px-2 py-1 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-500/30"
+                  disabled={summaryHook.status === "summarizing"}
+                  title="Resumen extenso para comprender mejor la noticia (7-10 frases)"
+                  data-qa="extended-summary-button"
+                >
+                  ✨ Extendido
                 </button>
               </div>
             </div>

@@ -43,7 +43,7 @@ export type SummarizationStatus =
   | "unavailable"; // API not available
 
 export type SummaryType = "key-points" | "tldr" | "teaser" | "headline";
-export type SummaryLength = "short" | "medium" | "long";
+export type SummaryLength = "short" | "medium" | "long" | "extended";
 export type SummaryFormat = "markdown" | "plain-text";
 
 export interface SummarizationProgress {
@@ -458,21 +458,25 @@ export function getSummaryLengthDescription(
       short: "1 sentence",
       medium: "3 sentences",
       long: "5 sentences",
+      extended: "7-10 sentences (comprehensive)",
     },
     teaser: {
       short: "1 sentence",
       medium: "3 sentences",
       long: "5 sentences",
+      extended: "7-10 sentences",
     },
     "key-points": {
       short: "3 bullet points",
       medium: "5 bullet points",
       long: "7 bullet points",
+      extended: "10+ bullet points (detailed)",
     },
     headline: {
       short: "~12 words",
       medium: "~17 words",
       long: "~22 words",
+      extended: "~30 words",
     },
   };
   return lengthMap[type][length];
