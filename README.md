@@ -81,23 +81,6 @@ pnpm dev
 
 Abre `http://localhost:3000` en tu navegador.
 
-## 🧪 E2E Tests (Playwright)
-
-El repositorio incluye pruebas end-to-end con Playwright para validar flujos críticos como la regeneración de artículos y la persistencia en IndexedDB.
-
-```bash
-# Instalar dependencias (usa pnpm)
-pnpm install
-
-# Instalar binarios de Playwright (si se requiere la primera vez)
-pnpm dlx playwright install
-
-# Ejecutar tests E2E (usa el script definido en package.json)
-pnpm run test:e2e
-```
-
-Nota: el script `test:e2e` usa `pnpm dlx playwright test` tal como está definido en `package.json`.
-
 ## 🔖 Changelog (reciente)
 
 - **PR #6** — feat(articles): añadida imagen de placeholder y mejoras en el estado vacío (`public/empty-state-creative.png`, `src/components/articles/ArticleList.tsx`). Mergeado en `main` (commit `31c2882`).
