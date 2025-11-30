@@ -638,11 +638,7 @@ export async function detectLanguage(
             topResult.detectedLanguage === "es" &&
             topResult.confidence > CONFIDENCE_THRESHOLD,
         };
-        // Chrome Language Detection result (removed debug log)
-          language: result.language,
-          confidence: result.confidence.toFixed(3),
-          sampleText: sampleText.substring(0, 100),
-        });
+        // Chrome Language Detection result (debug details removed)
         return result;
       }
     } catch (error) {
@@ -652,11 +648,7 @@ export async function detectLanguage(
 
   // Fallback to heuristic
   const heuristicResult = detectLanguageHeuristic(sampleText);
-  // Heuristic language detection result (removed debug log)
-    language: heuristicResult.language,
-    confidence: heuristicResult.confidence.toFixed(3),
-    sampleText: sampleText.substring(0, 100),
-  });
+  // Heuristic language detection result (debug details removed)
   return heuristicResult;
 }
 
@@ -807,11 +799,7 @@ export async function translateToSpanish(
     sourceLanguage: explicitSourceLanguage,
   } = options;
 
-  // translateToSpanish called with options (debug removed)
-    textLength: text?.length,
-    skipLanguageDetection,
-    explicitSourceLanguage,
-  });
+  // translateToSpanish called (debug details removed)
 
   if (!text || text.trim().length === 0) {
     throw new Error("No text provided for translation");

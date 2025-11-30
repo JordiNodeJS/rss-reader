@@ -113,7 +113,7 @@ export async function isSummarizerAvailable(): Promise<boolean> {
     return false;
   }
 
-    try {
+  try {
     const availability = await Summarizer.availability();
     return availability !== "unavailable";
   } catch (error) {
