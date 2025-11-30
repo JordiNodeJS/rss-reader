@@ -18,15 +18,7 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import {
-  Menu,
-  Plus,
-  Trash2,
-  Inbox,
-  Trash,
-  Pencil,
-  Languages,
-} from "lucide-react";
+import { Menu, Plus, Trash2, Inbox, Trash, Pencil } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useFeeds } from "@/hooks/useFeeds";
@@ -63,7 +55,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { clearTranslationModelCache } from "@/lib/translation";
 import { toast } from "sonner";
 import {
   DndContext,
