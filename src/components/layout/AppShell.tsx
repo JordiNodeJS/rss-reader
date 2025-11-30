@@ -3,7 +3,13 @@
 // Created by webcode.es
 // Contact: info@webcode.es
 
-import { useEffect, useState, lazy, Suspense } from "react";
+import {
+  useEffect,
+  useState,
+  lazy,
+  Suspense,
+  useSyncExternalStore,
+} from "react";
 import {
   Sheet,
   SheetContent,
@@ -82,6 +88,41 @@ const CacheManager = lazy(() =>
     default: mod.CacheManager,
   }))
 );
+
+// ============================================================
+// SIDEBAR CONFIGURATION - Change these values to adjust sidebar
+// ============================================================
+const SIDEBAR_CONFIG = {
+  /** Default width in pixels (used for SSR and initial render) */
+  DEFAULT_WIDTH: 320,
+  /** Minimum width the sidebar can be resized to */
+  MIN_WIDTH: 260,
+  /** Maximum width the sidebar can be resized to */
+  MAX_WIDTH: 600,
+  /** Mobile sidebar width */
+  MOBILE_WIDTH: 288,
+} as const;
+
+// ============================================================
+// Hydration-safe client detection hook
+// Uses useSyncExternalStore to avoid hydration mismatches
+// See: https://react.dev/reference/react/useSyncExternalStore
+// ============================================================
+const emptySubscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+/**
+ * Hook to detect client-side rendering without hydration issues.
+ * Returns false during SSR and initial hydration, true after hydration.
+ */
+function useIsClient() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    getClientSnapshot,
+    getServerSnapshot
+  );
+}
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -905,12 +946,13 @@ export function AppShell({
   } = feedState;
   const [menuTop, setMenuTop] = useState<number | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
-  // Default to 256px at render-time so server and initial client render match.
-  // Read from localStorage in a client-only effect to avoid hydration mismatches.
+  // Use centralized SIDEBAR_CONFIG for default width.
+  // Read from localStorage/cookie in a client-only effect to avoid hydration mismatches.
   const [sidebarWidth, setSidebarWidth] = useState<number>(
-    () => initialSidebarWidth ?? 256
+    () => initialSidebarWidth ?? SIDEBAR_CONFIG.DEFAULT_WIDTH
   );
   const [isResizing, setIsResizing] = useState(false);
+  const isClient = useIsClient();
 
   useEffect(() => {
     // Start an indexedDB monitor on client to detect deletions and log them
@@ -942,7 +984,12 @@ export function AppShell({
       if (!Number.isNaN(cookieValue)) {
         // Use requestAnimationFrame to avoid synchronous setState within effect
         requestAnimationFrame(() =>
-          setSidebarWidth(Math.min(Math.max(cookieValue, 200), 600))
+          setSidebarWidth(
+            Math.min(
+              Math.max(cookieValue, SIDEBAR_CONFIG.MIN_WIDTH),
+              SIDEBAR_CONFIG.MAX_WIDTH
+            )
+          )
         );
       } else {
         const saved = localStorage.getItem("sidebar-width");
@@ -1005,8 +1052,11 @@ export function AppShell({
 
     const handleMouseMove = (e: MouseEvent) => {
       const newWidth = e.clientX;
-      // Constrain width between 200px and 600px
-      const constrainedWidth = Math.min(Math.max(newWidth, 200), 600);
+      // Constrain width between MIN_WIDTH and MAX_WIDTH from SIDEBAR_CONFIG
+      const constrainedWidth = Math.min(
+        Math.max(newWidth, SIDEBAR_CONFIG.MIN_WIDTH),
+        SIDEBAR_CONFIG.MAX_WIDTH
+      );
       setSidebarWidth(constrainedWidth);
     };
 
@@ -1048,13 +1098,26 @@ export function AppShell({
       <BrandingBanner isScrolled={isScrolled} />
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
+        {/* 
+          For hydration safety: Apply dynamic width only on client.
+          Server renders with DEFAULT_WIDTH via CSS variable, client updates after hydration.
+          This prevents hydration mismatches when user has stored a custom width.
+        */}
         <aside
           className="hidden md:block border-r bg-muted/10 h-full overflow-hidden relative group"
-          style={{
-            width: `${sidebarWidth}px`,
-            minWidth: `${sidebarWidth}px`,
-            maxWidth: `${sidebarWidth}px`,
-          }}
+          style={
+            isClient
+              ? {
+                  width: `${sidebarWidth}px`,
+                  minWidth: `${sidebarWidth}px`,
+                  maxWidth: `${sidebarWidth}px`,
+                }
+              : {
+                  width: `${SIDEBAR_CONFIG.DEFAULT_WIDTH}px`,
+                  minWidth: `${SIDEBAR_CONFIG.DEFAULT_WIDTH}px`,
+                  maxWidth: `${SIDEBAR_CONFIG.DEFAULT_WIDTH}px`,
+                }
+          }
         >
           <SidebarContent
             feeds={feeds}
@@ -1103,7 +1166,8 @@ export function AppShell({
           <SheetContent
             id="sheet-mobile-nav"
             side="left"
-            className="p-0 w-64 flex flex-col overflow-hidden"
+            className="p-0 flex flex-col overflow-hidden"
+            style={{ width: `${SIDEBAR_CONFIG.MOBILE_WIDTH}px` }}
           >
             <SheetHeader className="sr-only">
               <SheetTitle>Navigation Menu</SheetTitle>
