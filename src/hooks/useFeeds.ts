@@ -16,6 +16,7 @@ import {
   getFeedByUrl,
   updateFeedsOrder,
   updateFeedFavorite,
+  updateArticleFavorite,
 } from "@/lib/db";
 import { toast } from "sonner";
 import { logDBEvent } from "@/lib/db-monitor";
@@ -661,6 +662,29 @@ export function useFeeds() {
     }
   };
 
+  const toggleArticleFavorite = async (id: number) => {
+    try {
+      const article = articles.find((a) => a.id === id);
+      if (!article) return;
+      const newFavoriteStatus = !article.isFavorite;
+      await updateArticleFavorite(id, newFavoriteStatus);
+      // Update local state immediately
+      setArticles((prev) =>
+        prev.map((a) =>
+          a.id === id ? { ...a, isFavorite: newFavoriteStatus } : a
+        )
+      );
+      toast.success(
+        newFavoriteStatus
+          ? "Artículo añadido a favoritos"
+          : "Artículo eliminado de favoritos"
+      );
+    } catch (error) {
+      console.error("Failed to toggle article favorite:", error);
+      toast.error("Error al actualizar favoritos");
+    }
+  };
+
   return {
     feeds,
     articles,
@@ -675,6 +699,7 @@ export function useFeeds() {
     clearCache,
     reorderFeeds,
     toggleFeedFavorite,
+    toggleArticleFavorite,
   };
 }
 

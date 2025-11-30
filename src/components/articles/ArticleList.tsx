@@ -30,6 +30,7 @@ import {
   Tag,
   Languages,
   FileText,
+  Heart,
 } from "lucide-react";
 import { DateTime } from "luxon";
 import {
@@ -219,6 +220,7 @@ interface ArticleListProps {
   onScrape: (id: number, url: string, withTranslation?: boolean) => void;
   onUnsave: (id: number) => void;
   onView: (article: Article) => void;
+  onToggleFavorite: (id: number) => void;
 }
 
 // Helper to get feed title for an article
@@ -259,6 +261,7 @@ interface ArticleCardProps {
   onSaveClick: (article: Article) => void;
   onUnsaveClick: (article: Article) => void;
   onView: (article: Article) => void;
+  onToggleFavorite: (article: Article) => void;
   isCheckingLanguage: boolean;
   articleToSaveId: number | undefined;
 }
@@ -269,11 +272,22 @@ function ArticleCard({
   onSaveClick,
   onUnsaveClick,
   onView,
+  onToggleFavorite,
   isCheckingLanguage,
   articleToSaveId,
 }: ArticleCardProps) {
   const hasValidImage = isValidImageUrl(article.image);
   const { isLowRes } = useImageDimensions(hasValidImage ? article.image : null);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const handleFavoriteClick = () => {
+    // Only animate when adding to favorites
+    if (!article.isFavorite) {
+      setIsAnimating(true);
+      setTimeout(() => setIsAnimating(false), 450);
+    }
+    onToggleFavorite(article);
+  };
 
   // Use compact layout for low-res images or missing images
   const useCompactLayout = !hasValidImage || isLowRes;
@@ -325,6 +339,15 @@ function ArticleCard({
                 Guardado
               </Badge>
             )}
+            {article.isFavorite && (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 h-5 bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400 font-medium"
+              >
+                <Heart className="w-3 h-3 mr-1 fill-current" />
+                Favorito
+              </Badge>
+            )}
           </div>
 
           <div className="flex justify-between items-start gap-2">
@@ -359,7 +382,26 @@ function ArticleCard({
           </div>
         </CardContent>
 
-        <CardFooter className="pt-2 pb-4 flex justify-between gap-3">
+        <CardFooter className="pt-2 pb-4 flex justify-between gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`px-2 heart-button ${
+              article.isFavorite
+                ? "text-red-500 hover:text-red-600"
+                : "text-muted-foreground hover:text-red-500"
+            } ${isAnimating ? "animate-burst" : ""}`}
+            onClick={handleFavoriteClick}
+            title={
+              article.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"
+            }
+          >
+            <Heart
+              className={`w-4 h-4 ${article.isFavorite ? "fill-current" : ""} ${
+                isAnimating ? "animate-heart-pop" : ""
+              }`}
+            />
+          </Button>
           <Button
             variant={article.scrapedContent ? "secondary" : "outline"}
             size="sm"
@@ -407,12 +449,20 @@ function ArticleCard({
           sizes="(max-width: 640px) 100vw, 33vw"
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        {article.scrapedContent && (
-          <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm flex items-center gap-1">
-            <CheckCircle className="w-3 h-3 text-green-500" />
-            <span>Guardado</span>
-          </div>
-        )}
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          {article.isFavorite && (
+            <div className="bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm flex items-center gap-1">
+              <Heart className="w-3 h-3 text-red-500 fill-current" />
+              <span>Favorito</span>
+            </div>
+          )}
+          {article.scrapedContent && (
+            <div className="bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm flex items-center gap-1">
+              <CheckCircle className="w-3 h-3 text-green-500" />
+              <span>Guardado</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <CardHeader className="pb-2 pt-4">
@@ -450,6 +500,24 @@ function ArticleCard({
             }
             return null;
           })()}
+          {article.scrapedContent && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 h-5 bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300 font-medium"
+            >
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Guardado
+            </Badge>
+          )}
+          {article.isFavorite && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 h-5 bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400 font-medium"
+            >
+              <Heart className="w-3 h-3 mr-1 fill-current" />
+              Favorito
+            </Badge>
+          )}
         </div>
 
         <div className="flex justify-between items-start gap-2">
@@ -470,7 +538,26 @@ function ArticleCard({
         </p>
       </CardContent>
 
-      <CardFooter className="pt-2 pb-4 flex justify-between gap-3">
+      <CardFooter className="pt-2 pb-4 flex justify-between gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`px-2 heart-button ${
+            article.isFavorite
+              ? "text-red-500 hover:text-red-600"
+              : "text-muted-foreground hover:text-red-500"
+          } ${isAnimating ? "animate-burst" : ""}`}
+          onClick={handleFavoriteClick}
+          title={
+            article.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"
+          }
+        >
+          <Heart
+            className={`w-4 h-4 ${article.isFavorite ? "fill-current" : ""} ${
+              isAnimating ? "animate-heart-pop" : ""
+            }`}
+          />
+        </Button>
         <Button
           variant={article.scrapedContent ? "secondary" : "outline"}
           size="sm"
@@ -513,6 +600,7 @@ export function ArticleList({
   onScrape,
   onUnsave,
   onView,
+  onToggleFavorite,
 }: ArticleListProps) {
   // Ensure articles is always an array to avoid runtime errors
   const safeArticles = Array.isArray(articles) ? articles : [];
@@ -606,6 +694,9 @@ export function ArticleList({
           onSaveClick={handleSaveClick}
           onUnsaveClick={handleUnsaveClick}
           onView={onView}
+          onToggleFavorite={(article) =>
+            article.id && onToggleFavorite(article.id)
+          }
           isCheckingLanguage={isCheckingLanguage}
           articleToSaveId={articleToSave?.id}
         />

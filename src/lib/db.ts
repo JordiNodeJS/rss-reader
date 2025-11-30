@@ -27,6 +27,7 @@ export interface Article {
   categories?: string[]; // Article categories/tags from RSS
   isRead: boolean;
   isSaved: boolean; // Explicitly saved by user
+  isFavorite?: boolean; // User-marked favorite article
   fetchedAt: number;
   // Translation fields
   translatedTitle?: string;
@@ -355,4 +356,17 @@ export const updateFeedFavorite = async (
   const updatedFeed = { ...feed, isFavorite };
   await db.put("feeds", updatedFeed);
   return updatedFeed;
+};
+
+// Toggle article favorite status
+export const updateArticleFavorite = async (
+  id: number,
+  isFavorite: boolean
+): Promise<Article> => {
+  const db = await getDB();
+  const article = await db.get("articles", id);
+  if (!article) throw new Error("Article not found");
+  const updatedArticle = { ...article, isFavorite };
+  await db.put("articles", updatedArticle);
+  return updatedArticle;
 };
