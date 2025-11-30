@@ -18,7 +18,21 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Plus, Trash2, Inbox, Trash, Pencil, Star } from "lucide-react";
+import {
+  Menu,
+  Plus,
+  Trash2,
+  Inbox,
+  Trash,
+  Pencil,
+  Star,
+  ChevronDown,
+} from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useFeeds } from "@/hooks/useFeeds";
@@ -783,13 +797,67 @@ function SidebarContent({
 
             {/* Feeds container with scroll - max height calculated to leave room for footer actions */}
             <div className="max-h-[calc(100vh-380px)] overflow-y-auto overflow-x-hidden pr-1 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
-              {/* Favoritos section */}
+              {/* Favoritos section - Collapsible */}
               {feeds.some((f) => f.isFavorite) && (
-                <>
-                  <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
-                    Favoritos
-                  </h3>
+                <Collapsible defaultOpen className="mb-2">
+                  <CollapsibleTrigger asChild>
+                    <button className="flex items-center justify-between w-full px-4 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-accent/50 rounded-md transition-colors group">
+                      <span className="flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                        Favoritos
+                        <span className="text-[10px] font-normal normal-case text-muted-foreground/70">
+                          ({feeds.filter((f) => f.isFavorite).length})
+                        </span>
+                      </span>
+                      <ChevronDown className="w-4 h-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={feeds
+                          .filter((f) => f.isFavorite)
+                          .map((f) => f.id!)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {feeds
+                          .filter((f) => f.isFavorite)
+                          .map((feed) => (
+                            <SortableFeedItem
+                              key={feed.id}
+                              feed={feed}
+                              selectedFeedId={selectedFeedId}
+                              setSelectedFeedId={setSelectedFeedId}
+                              openEditDialog={openEditDialog}
+                              removeFeed={removeFeed}
+                              toggleFavorite={toggleFeedFavorite}
+                            />
+                          ))}
+                      </SortableContext>
+                    </DndContext>
+                  </CollapsibleContent>
+                  <Separator className="my-2" />
+                </Collapsible>
+              )}
+
+              {/* Tus feeds section - Collapsible */}
+              <Collapsible defaultOpen>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center justify-between w-full px-4 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-accent/50 rounded-md transition-colors group">
+                    <span className="flex items-center gap-1">
+                      Tus feeds
+                      <span className="text-[10px] font-normal normal-case text-muted-foreground/70">
+                        ({feeds.filter((f) => !f.isFavorite).length})
+                      </span>
+                    </span>
+                    <ChevronDown className="w-4 h-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -797,12 +865,12 @@ function SidebarContent({
                   >
                     <SortableContext
                       items={feeds
-                        .filter((f) => f.isFavorite)
+                        .filter((f) => !f.isFavorite)
                         .map((f) => f.id!)}
                       strategy={verticalListSortingStrategy}
                     >
                       {feeds
-                        .filter((f) => f.isFavorite)
+                        .filter((f) => !f.isFavorite)
                         .map((feed) => (
                           <SortableFeedItem
                             key={feed.id}
@@ -816,37 +884,8 @@ function SidebarContent({
                         ))}
                     </SortableContext>
                   </DndContext>
-                  <Separator className="my-2" />
-                </>
-              )}
-
-              <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-                Tus feeds
-              </h3>
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={feeds.filter((f) => !f.isFavorite).map((f) => f.id!)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {feeds
-                    .filter((f) => !f.isFavorite)
-                    .map((feed) => (
-                      <SortableFeedItem
-                        key={feed.id}
-                        feed={feed}
-                        selectedFeedId={selectedFeedId}
-                        setSelectedFeedId={setSelectedFeedId}
-                        openEditDialog={openEditDialog}
-                        removeFeed={removeFeed}
-                        toggleFavorite={toggleFeedFavorite}
-                      />
-                    ))}
-                </SortableContext>
-              </DndContext>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
             {/* End of feeds scroll container */}
           </div>
