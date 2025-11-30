@@ -334,7 +334,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log(`Scraping with fetch + Readability: ${url}`);
+    // Scraper started for URL
 
     // Fetch HTML
     const html = await fetchHtml(url);
@@ -344,7 +344,7 @@ export async function GET(request: NextRequest) {
     const method = content ? "readability" : "cheerio";
 
     if (!content) {
-      console.log("Readability failed, using Cheerio fallback");
+      // Readability failed; using Cheerio fallback
       content = extractWithCheerio(html, url);
     }
 
