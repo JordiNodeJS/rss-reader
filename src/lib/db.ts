@@ -9,6 +9,7 @@ export interface Feed {
   icon?: string;
   addedAt: number;
   order?: number; // Display order
+  isFavorite?: boolean; // User-marked favorite feed
 }
 
 export interface Article {
@@ -26,6 +27,7 @@ export interface Article {
   categories?: string[]; // Article categories/tags from RSS
   isRead: boolean;
   isSaved: boolean; // Explicitly saved by user
+  isFavorite?: boolean; // User-marked favorite article
   fetchedAt: number;
   // Translation fields
   translatedTitle?: string;
@@ -341,4 +343,30 @@ export const updateFeed = async (
 export const getFeedById = async (id: number): Promise<Feed | undefined> => {
   const db = await getDB();
   return db.get("feeds", id);
+};
+
+// Toggle feed favorite status
+export const updateFeedFavorite = async (
+  id: number,
+  isFavorite: boolean
+): Promise<Feed> => {
+  const db = await getDB();
+  const feed = await db.get("feeds", id);
+  if (!feed) throw new Error("Feed not found");
+  const updatedFeed = { ...feed, isFavorite };
+  await db.put("feeds", updatedFeed);
+  return updatedFeed;
+};
+
+// Toggle article favorite status
+export const updateArticleFavorite = async (
+  id: number,
+  isFavorite: boolean
+): Promise<Article> => {
+  const db = await getDB();
+  const article = await db.get("articles", id);
+  if (!article) throw new Error("Article not found");
+  const updatedArticle = { ...article, isFavorite };
+  await db.put("articles", updatedArticle);
+  return updatedArticle;
 };

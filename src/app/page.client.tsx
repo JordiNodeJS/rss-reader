@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Heart } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Lazy load ArticleView - it's a heavy component only needed when viewing an article
 const ArticleView = lazy(() =>
@@ -43,12 +44,32 @@ interface HomeClientProps {
 
 export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
   const feedState = useFeeds();
-  const [viewingArticle, setViewingArticle] = useState<Article | null>(null);
+  const [viewingArticleId, setViewingArticleId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  // Derive viewingArticle from feedState.articles to keep it in sync with favorites
+  const viewingArticle = useMemo(() => {
+    if (!viewingArticleId || !feedState.articles) return null;
+    return feedState.articles.find((a) => a.id === viewingArticleId) || null;
+  }, [viewingArticleId, feedState.articles]);
+
+  const handleViewArticle = (article: Article) => {
+    setViewingArticleId(article.id ?? null);
+  };
+
+  const handleCloseArticle = () => {
+    setViewingArticleId(null);
+  };
 
   const filteredArticles = useMemo(() => {
     let result = [...(feedState.articles || [])];
+
+    // Filter by favorites
+    if (showFavoritesOnly) {
+      result = result.filter((article) => article.isFavorite);
+    }
 
     // Filter by search query
     if (searchQuery) {
@@ -69,7 +90,7 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
     });
 
     return result;
-  }, [feedState.articles, searchQuery, sortOrder]);
+  }, [feedState.articles, searchQuery, sortOrder, showFavoritesOnly]);
 
   return (
     <>
@@ -79,7 +100,9 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-3xl font-bold tracking-tight">
-                  {feedState.selectedFeedId
+                  {showFavoritesOnly
+                    ? "Artículos favoritos"
+                    : feedState.selectedFeedId
                     ? feedState.feeds.find(
                         (f) => f.id === feedState.selectedFeedId
                       )?.title
@@ -90,7 +113,29 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+                <Button
+                  variant={showFavoritesOnly ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                  className={`gap-1.5 ${
+                    showFavoritesOnly
+                      ? "bg-red-500 hover:bg-red-600 text-white"
+                      : ""
+                  }`}
+                  title={
+                    showFavoritesOnly
+                      ? "Mostrar todos"
+                      : "Mostrar solo favoritos"
+                  }
+                >
+                  <Heart
+                    className={`w-4 h-4 ${
+                      showFavoritesOnly ? "fill-current" : ""
+                    }`}
+                  />
+                  <span className="hidden sm:inline">Favoritos</span>
+                </Button>
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -123,7 +168,8 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
             feeds={feedState.feeds}
             onScrape={feedState.scrapeArticle}
             onUnsave={feedState.unsaveArticle}
-            onView={setViewingArticle}
+            onView={handleViewArticle}
+            onToggleFavorite={feedState.toggleArticleFavorite}
           />
         </div>
       </AppShell>
@@ -134,7 +180,8 @@ export default function HomeClient({ initialSidebarWidth }: HomeClientProps) {
           <ArticleView
             article={viewingArticle}
             isOpen={!!viewingArticle}
-            onClose={() => setViewingArticle(null)}
+            onClose={handleCloseArticle}
+            onToggleFavorite={feedState.toggleArticleFavorite}
           />
         </Suspense>
       )}
