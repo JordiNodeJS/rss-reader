@@ -16,11 +16,11 @@ const getServerSnapshot = () => false;
 /**
  * Hook to detect client-side rendering without hydration issues.
  * Returns false during SSR and initial hydration, true after hydration.
- * 
+ *
  * Use this when you need to conditionally render content that differs
  * between server and client, such as inline styles that browser extensions
  * (like Dark Reader) might modify.
- * 
+ *
  * @example
  * const isClient = useIsClient();
  * // Only apply inline styles on client to avoid hydration mismatch
