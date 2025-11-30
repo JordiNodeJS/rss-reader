@@ -15,6 +15,7 @@ import {
   updateFeed,
   getFeedByUrl,
   updateFeedsOrder,
+  updateFeedFavorite,
 } from "@/lib/db";
 import { toast } from "sonner";
 import { logDBEvent } from "@/lib/db-monitor";
@@ -106,6 +107,7 @@ export function useFeeds() {
         icon: f.icon,
         addedAt: f.addedAt,
         order: f.order,
+        isFavorite: f.isFavorite,
       }));
       localStorage.setItem(FEEDS_BACKUP_KEY, JSON.stringify(minimal));
     } catch (err) {
@@ -636,6 +638,29 @@ export function useFeeds() {
     }
   };
 
+  const toggleFeedFavorite = async (id: number) => {
+    try {
+      const feed = feeds.find((f) => f.id === id);
+      if (!feed) return;
+      const newFavoriteStatus = !feed.isFavorite;
+      await updateFeedFavorite(id, newFavoriteStatus);
+      // Update local state immediately
+      setFeeds((prev) =>
+        prev.map((f) =>
+          f.id === id ? { ...f, isFavorite: newFavoriteStatus } : f
+        )
+      );
+      toast.success(
+        newFavoriteStatus
+          ? "Feed añadido a favoritos"
+          : "Feed eliminado de favoritos"
+      );
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+      toast.error("Error al actualizar favoritos");
+    }
+  };
+
   return {
     feeds,
     articles,
@@ -649,6 +674,7 @@ export function useFeeds() {
     unsaveArticle,
     clearCache,
     reorderFeeds,
+    toggleFeedFavorite,
   };
 }
 
