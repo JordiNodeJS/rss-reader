@@ -1,9 +1,9 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 
 // This test requires Playwright to be installed (pnpm add -D @playwright/test) and the dev server running (pnpm dev).
 // It demonstrates seeding the IndexedDB, opening an article modal, and validating Idle/Regenerating/Retry states using the deterministic data-qa selectors.
 
-async function seedIndexedDB(page: any) {
+async function seedIndexedDB(page: Page) {
   await page.evaluate(async () => {
     const DB_NAME = "rss-reader-db";
     const DB_VERSION = 1;
@@ -11,7 +11,7 @@ async function seedIndexedDB(page: any) {
     function openDB() {
       return new Promise<IDBDatabase>((resolve, reject) => {
         const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = function (e) {
+        req.onupgradeneeded = function (_e) {
           const db = req.result;
           if (!db.objectStoreNames.contains("feeds")) {
             const feedStore = db.createObjectStore("feeds", {
@@ -38,12 +38,17 @@ async function seedIndexedDB(page: any) {
     const db = await openDB();
 
     // Add a test feed
-    const feed = {
+    const feed: {
+      url: string;
+      title: string;
+      addedAt: number;
+      description: string;
+    } = {
       url: "https://test.example/feed",
       title: "Test Feed for Automation",
       addedAt: Date.now(),
       description: "Test feed",
-    } as any;
+    };
 
     const feedTx = db.transaction("feeds", "readwrite");
     const feedStore = feedTx.objectStore("feeds");
@@ -54,7 +59,20 @@ async function seedIndexedDB(page: any) {
     });
     await feedTx.complete;
 
-    const article = {
+    const article: {
+      feedId: number;
+      feedTitle: string;
+      guid: string;
+      title: string;
+      link: string;
+      pubDate: string;
+      content: string;
+      contentSnippet: string;
+      scrapedContent: string;
+      isRead: boolean;
+      isSaved: boolean;
+      fetchedAt: number;
+    } = {
       feedId: feedAdd,
       feedTitle: "Test Feed for Automation",
       guid: "test-guid-regenerate-001",
@@ -67,7 +85,7 @@ async function seedIndexedDB(page: any) {
       isRead: false,
       isSaved: false,
       fetchedAt: Date.now(),
-    } as any;
+    };
 
     // Add article with an initial cached summary so regenerate button is shown (if UI indicates cached summary usage)
     const articleTx = db.transaction("articles", "readwrite");
@@ -82,7 +100,14 @@ async function seedIndexedDB(page: any) {
     // Optionally, update the article with a summary
     const updateTx = db.transaction("articles", "readwrite");
     const updateStore = updateTx.objectStore("articles");
-    const stored = await new Promise<any>((resolve, reject) => {
+    const stored = await new Promise<
+      {
+        summary?: string;
+        summaryType?: string;
+        summaryLength?: string;
+        summarizedAt?: number;
+      } & Record<string, unknown>
+    >((resolve, reject) => {
       const r = updateStore.get(addedArticleId);
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
@@ -101,7 +126,7 @@ async function seedIndexedDB(page: any) {
 }
 
 // Utility to open modal for the seeded article
-async function openSeededArticleModal(page: any) {
+async function openSeededArticleModal(page: Page) {
   const title = "Automated Test Article: Regenerate Button";
   // Find article list item with the title and click its 'Leer' button
   await page.waitForSelector("main");
@@ -144,7 +169,7 @@ test.describe("Article Regenerate/Translate UI (CI-friendly)", () => {
     await expect(regen).toBeVisible({ timeout: 2000 });
 
     // Optionally check translate and generate presence (these may be gated depending on environment)
-    const translateBtn = dialog.locator('[data-qa="article-translate-button"]');
+    // Note: translateBtn selector available at '[data-qa="article-translate-button"]' if needed
     // Not asserting translate presence - just logging
 
     // Simulate Regenerating state by adding class + disabling button in the page
