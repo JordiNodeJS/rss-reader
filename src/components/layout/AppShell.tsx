@@ -530,7 +530,9 @@ function SortableFeedItem({
           onPointerDown={(e) => e.stopPropagation()}
           title={feed.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"}
         >
-          <Star className={`w-3 h-3 ${feed.isFavorite ? "fill-current" : ""}`} />
+          <Star
+            className={`w-3 h-3 ${feed.isFavorite ? "fill-current" : ""}`}
+          />
         </Button>
         <Button
           variant="ghost"
@@ -778,7 +780,7 @@ function SidebarContent({
               Todos los artículos
             </Button>
             <Separator className="my-2" />
-            
+
             {/* Favoritos section */}
             {feeds.some((f) => f.isFavorite) && (
               <>
@@ -813,7 +815,7 @@ function SidebarContent({
                 <Separator className="my-2" />
               </>
             )}
-            
+
             <h3 className="px-4 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
               Tus feeds
             </h3>
