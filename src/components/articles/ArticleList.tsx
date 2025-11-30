@@ -425,13 +425,24 @@ function ArticleCard({
               : "Guardar"}
           </Button>
           <Button
-            variant="default"
+            variant={article.scrapedContent ? "default" : "outline"}
             size="sm"
-            className="flex-1 shadow-sm"
+            className={`flex-1 shadow-sm ${
+              article.scrapedContent ? "" : "border-dashed"
+            }`}
             onClick={() => onView(article)}
+            title={
+              article.scrapedContent
+                ? "Leer artículo completo guardado"
+                : "Ver extracto del RSS"
+            }
           >
-            <BookOpen className="w-4 h-4 mr-2" />
-            Leer
+            {article.scrapedContent ? (
+              <BookOpen className="w-4 h-4 mr-2" />
+            ) : (
+              <FileText className="w-4 h-4 mr-2" />
+            )}
+            {article.scrapedContent ? "Leer" : "Extracto"}
           </Button>
         </CardFooter>
       </Card>
@@ -581,13 +592,24 @@ function ArticleCard({
             : "Guardar"}
         </Button>
         <Button
-          variant="default"
+          variant={article.scrapedContent ? "default" : "outline"}
           size="sm"
-          className="flex-1 shadow-sm"
+          className={`flex-1 shadow-sm ${
+            article.scrapedContent ? "" : "border-dashed"
+          }`}
           onClick={() => onView(article)}
+          title={
+            article.scrapedContent
+              ? "Leer artículo completo guardado"
+              : "Ver extracto del RSS"
+          }
         >
-          <BookOpen className="w-4 h-4 mr-2" />
-          Leer
+          {article.scrapedContent ? (
+            <BookOpen className="w-4 h-4 mr-2" />
+          ) : (
+            <FileText className="w-4 h-4 mr-2" />
+          )}
+          {article.scrapedContent ? "Leer" : "Extracto"}
         </Button>
       </CardFooter>
     </Card>
