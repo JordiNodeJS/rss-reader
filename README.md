@@ -16,16 +16,17 @@ El objetivo principal de este repositorio es explorar los límites del desarroll
 
 Este proyecto ha sido forjado utilizando una combinación sinérgica de tecnologías:
 
-*   **Editores y Entornos**:
-    *   **VS Code**: La base sólida y extensible.
-    *   **Cursor**: Para la edición de código fluida impulsada por IA.
-    *   **Antigravity**: El entorno agéntico avanzado de Google Deepmind para tareas complejas y razonamiento profundo.
+- **Editores y Entornos**:
 
-*   **Modelos de Inteligencia Artificial**:
-    *   **Gemmi 3**: Utilizado para razonamiento lógico y estructuración de datos.
-    *   **Opus 4.5**: Encargado de la arquitectura de alto nivel y soluciones creativas.
-    *   **Minimax M2**: Optimización de código y refactorización rápida.
-    *   *Y otros modelos auxiliares para tareas específicas.*
+  - **VS Code**: La base sólida y extensible.
+  - **Cursor**: Para la edición de código fluida impulsada por IA.
+  - **Antigravity**: El entorno agéntico avanzado de Google Deepmind para tareas complejas y razonamiento profundo.
+
+- **Modelos de Inteligencia Artificial**:
+  - **Gemmi 3**: Utilizado para razonamiento lógico y estructuración de datos.
+  - **Opus 4.5**: Encargado de la arquitectura de alto nivel y soluciones creativas.
+  - **Minimax M2**: Optimización de código y refactorización rápida.
+  - _Y otros modelos auxiliares para tareas específicas._
 
 ---
 
@@ -63,36 +64,38 @@ RSS Reader Antigravity es un lector de noticias minimalista, rápido y estética
 
 ## 🚀 Getting Started
 
-1. **Instalar dependencias:**
+1. **Requisito:** usa `pnpm` (preferred). Este proyecto está diseñado
+   para ejecutarse con `pnpm` — evita `npm` o `yarn` para operaciones rutinarias.
+
+2. **Instalar dependencias:**
 
 ```bash
 pnpm install
-# o
-npm install
 ```
 
-2. **Iniciar el servidor de desarrollo:**
+3. **Iniciar el servidor de desarrollo:**
 
 ```bash
 pnpm dev
-# o
-npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+Abre `http://localhost:3000` en tu navegador.
 
-## 🧪 E2E Tests (Playwright)
+## 🔖 Changelog (reciente)
 
-El repositorio incluye pruebas end-to-end con Playwright para validar flujos críticos como la regeneración de artículos y la persistencia en IndexedDB.
+- **PR #6** — feat(articles): añadida imagen de placeholder y mejoras en el estado vacío (`public/empty-state-creative.png`, `src/components/articles/ArticleList.tsx`). Mergeado en `main` (commit `31c2882`).
+- **PR #7** — perf(theme): optimizaciones de rendimiento en `ThemeCarousel`, nueva utilidad `src/hooks/useAnimationPause.ts` y notas de rendimiento en `docs/performance-tasks.md`. Mergeado en `main` (commit `6f781d0`).
 
-```bash
-# Instalar Playwright
-pnpm add -D @playwright/test
-npx playwright install
+Consulta `docs/performance-tasks.md` para los detalles de las optimizaciones y recomendaciones de benchmark.
 
-# Ejecutar tests
-pnpm run test:e2e
-```
+## Contribuciones
+
+Gracias por tu interés en contribuir. Pequeñas pautas rápidas:
+
+- Usa `pnpm` para instalar y ejecutar scripts.
+- Abre PRs desde ramas con nombres descriptivos (ej. `feat/…`, `fix/…`, `perf/…`).
+- Asegúrate de ejecutar `pnpm lint` y `pnpm build` antes de enviar PRs.
+- Para cambios grandes, abre primero un issue describiendo el alcance.
 
 ## 📄 Licencia
 

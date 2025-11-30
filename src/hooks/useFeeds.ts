@@ -217,7 +217,7 @@ export function useFeeds() {
         }
       }
     })();
-  }, [refreshFeeds]);
+  }, [refreshFeeds, loadFeedsBackupFromLocalStorage]);
 
   useEffect(() => {
     refreshArticles();
@@ -229,7 +229,7 @@ export function useFeeds() {
       if (Array.isArray(feeds) && feeds.length > 0) {
         saveFeedsBackupToLocalStorage(feeds);
       }
-    } catch (e) {
+    } catch (_e) {
       /* ignore */
     }
   }, [feeds, saveFeedsBackupToLocalStorage]);
