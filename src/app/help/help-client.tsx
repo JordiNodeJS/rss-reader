@@ -570,12 +570,20 @@ export default function HelpPage() {
                     Vuelve al lector y comienza a añadir tus feeds favoritos.
                     ¡Tu experiencia de lectura personalizada te espera!
                   </p>
-                  <Link href="/">
-                    <Button size="lg" className="gap-2">
-                      <Rss className="w-4 h-4" />
-                      Ir al Lector RSS
-                    </Button>
-                  </Link>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    <Link href="/">
+                      <Button size="lg" className="gap-2">
+                        <Rss className="w-4 h-4" />
+                        Ir al Lector RSS
+                      </Button>
+                    </Link>
+                    <Link href="/tutorial">
+                      <Button variant="outline" size="lg" className="gap-2">
+                        <BookOpen className="w-4 h-4" />
+                        Ver Tutorial
+                      </Button>
+                    </Link>
+                  </div>
                 </CardContent>
               </Card>
             </div>
