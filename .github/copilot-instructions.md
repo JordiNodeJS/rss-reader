@@ -91,6 +91,29 @@ Or use Chrome DevTools MCP / Next.js DevTools MCP configured in `.vscode/mcp.jso
 - `sharp` is a native module — CI must support native builds. Windows: `pnpm rebuild sharp` if needed.
 - Node 22.x required (see `engines` in `package.json`).
 
+### 🔧 Debugging con DevTools MCPs
+
+Usa **Chrome DevTools MCP** y **Next.js DevTools MCP** de forma complementaria:
+
+| Herramienta          | Uso principal                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| **Chrome DevTools**  | Probar UI: `take_snapshot`, `click`, `fill`, `take_screenshot`, `list_console_messages` |
+| **Next.js DevTools** | Errores Next.js: `nextjs_index` → `nextjs_call` para errores de compilación/runtime     |
+
+**Flujo rápido:**
+
+1. `nextjs_index` → detectar servidor Next.js
+2. `nextjs_call` → verificar errores de compilación/hidratación
+3. `take_snapshot` → estado actual de la UI
+4. Interactuar (`click`, `fill`) → probar funcionalidad
+5. `list_console_messages` → errores del navegador
+
+**Casos comunes:**
+
+- **Errores hidratación**: `nextjs_call` + `list_console_messages`
+- **Validar diseño**: `take_snapshot` + `take_screenshot`
+- **Probar formularios**: `fill` + verificar respuesta
+
 ### ⚠️ Hydration & SSR Rules (CRITICAL)
 
 **NEVER use `suppressHydrationWarning`** — it only hides problems, doesn't fix them.
