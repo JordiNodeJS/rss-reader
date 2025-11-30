@@ -18,7 +18,7 @@ declare global {
 
   type SummarizerType = "key-points" | "tldr" | "teaser" | "headline";
   type SummarizerFormat = "markdown" | "plain-text";
-  type SummarizerLength = "short" | "medium" | "long";
+  type SummarizerLength = "short" | "medium" | "long" | "extended";
 
   interface SummarizerAvailabilityOptions {
     type?: SummarizerType;

@@ -42,6 +42,7 @@ RSS Reader Antigravity es un lector de noticias minimalista, rápido y estética
 - **UI Moderna y Fluida**: Interfaz construida con Tailwind CSS, Shadcn UI y animaciones suaves.
 - **Modo Oscuro**: Soporte nativo con transiciones elegantes.
 - **Optimización de Imágenes**: Procesamiento automático con Sharp para servir imágenes optimizadas en formato WebP.
+- **Resúmenes con IA**: Genera resúmenes locales con Transformers.js (DistilBART) e incluye un modo "extended" para resúmenes más completos.
 
 ## 📸 Capturas de Pantalla
 
@@ -64,8 +65,14 @@ RSS Reader Antigravity es un lector de noticias minimalista, rápido y estética
 
 ## 🚀 Getting Started
 
-1. **Requisito:** usa `pnpm` (preferred). Este proyecto está diseñado
-   para ejecutarse con `pnpm` — evita `npm` o `yarn` para operaciones rutinarias.
+> ⚠️ **IMPORTANTE**: Este proyecto usa **pnpm** como gestor de paquetes oficial.  
+> 📖 Lee las [**Reglas de Gestión de Paquetes**](docs/package-manager-rules.md) antes de comenzar.
+
+1. **Instalar pnpm** (si no lo tienes):
+
+```bash
+npm install -g pnpm
+```
 
 2. **Instalar dependencias:**
 
@@ -81,10 +88,27 @@ pnpm dev
 
 Abre `http://localhost:3000` en tu navegador.
 
+## 🧠 Resumen con IA
+
+La aplicación puede generar resúmenes de artículos usando modelos que se ejecutan localmente en el navegador (Transformers.js). Las opciones disponibles incluyen diferentes longitudes de resumen:
+
+- `short`, `medium`, `long` y `extended` (más detallado, 7-10 oraciones o 10+ bullet points para 'key-points').
+- Por defecto el motor de resumen usa Transformers.js con `distilbart-cnn-12-6` y traduce automáticamente a español si procede.
+
+Si tu navegador soporta la API nativa (Chrome), puede haber integración con las APIs de resúmen nativo, aunque la aplicación utiliza Transformers.js como fallback y opción por defecto para asegurar compatibilidad cross-browser.
+
+### Cómo probarlo
+
+1. Abre cualquier artículo en la vista de lectura
+2. Haz clic en el botón "Generar resumen" (o similar)
+3. Selecciona la longitud deseada (`short`, `medium`, `long`, `extended`)
+4. Observa el indicador de progreso y la opción para traducir a español (por defecto habilitada)
+
 ## 🔖 Changelog (reciente)
 
 - **PR #6** — feat(articles): añadida imagen de placeholder y mejoras en el estado vacío (`public/empty-state-creative.png`, `src/components/articles/ArticleList.tsx`). Mergeado en `main` (commit `31c2882`).
 - **PR #7** — perf(theme): optimizaciones de rendimiento en `ThemeCarousel`, nueva utilidad `src/hooks/useAnimationPause.ts` y notas de rendimiento en `docs/performance-tasks.md`. Mergeado en `main` (commit `6f781d0`).
+- **PR #12** — feat(summarization): añadido `extended` summary length, mejoras en `useSummary` para soportar traducción automática y cacheado de resúmenes (Transformers.js por defecto). Mergeado en `feature/extended-summary`.
 
 ## 🧪 Tests E2E
 

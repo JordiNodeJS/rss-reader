@@ -331,7 +331,7 @@ export default function TutorialClient() {
                 imageSrc="/images/tutorial/article-reader.png"
                 imageAlt="Vista de lectura de un artículo"
                 tips={[
-                  "El resumen con IA se genera localmente en tu navegador",
+                  "El resumen con IA se genera localmente en tu navegador y puedes elegir la longitud (short/medium/long/extended) para más detalle",
                   "La traducción usa Chrome Translator API (Chrome 131+)",
                   "Puedes abrir el artículo original en una nueva pestaña",
                 ]}

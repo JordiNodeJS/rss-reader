@@ -499,8 +499,13 @@ export function ArticleView({
   const [showStopAnimation, setShowStopAnimation] = useState(false);
   const [isFavoriteAnimating, setIsFavoriteAnimating] = useState(false);
 
+  // New state for resizable view
+  const [viewMode, setViewMode] = useState<"default" | "expanded">("default");
+
   // AI Features state
   const [clickedButton, setClickedButton] = useState<string | null>(null);
+  // Track which specific button is currently generating
+  const [generatingButtonId, setGeneratingButtonId] = useState<string | null>(null);
   const [showAIFeatures, setShowAIFeatures] = useState(false);
   const [entities, setEntities] = useState<
     Array<{
@@ -648,6 +653,7 @@ export function ArticleView({
   const handleClose = () => {
     setShowIframe(false);
     setShowSummary(false);
+    setViewMode("default"); // Reset view mode on close
     onClose();
   };
 
@@ -669,20 +675,29 @@ export function ArticleView({
       setShowStopAnimation(false);
     }
 
-    await summaryHook.summarize(useType, useLength, forceRegenerate);
-
-    // Show stop animation when regeneration completes
-    if (forceRegenerate) {
-      setIsRegenerating(false);
-      setShowStopAnimation(true);
-      // Clear stop animation after it plays
-      setTimeout(() => setShowStopAnimation(false), 600);
+    try {
+      await summaryHook.summarize(useType, useLength, forceRegenerate);
+    } finally {
+      // Clear generating state when done (success or error)
+      if (forceRegenerate) {
+        setIsRegenerating(false);
+        setGeneratingButtonId(null); // Stop specific button animation
+        setShowStopAnimation(true);
+        // Clear stop animation after it plays
+        setTimeout(() => setShowStopAnimation(false), 600);
+      }
     }
   };
 
   // Handle AI button click with animation
   const handleAIButtonClick = (buttonId: string, callback: () => void) => {
     setClickedButton(buttonId);
+    
+    // If this is a generation action, set the generating ID
+    if (["quick", "keypoints", "detailed", "extended"].includes(buttonId)) {
+      setGeneratingButtonId(buttonId);
+    }
+    
     setTimeout(() => setClickedButton(null), 200);
     callback();
   };
@@ -952,85 +967,112 @@ export function ArticleView({
       >
         <DialogContent
           id="dialog-article-view"
-          className="max-w-6xl w-[95vw] max-h-[92vh] flex flex-col gap-0 overflow-hidden"
+          className={`flex flex-col gap-0 overflow-hidden transition-all duration-300 ease-in-out ${
+            viewMode === "expanded" 
+              ? "max-w-[98vw] h-[95vh] rounded-md" 
+              : "max-w-6xl w-[95vw] max-h-[92vh]"
+          }`}
         >
           <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <Badge variant="outline">
-                {new Date(article.pubDate).toLocaleDateString()}
-              </Badge>
-              {article.scrapedContent && (
-                <Badge variant="secondary">Disponible sin conexión</Badge>
-              )}
-              {article.isFavorite && (
-                <Badge
-                  variant="default"
-                  className="bg-red-500 hover:bg-red-600"
-                >
-                  <Heart className="w-3 h-3 mr-1 fill-current" />
-                  Favorito
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline">
+                  {new Date(article.pubDate).toLocaleDateString()}
                 </Badge>
-              )}
-              {translation.isShowingTranslation && (
-                <Badge
-                  variant="default"
-                  className="bg-blue-500 hover:bg-blue-600"
-                >
-                  <Languages className="w-3 h-3 mr-1" />
-                  Traducido al Español
-                </Badge>
-              )}
-              {summaryHook.hasCachedSummary && (
-                <Badge
-                  variant="default"
-                  className="bg-purple-500 hover:bg-purple-600"
-                >
-                  <Sparkles className="w-3 h-3 mr-1" />
-                  Resumen IA
-                </Badge>
-              )}
-              {translation.sourceLanguage !== "es" &&
-                !translation.isShowingTranslation && (
-                  <div className="flex items-center gap-1.5">
-                    <Languages className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <Select
-                      value={
-                        translation.sourceLanguage === "unknown"
-                          ? ""
-                          : translation.sourceLanguage
-                      }
-                      onValueChange={async (value) => {
-                        if (value && value !== translation.sourceLanguage) {
-                          await translation.setSourceLanguage(value);
-                        }
-                      }}
-                    >
-                      <SelectTrigger
-                        className="h-6 text-[10px] px-2 py-0 border-muted-foreground/30 bg-background hover:bg-muted/50 w-fit min-w-[110px] max-w-[140px]"
-                        title={
-                          translation.sourceLanguage === "unknown"
-                            ? "Selecciona el idioma del artículo"
-                            : "Cambiar idioma detectado"
-                        }
-                      >
-                        <SelectValue placeholder="Idioma desconocido">
-                          {translation.sourceLanguage === "unknown"
-                            ? "Seleccionar idioma"
-                            : getLanguageName(translation.sourceLanguage)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SUPPORTED_LANGUAGES.filter(
-                          (lang) => lang.code !== "es"
-                        ).map((lang) => (
-                          <SelectItem key={lang.code} value={lang.code}>
-                            {lang.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {article.scrapedContent && (
+                  <Badge variant="secondary">Disponible sin conexión</Badge>
                 )}
+                {article.isFavorite && (
+                  <Badge
+                    variant="default"
+                    className="bg-red-500 hover:bg-red-600"
+                  >
+                    <Heart className="w-3 h-3 mr-1 fill-current" />
+                    Favorito
+                  </Badge>
+                )}
+                {translation.isShowingTranslation && (
+                  <Badge
+                    variant="default"
+                    className="bg-blue-500 hover:bg-blue-600"
+                  >
+                    <Languages className="w-3 h-3 mr-1" />
+                    Traducido al Español
+                  </Badge>
+                )}
+                {summaryHook.hasCachedSummary && (
+                  <Badge
+                    variant="default"
+                    className="bg-purple-500 hover:bg-purple-600"
+                  >
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Resumen IA
+                  </Badge>
+                )}
+                {translation.sourceLanguage !== "es" &&
+                  !translation.isShowingTranslation && (
+                    <div className="flex items-center gap-1.5">
+                      <Languages className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <Select
+                        value={
+                          translation.sourceLanguage === "unknown"
+                            ? ""
+                            : translation.sourceLanguage
+                        }
+                        onValueChange={async (value) => {
+                          if (value && value !== translation.sourceLanguage) {
+                            await translation.setSourceLanguage(value);
+                          }
+                        }}
+                      >
+                        <SelectTrigger
+                          className="h-6 text-[10px] px-2 py-0 border-muted-foreground/30 bg-background hover:bg-muted/50 w-fit min-w-[110px] max-w-[140px]"
+                          title={
+                            translation.sourceLanguage === "unknown"
+                              ? "Selecciona el idioma del artículo"
+                              : "Cambiar idioma detectado"
+                          }
+                        >
+                          <SelectValue placeholder="Idioma desconocido">
+                            {translation.sourceLanguage === "unknown"
+                              ? "Seleccionar idioma"
+                              : getLanguageName(translation.sourceLanguage)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPPORTED_LANGUAGES.filter(
+                            (lang) => lang.code !== "es"
+                          ).map((lang) => (
+                            <SelectItem key={lang.code} value={lang.code}>
+                              {lang.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+              </div>
+
+              {/* Resize Toggle Button */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() =>
+                    setViewMode(viewMode === "default" ? "expanded" : "default")
+                  }
+                  title={
+                    viewMode === "default" ? "Expandir vista" : "Vista normal"
+                  }
+                >
+                  {viewMode === "default" ? (
+                    <Maximize2 className="h-4 w-4" />
+                  ) : (
+                    <Minimize2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
             <DialogTitle className="text-2xl font-bold leading-tight mb-3">
               <FlipTitleReveal
@@ -1095,7 +1137,8 @@ export function ArticleView({
                 <>
                   <span className="text-muted-foreground">|</span>
                   {summaryHook.hasCachedSummary ||
-                  summaryHook.status === "completed" ? (
+                  summaryHook.status === "completed" ||
+                  isRegenerating ? (
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setShowSummary(!showSummary)}
@@ -1353,8 +1396,7 @@ export function ArticleView({
                   className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
                     clickedButton === "quick" ? "clicked" : ""
                   } ${
-                    summaryHook.status === "summarizing" &&
-                    clickedButton === "quick"
+                    generatingButtonId === "quick"
                       ? "regenerating"
                       : ""
                   }`}
@@ -1373,8 +1415,7 @@ export function ArticleView({
                   className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
                     clickedButton === "keypoints" ? "clicked" : ""
                   } ${
-                    summaryHook.status === "summarizing" &&
-                    clickedButton === "keypoints"
+                    generatingButtonId === "keypoints"
                       ? "regenerating"
                       : ""
                   }`}
@@ -1392,8 +1433,7 @@ export function ArticleView({
                   className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
                     clickedButton === "detailed" ? "clicked" : ""
                   } ${
-                    summaryHook.status === "summarizing" &&
-                    clickedButton === "detailed"
+                    generatingButtonId === "detailed"
                       ? "regenerating"
                       : ""
                   }`}
@@ -1411,8 +1451,7 @@ export function ArticleView({
                   className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-500/30 transition-all ${
                     clickedButton === "extended" ? "clicked" : ""
                   } ${
-                    summaryHook.status === "summarizing" &&
-                    clickedButton === "extended"
+                    generatingButtonId === "extended"
                       ? "regenerating"
                       : ""
                   }`}
@@ -1639,14 +1678,43 @@ export function ArticleView({
             </div>
           )}
 
-          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
-            <FlipHtmlReveal
-              originalHtml={originalContent}
-              translatedHtml={translatedContent}
-              showTranslation={translation.isShowingTranslation}
-              duration={1.2}
-              className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
-            />
+          {/* Article Content Area with Resize Controls */}
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex items-center justify-end gap-2 px-6 py-2 border-t bg-muted/30">
+              <span className="text-xs text-muted-foreground mr-auto">Contenido del artículo</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setViewMode(viewMode === "default" ? "expanded" : "default")}
+                title={viewMode === "default" ? "Expandir contenido" : "Vista normal"}
+              >
+                {viewMode === "default" ? (
+                  <>
+                    <Maximize2 className="h-3 w-3 mr-1" />
+                    Expandir
+                  </>
+                ) : (
+                  <>
+                    <Minimize2 className="h-3 w-3 mr-1" />
+                    Normal
+                  </>
+                )}
+              </Button>
+            </div>
+            <div 
+              className={`overflow-y-auto scrollbar-theme transition-all duration-300 ${
+                viewMode === "expanded" ? "flex-1" : "flex-1"
+              }`}
+            >
+              <FlipHtmlReveal
+                originalHtml={originalContent}
+                translatedHtml={translatedContent}
+                showTranslation={translation.isShowingTranslation}
+                duration={1.2}
+                className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
+              />
+            </div>
           </div>
         </DialogContent>
       </Dialog>

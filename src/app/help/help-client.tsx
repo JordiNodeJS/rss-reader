@@ -341,6 +341,12 @@ export default function HelpPage() {
                 />
 
                 <FeatureCard
+                  icon={<Zap className="w-5 h-5" />}
+                  title="Resumen con IA"
+                  description="Genera resúmenes locales de los artículos con opciones de longitud (short/medium/long/extended) y traducción automática a español cuando sea necesario."
+                />
+
+                <FeatureCard
                   icon={<Globe className="w-5 h-5" />}
                   title="Visor Integrado"
                   description="Visualiza artículos directamente en la aplicación con el visor integrado. Incluye controles de redimensionamiento y pantalla completa."

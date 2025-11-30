@@ -2,7 +2,7 @@
  * useSummary Hook
  *
  * React hook for generating AI summaries of article content.
- * Uses Transformers.js with DistilBART models for local summarization.
+ * Uses Transformers.js with DistilBART models for local summarization (supports `short`, `medium`, `long` and `extended` lengths).
  * Summaries are generated in English and optionally translated to Spanish
  * using Chrome's native Translator API.
  */
