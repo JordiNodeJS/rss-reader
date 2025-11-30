@@ -44,6 +44,7 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  Heart,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
@@ -51,6 +52,7 @@ interface ArticleViewProps {
   article: Article | null;
   isOpen: boolean;
   onClose: () => void;
+  onToggleFavorite?: (id: number) => void;
 }
 
 interface IframeViewerProps {
@@ -472,7 +474,12 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
   );
 }
 
-export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
+export function ArticleView({
+  article,
+  isOpen,
+  onClose,
+  onToggleFavorite,
+}: ArticleViewProps) {
   // Use article.guid as key to reset state when article changes
   const [showIframe, setShowIframe] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
@@ -480,6 +487,17 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("medium");
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showStopAnimation, setShowStopAnimation] = useState(false);
+  const [isFavoriteAnimating, setIsFavoriteAnimating] = useState(false);
+
+  const handleToggleFavorite = () => {
+    if (!article?.id || !onToggleFavorite) return;
+    // Only animate when adding to favorites
+    if (!article.isFavorite) {
+      setIsFavoriteAnimating(true);
+      setTimeout(() => setIsFavoriteAnimating(false), 450);
+    }
+    onToggleFavorite(article.id);
+  };
 
   // Streaming text store - external mutable state for useSyncExternalStore
   const streamStoreRef = useRef({
@@ -675,6 +693,15 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               {article.scrapedContent && (
                 <Badge variant="secondary">Disponible sin conexión</Badge>
               )}
+              {article.isFavorite && (
+                <Badge
+                  variant="default"
+                  className="bg-red-500 hover:bg-red-600"
+                >
+                  <Heart className="w-3 h-3 mr-1 fill-current" />
+                  Favorito
+                </Badge>
+              )}
               {translation.isShowingTranslation && (
                 <Badge
                   variant="default"
@@ -751,6 +778,32 @@ export function ArticleView({ article, isOpen, onClose }: ArticleViewProps) {
               </DialogDescription>
             </VisuallyHidden>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Favorite button */}
+              {onToggleFavorite && (
+                <>
+                  <button
+                    onClick={handleToggleFavorite}
+                    className={`flex items-center gap-1 cursor-pointer text-sm transition-colors heart-button ${
+                      article.isFavorite
+                        ? "text-red-500 hover:text-red-600"
+                        : "text-muted-foreground hover:text-red-500"
+                    } ${isFavoriteAnimating ? "animate-burst" : ""}`}
+                    title={
+                      article.isFavorite
+                        ? "Quitar de favoritos"
+                        : "Añadir a favoritos"
+                    }
+                  >
+                    <Heart
+                      className={`w-4 h-4 ${
+                        article.isFavorite ? "fill-current" : ""
+                      } ${isFavoriteAnimating ? "animate-heart-pop" : ""}`}
+                    />
+                    {article.isFavorite ? "Favorito" : "Añadir a favoritos"}
+                  </button>
+                  <span className="text-muted-foreground">|</span>
+                </>
+              )}
               <button
                 onClick={handleVisitOriginal}
                 className="text-primary hover:underline flex items-center gap-1 cursor-pointer"
