@@ -685,7 +685,7 @@ export function ArticleList({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 md:p-6 pb-20">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6 p-4 md:p-6 pb-20">
       {safeArticles.map((article) => (
         <ArticleCard
           key={article.id || article.guid}
