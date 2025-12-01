@@ -55,6 +55,8 @@ import {
   Minus,
   GitCompare,
   Zap,
+  MoreHorizontal,
+  Link,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
@@ -502,6 +504,10 @@ export function ArticleView({
   // New state for resizable view
   const [viewMode, setViewMode] = useState<"default" | "expanded">("default");
 
+  // State for hiding title on mobile scroll
+  const [isTitleHidden, setIsTitleHidden] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   // Resizable modal state
   const [modalSize, setModalSize] = useState({ width: 1152, height: 700 }); // Default: max-w-6xl ≈ 1152px
   const [isResizing, setIsResizing] = useState(false);
@@ -605,6 +611,58 @@ export function ArticleView({
       };
     }
   }, [isResizing, handleResizeMouseMove, handleResizeMouseUp]);
+
+  // Handle scroll to hide/show title on mobile
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let lastScrollY = 0;
+    let scrollContainer: HTMLDivElement | null = null;
+
+    const handleScroll = () => {
+      if (!scrollContainer) return;
+      const currentScrollY = scrollContainer.scrollTop;
+      // Only apply on mobile (check window width)
+      if (window.innerWidth <= 768) {
+        // Hide title when scrolling down past threshold, show when at top
+        if (currentScrollY > 60 && currentScrollY > lastScrollY) {
+          setIsTitleHidden(true);
+        } else if (currentScrollY < 30) {
+          setIsTitleHidden(false);
+        }
+      } else {
+        setIsTitleHidden(false);
+      }
+      lastScrollY = currentScrollY;
+    };
+
+    // Also handle window resize to update visibility when switching between mobile/desktop
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setIsTitleHidden(false);
+      }
+    };
+
+    // Use a small timeout to ensure the DOM is ready after dialog opens
+    const timeoutId = setTimeout(() => {
+      scrollContainer = scrollContainerRef.current;
+      if (scrollContainer) {
+        scrollContainer.addEventListener("scroll", handleScroll, {
+          passive: true,
+        });
+      }
+    }, 50);
+
+    window.addEventListener("resize", handleResize, { passive: true });
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (scrollContainer) {
+        scrollContainer.removeEventListener("scroll", handleScroll);
+      }
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isOpen]);
 
   // Streaming text store - external mutable state for useSyncExternalStore
   const streamStoreRef = useRef({
@@ -728,6 +786,7 @@ export function ArticleView({
     setShowSummary(false);
     setViewMode("default"); // Reset view mode on close
     setModalSize({ width: 1152, height: 700 }); // Reset modal size
+    setIsTitleHidden(false); // Reset title visibility
     onClose();
   };
 
@@ -1160,7 +1219,13 @@ export function ArticleView({
                 </Button>
               </div>
             </div>
-            <DialogTitle className="text-2xl font-bold leading-tight mb-3">
+            <DialogTitle
+              className={`text-2xl font-bold leading-tight mb-3 transition-all duration-300 md:max-h-none md:opacity-100 md:mb-3 ${
+                isTitleHidden
+                  ? "max-h-0 opacity-0 mb-0 overflow-hidden"
+                  : "max-h-[200px] opacity-100"
+              }`}
+            >
               <FlipTitleReveal
                 originalTitle={originalTitle}
                 translatedTitle={translatedTitle}
@@ -1174,16 +1239,24 @@ export function ArticleView({
                 {new Date(article.pubDate).toLocaleDateString()}
               </DialogDescription>
             </VisuallyHidden>
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Favorite button */}
-              {onToggleFavorite && (
-                <>
+            {/* Action buttons - collapsible on mobile */}
+            <div
+              className={`flex items-center gap-2 flex-wrap transition-all duration-300 md:max-h-none md:opacity-100 md:mb-2 ${
+                isTitleHidden
+                  ? "max-h-0 opacity-0 mb-0 overflow-hidden"
+                  : "max-h-[100px] opacity-100 mb-2"
+              }`}
+            >
+              {/* Mobile: Compact icon buttons */}
+              <div className="flex md:hidden items-center gap-1">
+                {/* Favorite button - always visible */}
+                {onToggleFavorite && (
                   <button
                     onClick={handleToggleFavorite}
-                    className={`flex items-center gap-1 cursor-pointer text-sm transition-colors heart-button ${
+                    className={`p-2 rounded-full transition-colors heart-button ${
                       article.isFavorite
-                        ? "text-red-500 hover:text-red-600"
-                        : "text-muted-foreground hover:text-red-500"
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                     } ${isFavoriteAnimating ? "animate-burst" : ""}`}
                     title={
                       article.isFavorite
@@ -1196,27 +1269,81 @@ export function ArticleView({
                         article.isFavorite ? "fill-current" : ""
                       } ${isFavoriteAnimating ? "animate-heart-pop" : ""}`}
                     />
-                    {article.isFavorite ? "Favorito" : "Añadir a favoritos"}
                   </button>
-                  <span className="text-muted-foreground">|</span>
-                </>
-              )}
-              <button
-                onClick={handleVisitOriginal}
-                className="text-primary hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                Ver original <ExternalLink className="w-3 h-3" />
-              </button>
-              <span className="text-muted-foreground">|</span>
-              <a
-                href={article.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 text-sm"
-              >
-                Abrir en pestaña nueva <ExternalLink className="w-3 h-3" />
-              </a>
+                )}
+                {/* View original */}
+                <button
+                  onClick={handleVisitOriginal}
+                  className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  title="Ver original"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+                {/* Open in new tab */}
+                <a
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  title="Abrir en pestaña nueva"
+                >
+                  <Link className="w-4 h-4" />
+                </a>
+              </div>
 
+              {/* Desktop: Full text buttons */}
+              <div className="hidden md:flex items-center gap-2 flex-wrap">
+                {onToggleFavorite && (
+                  <>
+                    <button
+                      onClick={handleToggleFavorite}
+                      className={`flex items-center gap-1 cursor-pointer text-sm transition-colors heart-button ${
+                        article.isFavorite
+                          ? "text-red-500 hover:text-red-600"
+                          : "text-muted-foreground hover:text-red-500"
+                      } ${isFavoriteAnimating ? "animate-burst" : ""}`}
+                      title={
+                        article.isFavorite
+                          ? "Quitar de favoritos"
+                          : "Añadir a favoritos"
+                      }
+                    >
+                      <Heart
+                        className={`w-4 h-4 ${
+                          article.isFavorite ? "fill-current" : ""
+                        } ${isFavoriteAnimating ? "animate-heart-pop" : ""}`}
+                      />
+                      {article.isFavorite ? "Favorito" : "Añadir a favoritos"}
+                    </button>
+                    <span className="text-muted-foreground">|</span>
+                  </>
+                )}
+                <button
+                  onClick={handleVisitOriginal}
+                  className="text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  Ver original <ExternalLink className="w-3 h-3" />
+                </button>
+                <span className="text-muted-foreground">|</span>
+                <a
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 text-sm"
+                >
+                  Abrir en pestaña nueva <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* AI Summary & Translation controls - compact bar that hides on mobile scroll */}
+            <div
+              className={`flex items-center gap-2 flex-wrap text-sm transition-all duration-300 md:max-h-none md:opacity-100 ${
+                isTitleHidden
+                  ? "max-h-0 opacity-0 overflow-hidden"
+                  : "max-h-[100px] opacity-100"
+              }`}
+            >
               {/* AI Summary controls */}
               {summaryHook.isChromeAvailable ||
               summaryHook.isTransformersAvailable ? (
@@ -1392,7 +1519,10 @@ export function ArticleView({
           </DialogHeader>
 
           {/* Main Scrollable Content */}
-          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 min-h-0 overflow-y-auto scrollbar-theme"
+          >
             {/* AI Summary Panel */}
             {showSummary && summaryHook.summary && (
               <div
