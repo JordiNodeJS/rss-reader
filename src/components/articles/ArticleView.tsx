@@ -2052,8 +2052,10 @@ export function ArticleView({
       {/* AI Settings Dialog */}
       {showAISettings && (
         <Dialog open={showAISettings} onOpenChange={setShowAISettings}>
-          <DialogContent className="w-full sm:max-w-2xl">
-            <DialogHeader>
+          {/* Make dialog content scrollable on small screens to ensure the full
+            configuration box is reachable on mobile devices */}
+          <DialogContent className="w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[75vh] overflow-y-auto">
+            <DialogHeader className="sticky top-0 bg-background/50 backdrop-blur-sm z-10">
               <DialogTitle className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-500" />
                 Configuración de IA
