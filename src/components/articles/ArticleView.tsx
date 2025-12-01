@@ -1031,7 +1031,7 @@ export function ArticleView({
       >
         <DialogContent
           id="dialog-article-view"
-          className={`relative flex flex-col gap-0 overflow-hidden ${
+          className={`flex flex-col gap-0 overflow-hidden p-0 ${
             isResizing ? "transition-none" : "transition-all duration-300 ease-in-out"
           } ${
             viewMode === "expanded" 
