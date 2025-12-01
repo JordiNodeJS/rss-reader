@@ -94,6 +94,7 @@ La aplicación puede generar resúmenes de artículos usando modelos que se ejec
 
 - `short`, `medium`, `long` y `extended` (más detallado, 7-10 oraciones o 10+ bullet points para 'key-points').
 - Por defecto el motor de resumen usa Transformers.js con `distilbart-cnn-12-6` y traduce automáticamente a español si procede.
+  > Para una guía de desarrolladores más exhaustiva sobre pre-carga, cache, y manejo de workers, ver `docs/summarization.md`.
 
 Si tu navegador soporta la API nativa (Chrome), puede haber integración con las APIs de resúmen nativo, aunque la aplicación utiliza Transformers.js como fallback y opción por defecto para asegurar compatibilidad cross-browser.
 
