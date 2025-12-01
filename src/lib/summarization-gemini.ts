@@ -50,8 +50,9 @@ export interface GeminiSummarizationResult {
 // Constants
 // ============================================
 
-// Using gemini-1.5-flash: Fast, cheap ($0.075/1M input tokens), good quality for summarization
-const GEMINI_MODEL = "gemini-1.5-flash";
+// Using gemini-2.5-flash: Fast, cheap, good quality for summarization
+// Note: gemini-1.5-flash was deprecated, replaced by gemini-2.5-flash
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 // Length configuration for prompts
 const LENGTH_CONFIG = {
