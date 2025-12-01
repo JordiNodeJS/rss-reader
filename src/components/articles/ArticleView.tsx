@@ -501,6 +501,13 @@ export function ArticleView({
 
   // New state for resizable view
   const [viewMode, setViewMode] = useState<"default" | "expanded">("default");
+  
+  // Resizable modal state
+  const [modalSize, setModalSize] = useState({ width: 1152, height: 700 }); // Default: max-w-6xl ≈ 1152px
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartPos = useRef({ x: 0, y: 0 });
+  const resizeStartSize = useRef({ width: 0, height: 0 });
+  const resizeDirection = useRef<"both" | "x" | "y">("both");
 
   // AI Features state
   const [clickedButton, setClickedButton] = useState<string | null>(null);
@@ -532,6 +539,62 @@ export function ArticleView({
     }
     onToggleFavorite(article.id);
   };
+
+  // Resize handlers
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsResizing(true);
+      resizeDirection.current = "both";
+      resizeStartPos.current = { x: e.clientX, y: e.clientY };
+      resizeStartSize.current = { ...modalSize };
+    },
+    [modalSize]
+  );
+
+  const handleResizeMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
+      // Multiply by 2 because the dialog is centered (translate-x-[-50%] translate-y-[-50%])
+      // So increasing width by X expands it by X/2 on each side.
+      // To keep the edge under the mouse, we need to increase width by 2*X.
+      const deltaX = (e.clientX - resizeStartPos.current.x) * 2;
+      const deltaY = (e.clientY - resizeStartPos.current.y) * 2;
+      
+      setModalSize({
+        width: resizeDirection.current === "y" 
+          ? resizeStartSize.current.width
+          : Math.max(
+              600, // minimum width
+              Math.min(window.innerWidth - 40, resizeStartSize.current.width + deltaX)
+            ),
+        height: resizeDirection.current === "x"
+          ? resizeStartSize.current.height
+          : Math.max(
+              400, // minimum height
+              Math.min(window.innerHeight - 40, resizeStartSize.current.height + deltaY)
+            ),
+      });
+    },
+    [isResizing]
+  );
+
+  const handleResizeMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // Add/remove resize event listeners
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener("mousemove", handleResizeMouseMove);
+      window.addEventListener("mouseup", handleResizeMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleResizeMouseMove);
+        window.removeEventListener("mouseup", handleResizeMouseUp);
+      };
+    }
+  }, [isResizing, handleResizeMouseMove, handleResizeMouseUp]);
 
   // Streaming text store - external mutable state for useSyncExternalStore
   const streamStoreRef = useRef({
@@ -654,6 +717,7 @@ export function ArticleView({
     setShowIframe(false);
     setShowSummary(false);
     setViewMode("default"); // Reset view mode on close
+    setModalSize({ width: 1152, height: 700 }); // Reset modal size
     onClose();
   };
 
@@ -967,11 +1031,23 @@ export function ArticleView({
       >
         <DialogContent
           id="dialog-article-view"
-          className={`flex flex-col gap-0 overflow-hidden transition-all duration-300 ease-in-out ${
+          className={`relative flex flex-col gap-0 overflow-hidden ${
+            isResizing ? "transition-none" : "transition-all duration-300 ease-in-out"
+          } ${
             viewMode === "expanded" 
               ? "max-w-[98vw] h-[95vh] rounded-md" 
-              : "max-w-6xl w-[95vw] max-h-[92vh]"
+              : ""
           }`}
+          style={
+            viewMode === "default"
+              ? {
+                  width: `${modalSize.width}px`,
+                  height: `${modalSize.height}px`,
+                  maxWidth: "95vw",
+                  maxHeight: "92vh",
+                }
+              : undefined
+          }
         >
           <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <div className="flex items-center justify-between mb-3">
@@ -1716,6 +1792,54 @@ export function ArticleView({
               />
             </div>
           </div>
+
+          {/* Resize handles - only show in default mode */}
+          {viewMode === "default" && (
+            <>
+              {/* Corner resize handle (bottom-right) */}
+              <div
+                className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-center justify-center text-muted-foreground hover:text-foreground transition-all z-10 group"
+                onMouseDown={handleResizeMouseDown}
+                title="Arrastra para redimensionar"
+              >
+                <div className="absolute inset-0 bg-gradient-to-tl from-primary/20 to-transparent rounded-tl-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+                <GripVertical className="h-5 w-5 rotate-[-45deg] relative z-10 drop-shadow-sm" />
+              </div>
+
+              {/* Right edge resize handle */}
+              <div
+                className="absolute top-0 right-0 bottom-0 w-2 cursor-ew-resize hover:bg-primary/10 transition-colors z-10"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsResizing(true);
+                  resizeDirection.current = "x";
+                  resizeStartPos.current = { x: e.clientX, y: e.clientY };
+                  resizeStartSize.current = { ...modalSize };
+                }}
+                title="Arrastra para redimensionar horizontalmente"
+              />
+
+              {/* Bottom edge resize handle */}
+              <div
+                className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize hover:bg-primary/10 transition-colors z-10"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsResizing(true);
+                  resizeDirection.current = "y";
+                  resizeStartPos.current = { x: e.clientX, y: e.clientY };
+                  resizeStartSize.current = { ...modalSize };
+                }}
+                title="Arrastra para redimensionar verticalmente"
+              />
+
+              {/* Overlay to prevent content interaction during resize */}
+              {isResizing && (
+                <div className="absolute inset-0 z-[9] cursor-se-resize" />
+              )}
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
