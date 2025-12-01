@@ -2052,7 +2052,7 @@ export function ArticleView({
       {/* AI Settings Dialog */}
       {showAISettings && (
         <Dialog open={showAISettings} onOpenChange={setShowAISettings}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="w-full sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-500" />
