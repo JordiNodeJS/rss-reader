@@ -2,7 +2,7 @@
  * useSummary Hook
  *
  * React hook for generating AI summaries of article content.
- * Uses Transformers.js with DistilBART models for local summarization.
+ * Uses Transformers.js with DistilBART models for local summarization (supports `short`, `medium`, `long` and `extended` lengths).
  * Summaries are generated in English and optionally translated to Spanish
  * using Chrome's native Translator API.
  */
@@ -219,13 +219,22 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
 
         // Use Transformers.js for summarization
         setActiveBackend("transformers");
+
+        // Calculate maxLength and minLength based on summary length
+        // extended: 400-500 tokens for comprehensive summaries that aid comprehension
+        const lengthConfig = {
+          short: { maxLength: 75, minLength: 20 },
+          medium: { maxLength: 150, minLength: 40 },
+          long: { maxLength: 250, minLength: 80 },
+          extended: { maxLength: 500, minLength: 150 },
+        };
+        const { maxLength, minLength } = lengthConfig[useLength];
+
         const result = await summarizeWithTransformers({
           text: textContent,
           modelId,
-          maxLength:
-            useLength === "short" ? 75 : useLength === "long" ? 250 : 150,
-          minLength:
-            useLength === "short" ? 20 : useLength === "long" ? 80 : 40,
+          maxLength,
+          minLength,
           onProgress: handleTransformersProgress,
         });
         let resultSummary = result.summary;

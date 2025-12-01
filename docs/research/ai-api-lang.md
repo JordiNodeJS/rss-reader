@@ -402,6 +402,35 @@ type TranslationStatus =
 
 ---
 
+## Summarization (Resúmenes con IA)
+
+La aplicación implementa resúmenes con IA que se ejecutan en el navegador; esta sección cubre las opciones y tradeoffs entre usar APIs nativas (Chrome) o soluciones cross-browser (Transformers.js).
+
+### Opciones disponibles
+
+- **Chrome Summarizer API**: API nativa (Chrome 138+) con modelos optimizados, descarga controlada y streaming nativo. Adecuada para usuarios Chrome que buscan rendimiento y privacidad.
+- **Transformers.js**: Fallback cross-browser con modelos como DistilBART (`distilbart-cnn-12-6`) para asegurar compatibilidad y funcionalidad en la mayoría de navegadores.
+
+### Longitudes y tipos
+
+- `short`, `medium`, `long` y `extended` — `extended` produce resúmenes más completos para lectura rápida y comprensión (7-10 oraciones o 10+ bullet points para `key-points`).
+- `type`: `tldr`, `key-points`, `teaser`, `headline`.
+- `format`: `markdown`, `plain-text`.
+
+### UX / Performance
+
+- Indicar la descarga del modelo y progreso la primera vez que se utiliza Transformers.js.
+- Cachear resúmenes en IndexedDB para mejorar la experiencia en dispositivos con recursos limitados.
+- Ofrecer opción de elegir modelo o deshabilitar resúmenes para ahorrar ancho de banda y CPU.
+
+### Recomendación de implementación
+
+1. **Primero**: Intentar usar Chrome Summarizer API si está disponible (mejor rendimiento y streaming).
+2. **Fallback**: Transformers.js con un modelo DistilBART para compatibilidad cross-browser.
+3. **Cache**: Almacenar resúmenes en IndexedDB y permitir al usuario limpiar el caché.
+
+---
+
 ## 8. TypeScript Types
 
 Para soporte TypeScript de Chrome AI APIs:

@@ -18,7 +18,7 @@ declare global {
 
   type SummarizerType = "key-points" | "tldr" | "teaser" | "headline";
   type SummarizerFormat = "markdown" | "plain-text";
-  type SummarizerLength = "short" | "medium" | "long";
+  type SummarizerLength = "short" | "medium" | "long" | "extended";
 
   interface SummarizerAvailabilityOptions {
     type?: SummarizerType;
@@ -126,9 +126,7 @@ declare global {
     ): Promise<TranslatorAvailability>;
     create(options: TranslatorCreateOptions): Promise<Translator>;
     // Optional method to delete a downloaded model (may not be available in all Chrome versions)
-    deleteModel?(
-      options: TranslatorAvailabilityOptions
-    ): Promise<void>;
+    deleteModel?(options: TranslatorAvailabilityOptions): Promise<void>;
   }
 
   // ============================================
