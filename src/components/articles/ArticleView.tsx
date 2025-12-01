@@ -16,6 +16,7 @@ import {
   SummaryLength,
   SummarizationModelKey,
   DEFAULT_MODEL,
+  SUMMARIZATION_MODELS,
 } from "@/lib/summarization";
 import { SummaryDiagnostics } from "./SummaryDiagnostics";
 import { AIDisclaimer } from "@/components/AIDisclaimer";
@@ -53,6 +54,8 @@ import {
   Heart,
   User,
   Building2,
+  Cpu,
+  Cloud,
   MapPin,
   Tag,
   MessageCircleQuestion,
@@ -1160,10 +1163,40 @@ export function ArticleView({
                 {summaryHook.hasCachedSummary && (
                   <Badge
                     variant="default"
-                    className="bg-purple-500 hover:bg-purple-600"
+                    className={
+                      aiProvider === "gemini"
+                        ? "bg-blue-500 hover:bg-blue-600"
+                        : "bg-purple-500 hover:bg-purple-600"
+                    }
+                    title={
+                      aiProvider === "gemini"
+                        ? "Resumen generado con Gemini 2.5 Flash-Lite"
+                        : `Resumen generado localmente con ${
+                            selectedModel && SUMMARIZATION_MODELS[selectedModel]
+                              ? SUMMARIZATION_MODELS[selectedModel].name
+                              : selectedModel
+                          }`
+                    }
                   >
+                    {aiProvider === "gemini" ? (
+                      <Cloud className="w-3 h-3 mr-1" />
+                    ) : (
+                      <Cpu className="w-3 h-3 mr-1" />
+                    )}
                     <Sparkles className="w-3 h-3 mr-1" />
-                    Resumen IA
+                    {aiProvider === "gemini" ? (
+                      "Gemini"
+                    ) : (
+                      <>
+                        Local
+                        {selectedModel &&
+                          SUMMARIZATION_MODELS[selectedModel] && (
+                            <span className="ml-2 text-xs opacity-80">
+                              ({SUMMARIZATION_MODELS[selectedModel].name})
+                            </span>
+                          )}
+                      </>
+                    )}
                   </Badge>
                 )}
                 {translation.sourceLanguage !== "es" &&
@@ -1433,7 +1466,11 @@ export function ArticleView({
                       Generar resumen con IA
                       {aiProvider === "local" && (
                         <span className="text-[10px] opacity-70 ml-1">
-                          (local)
+                          (local
+                          {selectedModel && SUMMARIZATION_MODELS[selectedModel]
+                            ? `: ${SUMMARIZATION_MODELS[selectedModel].name}`
+                            : ""}
+                          )
                         </span>
                       )}
                       {aiProvider === "gemini" && (

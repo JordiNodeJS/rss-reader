@@ -4,7 +4,8 @@
  * Uses Google's Gemini API for high-quality summarization.
  * This is an alternative to local Transformers.js models for users who prefer cloud-based AI.
  *
- * Recommended model: gemini-1.5-flash (fast, cheap, good for summarization)
+ * Recommended model: gemini-2.5-flash-lite (fastest, cheapest for summarization)
+ * Alternative: gemini-2.5-flash (better quality, slightly more expensive)
  *
  * @see https://ai.google.dev/gemini-api/docs
  */
@@ -50,9 +51,10 @@ export interface GeminiSummarizationResult {
 // Constants
 // ============================================
 
-// Using gemini-2.5-flash: Fast, cheap, good quality for summarization
-// Note: gemini-1.5-flash was deprecated, replaced by gemini-2.5-flash
-const GEMINI_MODEL = "gemini-2.5-flash";
+// Using gemini-2.5-flash-lite: Fastest, cheapest ($0.10/1M input, $0.40/1M output)
+// Best for summarization tasks where cost efficiency matters
+// Alternative: gemini-2.5-flash ($0.30/1M input) for better quality
+const GEMINI_MODEL = "gemini-2.5-flash-lite";
 
 // Length configuration for prompts
 const LENGTH_CONFIG = {
@@ -274,4 +276,144 @@ export async function validateApiKey(apiKey: string): Promise<boolean> {
  */
 export function isGeminiAvailable(): boolean {
   return hasStoredApiKey();
+}
+
+// ============================================
+// Translation with Gemini
+// ============================================
+
+export interface GeminiTranslationOptions {
+  /** Text to translate */
+  text: string;
+  /** Source language code (e.g., 'en', 'fr') */
+  sourceLanguage?: string;
+  /** Target language (default: 'es' for Spanish) */
+  targetLanguage?: string;
+  /** API key for Gemini */
+  apiKey: string;
+  /** Progress callback */
+  onProgress?: (progress: GeminiSummarizationProgress) => void;
+}
+
+export interface GeminiTranslationResult {
+  translatedText: string;
+  model: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+}
+
+/**
+ * Translate text using Google Gemini API
+ */
+export async function translateWithGemini(
+  options: GeminiTranslationOptions
+): Promise<GeminiTranslationResult> {
+  const {
+    text,
+    sourceLanguage = "en",
+    targetLanguage = "es",
+    apiKey,
+    onProgress,
+  } = options;
+
+  if (!text || text.trim().length === 0) {
+    throw new Error("No text provided for translation");
+  }
+
+  if (!apiKey) {
+    throw new Error("Se requiere una API key de Google Gemini");
+  }
+
+  onProgress?.({
+    status: "summarizing",
+    progress: 10,
+    message: "Conectando con Google Gemini para traducción...",
+  });
+
+  try {
+    const model = getGeminiModel(apiKey);
+
+    const targetLangName =
+      targetLanguage === "es"
+        ? "Spanish"
+        : targetLanguage === "en"
+        ? "English"
+        : targetLanguage;
+
+    const sourceLangName =
+      sourceLanguage === "es"
+        ? "Spanish"
+        : sourceLanguage === "en"
+        ? "English"
+        : sourceLanguage === "fr"
+        ? "French"
+        : sourceLanguage === "de"
+        ? "German"
+        : sourceLanguage === "pt"
+        ? "Portuguese"
+        : sourceLanguage === "it"
+        ? "Italian"
+        : sourceLanguage;
+
+    const prompt = `You are a professional translator. Translate the following text from ${sourceLangName} to ${targetLangName}.
+
+Rules:
+- Provide ONLY the translated text, no explanations or notes
+- Preserve the original formatting (paragraphs, line breaks)
+- Maintain the tone and style of the original
+- Translate naturally, not word-by-word
+
+Text to translate:
+${text}
+
+Translation:`;
+
+    onProgress?.({
+      status: "summarizing",
+      progress: 30,
+      message: "Traduciendo con Gemini...",
+    });
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const translatedText = response.text().trim();
+
+    onProgress?.({
+      status: "completed",
+      progress: 100,
+      message: "Traducción completada con Gemini",
+    });
+
+    return {
+      translatedText,
+      model: GEMINI_MODEL,
+      sourceLanguage,
+      targetLanguage,
+    };
+  } catch (error) {
+    onProgress?.({
+      status: "error",
+      progress: 0,
+      message: error instanceof Error ? error.message : "Error desconocido",
+    });
+
+    if (error instanceof Error) {
+      if (error.message.includes("API_KEY_INVALID")) {
+        throw new Error(
+          "La API key de Gemini no es válida. Por favor, verifica tu configuración."
+        );
+      }
+      if (error.message.includes("QUOTA_EXCEEDED")) {
+        throw new Error(
+          "Se ha excedido la cuota de la API. Intenta más tarde."
+        );
+      }
+    }
+
+    throw new Error(
+      `Error al traducir con Gemini: ${
+        error instanceof Error ? error.message : "Error desconocido"
+      }`
+    );
+  }
 }

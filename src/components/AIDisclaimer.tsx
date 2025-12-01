@@ -160,6 +160,11 @@ export function AIDisclaimer({
             <>
               <Cpu className="w-3 h-3 mr-1" />
               Local
+              {selectedModel && SUMMARIZATION_MODELS[selectedModel] && (
+                <span className="ml-2 text-[10px] opacity-80">
+                  ({SUMMARIZATION_MODELS[selectedModel].name})
+                </span>
+              )}
             </>
           ) : (
             <>
@@ -449,8 +454,8 @@ function SettingsDialog({
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Usa Gemini 1.5 Flash. Más rápido y preciso, requiere API
-                    key. Muy económico (~$0.075/millón tokens).
+                    Usa Gemini 2.5 Flash-Lite. Ultra rápido y muy económico
+                    (~$0.10/millón tokens). Requiere API key.
                   </p>
                 </div>
               </div>
@@ -525,12 +530,23 @@ function SettingsDialog({
           </div>
 
           {/* Translation Info */}
-          {!isTranslationAvailable && (
+          {!isTranslationAvailable && !hasKey && (
             <div className="flex items-start gap-2 p-2 bg-blue-500/10 rounded-md">
               <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
               <p className="text-xs text-blue-700 dark:text-blue-300">
-                La traducción automática no está disponible en tu navegador. Los
-                resúmenes se mostrarán en inglés.
+                La traducción automática con Chrome no está disponible.{" "}
+                Configura una API key de Gemini para habilitar traducciones o
+                usa Chrome 131+.
+              </p>
+            </div>
+          )}
+          {hasKey && (
+            <div className="flex items-start gap-2 p-2 bg-green-500/10 rounded-md">
+              <Info className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-green-700 dark:text-green-300">
+                <strong>Gemini configurado:</strong> Los resúmenes y
+                traducciones usarán Gemini 2.5 Flash-Lite cuando Chrome no esté
+                disponible.
               </p>
             </div>
           )}
