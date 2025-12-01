@@ -422,12 +422,15 @@ La aplicación implementa resúmenes con IA que se ejecutan en el navegador; est
 - Indicar la descarga del modelo y progreso la primera vez que se utiliza Transformers.js.
 - Cachear resúmenes en IndexedDB para mejorar la experiencia en dispositivos con recursos limitados.
 - Ofrecer opción de elegir modelo o deshabilitar resúmenes para ahorrar ancho de banda y CPU.
+- Exponer APIs de pre-carga y gestión: `preloadSummarizationModel()` para precargar modelos, `getSummarizationModelStatus()` para consultar el estado del modelo y `terminateSummarizationWorker()` para liberar memoria si es necesario.
+- Proveer UI de administración: el diálogo "Caché de Modelos IA" permite listar y limpiar modelos descargados (traducción y resumen) y ver el espacio utilizado; usa `clearSummarizationModelCache()` en el backend para eliminación.
 
 ### Recomendación de implementación
 
 1. **Primero**: Intentar usar Chrome Summarizer API si está disponible (mejor rendimiento y streaming).
 2. **Fallback**: Transformers.js con un modelo DistilBART para compatibilidad cross-browser.
 3. **Cache**: Almacenar resúmenes en IndexedDB y permitir al usuario limpiar el caché.
+4. **Worker/Modelo Management**: Permitir la precarga del modelo en segundo plano y la terminación explícita del worker (`terminateSummarizationWorker()`) en escenarios de memoria alta o al borrar modelos.
 
 ---
 

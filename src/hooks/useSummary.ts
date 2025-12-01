@@ -230,9 +230,14 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
         };
         const { maxLength, minLength } = lengthConfig[useLength];
 
+        // Use larger model (bart-large-cnn) for extended summaries for better quality
+        // The larger model has better vocabulary and produces less repetitive text
+        const useModelId: SummarizationModelKey =
+          useLength === "extended" ? "bart-large-cnn" : modelId;
+
         const result = await summarizeWithTransformers({
           text: textContent,
-          modelId,
+          modelId: useModelId,
           maxLength,
           minLength,
           onProgress: handleTransformersProgress,

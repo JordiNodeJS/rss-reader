@@ -145,11 +145,21 @@ self.addEventListener("message", async (event: MessageEvent<WorkerRequest>) => {
         // Signal ready
         sendProgress({ status: "ready" });
 
-        // Perform summarization
+        // Perform summarization with improved parameters to reduce repetition
         const result = await summarizer(data.text, {
           max_length: data.maxLength || 150,
           min_length: data.minLength || 30,
           do_sample: false,
+          // Add repetition penalty to avoid word repetition
+          // 1.0 = no penalty, higher values penalize repeated words more
+          repetition_penalty: 1.2,
+          // Prevent repeating n-grams (sequences of words)
+          // Prevents the model from repeating sequences of 3 words
+          no_repeat_ngram_size: 3,
+          // Use beam search for better quality (slower but produces better summaries)
+          num_beams: 4,
+          // Stop generation when all beams reach the end-of-sequence token
+          early_stopping: true,
         });
 
         // Result is an array, get first item
