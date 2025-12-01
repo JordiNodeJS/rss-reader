@@ -24,12 +24,19 @@ import {
   SummarizationModelKey,
 } from "@/lib/summarization";
 import { translateToSpanish, detectLanguage } from "@/lib/translation";
+import {
+  summarizeWithGemini,
+  isGeminiAvailable,
+  getStoredApiKey,
+  type GeminiSummarizationProgress,
+} from "@/lib/summarization-gemini";
 
 // ============================================
 // Types
 // ============================================
 
-export type SummarizationBackend = "transformers"; // Only Transformers.js is supported now
+export type SummarizationBackend = "transformers" | "gemini";
+export type SummarizationProvider = "local" | "gemini";
 
 export interface UseSummaryOptions {
   /** Article to summarize */
@@ -40,8 +47,8 @@ export interface UseSummaryOptions {
   length?: SummaryLength;
   /** Cache summaries in IndexedDB */
   cacheSummaries?: boolean;
-  /** Backend is always 'transformers' now - kept for API compatibility */
-  backend?: SummarizationBackend;
+  /** Provider to use: 'local' for Transformers.js, 'gemini' for Google Gemini API */
+  provider?: SummarizationProvider;
   /** Model to use for Transformers.js (default: distilbart-cnn-12-6) */
   modelId?: SummarizationModelKey;
   /** Translate summary to Spanish after generation (default: true) */
@@ -65,11 +72,11 @@ export interface UseSummaryReturn {
   error: string | null;
   /** Availability error (kept for API compatibility) */
   availabilityError: string | null;
-  /** Always false - Chrome Summarizer is no longer used */
-  isChromeAvailable: boolean;
+  /** Whether Gemini API is available (has valid key stored) */
+  isGeminiAvailable: boolean;
   /** Whether Transformers.js is available */
   isTransformersAvailable: boolean;
-  /** Current active backend - always 'transformers' */
+  /** Current active backend */
   activeBackend: SummarizationBackend | null;
   /** Whether summarization can be triggered */
   canSummarize: boolean;
@@ -99,6 +106,7 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     type: defaultType = "tldr",
     length: defaultLength = "medium",
     cacheSummaries = true,
+    provider = "local",
     modelId = "distilbart-cnn-12-6",
     translateSummary = true, // Default to true now - always translate to Spanish
   } = options;
@@ -113,20 +121,22 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     useState<SummaryLength>(defaultLength);
   const [error, setError] = useState<string | null>(null);
   const [isTransformersAvailable, setIsTransformersAvailable] = useState(false);
+  const [geminiAvailable, setGeminiAvailable] = useState(false);
   const [hasCachedSummary, setHasCachedSummary] = useState(false);
   const [activeBackend, setActiveBackend] =
     useState<SummarizationBackend | null>(null);
 
-  // Derived state - can summarize if Transformers.js is available
+  // Derived state - can summarize if either Transformers.js or Gemini is available
   const canSummarize =
     !!article &&
-    isTransformersAvailable &&
+    (isTransformersAvailable || geminiAvailable) &&
     status !== "summarizing" &&
     status !== "downloading";
 
-  // Check Transformers.js availability on mount
+  // Check availability on mount
   useEffect(() => {
     setIsTransformersAvailable(isTransformersSummarizationAvailable());
+    setGeminiAvailable(isGeminiAvailable());
   }, []);
 
   // Load cached summary when article changes
@@ -172,7 +182,23 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     []
   );
 
-  // Summarize function - uses Transformers.js only
+  // Progress callback for Gemini
+  const handleGeminiProgress = useCallback(
+    (progressData: GeminiSummarizationProgress) => {
+      const statusMap: Record<string, SummarizationStatus> = {
+        idle: "idle",
+        summarizing: "summarizing",
+        completed: "completed",
+        error: "error",
+      };
+      setStatus(statusMap[progressData.status] || "summarizing");
+      setProgress(progressData.progress);
+      setMessage(progressData.message);
+    },
+    []
+  );
+
+  // Summarize function - uses Transformers.js or Gemini based on provider
   const summarize = useCallback(
     async (
       type?: SummaryType,
@@ -186,13 +212,6 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
         return;
       }
 
-      // Check if we can summarize
-      if (!isTransformersAvailable) {
-        setError("Transformers.js no está disponible en este navegador");
-        setStatus("error");
-        return;
-      }
-
       const useType = type || defaultType;
       const useLength = length || defaultLength;
 
@@ -200,32 +219,83 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
       setSummaryType(useType);
       setSummaryLength(useLength);
 
-      try {
-        // Get content to summarize
-        const contentToSummarize =
-          article.scrapedContent ||
-          article.content ||
-          article.contentSnippet ||
-          "";
+      // Get content to summarize
+      const contentToSummarize =
+        article.scrapedContent ||
+        article.content ||
+        article.contentSnippet ||
+        "";
 
-        // Extract plain text (remove HTML)
-        const textContent = extractTextForSummary(contentToSummarize);
+      // Extract plain text (remove HTML)
+      const textContent = extractTextForSummary(contentToSummarize);
 
-        if (!textContent || textContent.length < 50) {
-          throw new Error(
-            "El contenido del artículo es demasiado corto para resumir"
-          );
+      if (!textContent || textContent.length < 50) {
+        setError("El contenido del artículo es demasiado corto para resumir");
+        setStatus("error");
+        return;
+      }
+
+      // Use Gemini if provider is 'gemini' and available
+      if (provider === "gemini" && isGeminiAvailable()) {
+        try {
+          setActiveBackend("gemini");
+          const apiKey = getStoredApiKey();
+          if (!apiKey) {
+            throw new Error("No hay API key de Gemini configurada");
+          }
+
+          const result = await summarizeWithGemini({
+            text: textContent,
+            apiKey,
+            length: useLength,
+            outputLanguage: "es", // Always Spanish
+            onProgress: handleGeminiProgress,
+          });
+
+          setSummary(result.summary);
+          setStatus("completed");
+          setMessage("Resumen generado con Gemini");
+          setHasCachedSummary(true);
+
+          // Cache in IndexedDB
+          if (cacheSummaries && article.id) {
+            try {
+              await updateArticleSummary(
+                article.id,
+                result.summary,
+                useType,
+                useLength
+              );
+            } catch (cacheError) {
+              console.warn("[useSummary] Failed to cache summary:", cacheError);
+            }
+          }
+          return;
+        } catch (err) {
+          const errorMessage =
+            err instanceof Error ? err.message : "Error con Gemini API";
+          setError(errorMessage);
+          setStatus("error");
+          setMessage(errorMessage);
+          return;
         }
+      }
 
+      // Fallback to Transformers.js
+      if (!isTransformersAvailable) {
+        setError("Transformers.js no está disponible en este navegador");
+        setStatus("error");
+        return;
+      }
+
+      try {
         // Detect language of the original article to determine if translation is needed
         // The summarization model (DistilBART) is trained on English, so it will produce
         // English summaries even for non-English content. We need to translate to Spanish.
         let needsTranslation = translateSummary;
-        let detectedLanguage = "en";
 
         try {
           const detection = await detectLanguage(textContent);
-          detectedLanguage = detection.language;
           // Always translate to Spanish unless it's already in Spanish AND translation is disabled
           // If the article is in Spanish, the model still produces English output, so we need to translate
           needsTranslation = translateSummary || !detection.isSpanish;
@@ -321,11 +391,13 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
       summary,
       cacheSummaries,
       handleTransformersProgress,
+      handleGeminiProgress,
       defaultType,
       defaultLength,
       isTransformersAvailable,
       modelId,
       translateSummary,
+      provider,
     ]
   );
 
@@ -426,7 +498,7 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
     summaryLength,
     error,
     availabilityError: null, // Chrome Summarizer no longer used
-    isChromeAvailable: false, // Chrome Summarizer no longer used
+    isGeminiAvailable: geminiAvailable,
     isTransformersAvailable,
     activeBackend,
     canSummarize,

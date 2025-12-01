@@ -855,8 +855,9 @@ export async function translateToSpanish(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(
-      `[Translation] Chrome Translator API failed for ${sourceLanguage}->es:`,
+    // Use console.warn instead of error - Chrome Translator is optional and expected to fail on non-Chrome browsers
+    console.warn(
+      `[Translation] Chrome Translator API not available for ${sourceLanguage}->es:`,
       errorMessage
     );
 
@@ -897,6 +898,14 @@ export async function getAvailableProviders(): Promise<{
     chrome: chromeAvailable,
     transformers: false, // Transformers.js no longer used for translation
   };
+}
+
+/**
+ * Check if Chrome Translator API is potentially available
+ * This is a synchronous check that doesn't verify model availability
+ */
+export function isChromeTranslatorAvailable(): boolean {
+  return typeof Translator !== "undefined";
 }
 
 /**

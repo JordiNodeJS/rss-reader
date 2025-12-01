@@ -10,9 +10,15 @@ import {
 } from "react";
 import { Article } from "@/lib/db";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useSummary } from "@/hooks/useSummary";
-import { SummaryType, SummaryLength } from "@/lib/summarization";
+import { useSummary, SummarizationProvider } from "@/hooks/useSummary";
+import {
+  SummaryType,
+  SummaryLength,
+  SummarizationModelKey,
+  DEFAULT_MODEL,
+} from "@/lib/summarization";
 import { SummaryDiagnostics } from "./SummaryDiagnostics";
+import { AIDisclaimer } from "@/components/AIDisclaimer";
 import { FlipTitleReveal, FlipHtmlReveal } from "@/components/FlipTextReveal";
 import { ShimmerLoadingInline } from "@/components/ui/shimmer-loading";
 import {
@@ -55,8 +61,8 @@ import {
   Minus,
   GitCompare,
   Zap,
-  MoreHorizontal,
   Link,
+  Settings,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
@@ -497,6 +503,10 @@ export function ArticleView({
   const [showSummary, setShowSummary] = useState(false);
   const [summaryType, setSummaryType] = useState<SummaryType>("tldr");
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("medium");
+  const [aiProvider, setAiProvider] = useState<SummarizationProvider>("local");
+  const [selectedModel, setSelectedModel] =
+    useState<SummarizationModelKey>(DEFAULT_MODEL);
+  const [showAISettings, setShowAISettings] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showStopAnimation, setShowStopAnimation] = useState(false);
   const [isFavoriteAnimating, setIsFavoriteAnimating] = useState(false);
@@ -723,6 +733,8 @@ export function ArticleView({
     type: summaryType,
     length: summaryLength,
     cacheSummaries: true,
+    provider: aiProvider,
+    modelId: selectedModel,
     translateSummary: true, // Translate summaries to Spanish when using local model
   });
 
@@ -1345,7 +1357,7 @@ export function ArticleView({
               }`}
             >
               {/* AI Summary controls */}
-              {summaryHook.isChromeAvailable ||
+              {summaryHook.isGeminiAvailable ||
               summaryHook.isTransformersAvailable ? (
                 <>
                   <span className="text-muted-foreground">|</span>
@@ -1409,22 +1421,36 @@ export function ArticleView({
                       disabled={!summaryHook.canSummarize}
                       title={
                         summaryHook.isTransformersAvailable &&
-                        !summaryHook.isChromeAvailable
+                        !summaryHook.isGeminiAvailable
                           ? "Resumen generado localmente y traducido al español"
+                          : summaryHook.isGeminiAvailable
+                          ? "Resumen generado con Google Gemini"
                           : undefined
                       }
                       data-qa="article-generate-button"
                     >
                       <Sparkles className="w-3 h-3" />
                       Generar resumen con IA
-                      {summaryHook.isTransformersAvailable &&
-                        !summaryHook.isChromeAvailable && (
-                          <span className="text-[10px] opacity-70 ml-1">
-                            (local)
-                          </span>
-                        )}
+                      {aiProvider === "local" && (
+                        <span className="text-[10px] opacity-70 ml-1">
+                          (local)
+                        </span>
+                      )}
+                      {aiProvider === "gemini" && (
+                        <span className="text-[10px] opacity-70 ml-1">
+                          (gemini)
+                        </span>
+                      )}
                     </button>
                   )}
+                  {/* AI Settings Button */}
+                  <button
+                    onClick={() => setShowAISettings(true)}
+                    className="text-muted-foreground hover:text-purple-500 p-1 rounded transition-colors"
+                    title="Configurar proveedor de IA"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
                 </>
               ) : (
                 // Show info when API is not available
@@ -1557,17 +1583,26 @@ export function ArticleView({
                         Extendido
                       </Badge>
                     )}
-                    {/* Show local badge when using Transformers.js */}
-                    {(summaryHook.activeBackend === "transformers" ||
-                      (!summaryHook.isChromeAvailable &&
-                        summaryHook.isTransformersAvailable)) && (
+                    {/* Show provider badge */}
+                    {summaryHook.activeBackend === "gemini" ? (
                       <Badge
                         variant="secondary"
                         className="text-[10px] opacity-70"
-                        title="Resumen generado localmente y traducido al español"
+                        title="Resumen generado con Google Gemini"
                       >
-                        local
+                        gemini
                       </Badge>
+                    ) : (
+                      (summaryHook.activeBackend === "transformers" ||
+                        summaryHook.isTransformersAvailable) && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] opacity-70"
+                          title="Resumen generado localmente y traducido al español"
+                        >
+                          local
+                        </Badge>
+                      )
                     )}
                     {isStreaming && (
                       <span className="text-xs text-purple-400 animate-pulse">
@@ -1614,9 +1649,11 @@ export function ArticleView({
                         handleGenerateSummary("tldr", "short", true)
                       )
                     }
-                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
-                      clickedButton === "quick" ? "clicked" : ""
-                    } ${
+                    className={`ai-button text-xs px-2 py-1 rounded transition-all ${
+                      summaryHook.summaryLength === "short"
+                        ? "bg-purple-500/30 ring-2 ring-purple-500/50 text-purple-700 dark:text-purple-300 font-medium"
+                        : "bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                    } ${clickedButton === "quick" ? "clicked" : ""} ${
                       generatingButtonId === "quick"
                         ? "regenerating-border"
                         : ""
@@ -1633,9 +1670,12 @@ export function ArticleView({
                         handleGenerateSummary("key-points", "medium", true)
                       )
                     }
-                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
-                      clickedButton === "keypoints" ? "clicked" : ""
-                    } ${
+                    className={`ai-button text-xs px-2 py-1 rounded transition-all ${
+                      summaryHook.summaryType === "key-points" &&
+                      summaryHook.summaryLength === "medium"
+                        ? "bg-purple-500/30 ring-2 ring-purple-500/50 text-purple-700 dark:text-purple-300 font-medium"
+                        : "bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                    } ${clickedButton === "keypoints" ? "clicked" : ""} ${
                       generatingButtonId === "keypoints"
                         ? "regenerating-border"
                         : ""
@@ -1651,9 +1691,11 @@ export function ArticleView({
                         handleGenerateSummary("tldr", "long", true)
                       )
                     }
-                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
-                      clickedButton === "detailed" ? "clicked" : ""
-                    } ${
+                    className={`ai-button text-xs px-2 py-1 rounded transition-all ${
+                      summaryHook.summaryLength === "long"
+                        ? "bg-purple-500/30 ring-2 ring-purple-500/50 text-purple-700 dark:text-purple-300 font-medium"
+                        : "bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                    } ${clickedButton === "detailed" ? "clicked" : ""} ${
                       generatingButtonId === "detailed"
                         ? "regenerating-border"
                         : ""
@@ -1669,9 +1711,11 @@ export function ArticleView({
                         handleGenerateSummary("tldr", "extended", true)
                       )
                     }
-                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-500/30 transition-all ${
-                      clickedButton === "extended" ? "clicked" : ""
-                    } ${
+                    className={`ai-button text-xs px-2 py-1 rounded border transition-all ${
+                      summaryHook.summaryLength === "extended"
+                        ? "bg-purple-500/40 ring-2 ring-purple-500/60 text-purple-700 dark:text-purple-200 font-semibold border-purple-500/50"
+                        : "bg-purple-500/20 hover:bg-purple-500/30 text-purple-700 dark:text-purple-300 font-medium border-purple-500/30"
+                    } ${clickedButton === "extended" ? "clicked" : ""} ${
                       generatingButtonId === "extended"
                         ? "regenerating-border"
                         : ""
@@ -2003,6 +2047,31 @@ export function ArticleView({
       {/* Iframe viewer overlay - shown when user clicks "Visit Original" */}
       {showIframe && (
         <IframeViewer url={article.link} onClose={() => setShowIframe(false)} />
+      )}
+
+      {/* AI Settings Dialog */}
+      {showAISettings && (
+        <Dialog open={showAISettings} onOpenChange={setShowAISettings}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-500" />
+                Configuración de IA
+              </DialogTitle>
+              <DialogDescription>
+                Elige cómo generar los resúmenes de artículos
+              </DialogDescription>
+            </DialogHeader>
+            <AIDisclaimer
+              provider={aiProvider}
+              onProviderChange={setAiProvider}
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
+              isTranslationAvailable={translation.canTranslate}
+              compact={false}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );

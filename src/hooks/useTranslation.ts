@@ -105,6 +105,8 @@ export function useTranslation(
 
   // Check for cached translation and detect language when article changes
   useEffect(() => {
+    let isMounted = true;
+
     if (!article) {
       setStatus("idle");
       setTranslatedTitle("");
@@ -149,11 +151,14 @@ export function useTranslation(
 
           if (textContent.length > 20) {
             const detection = await detectLanguage(textContent);
-            // If detection returns 'unknown' but we have content, default to 'en'
-            // to allow user to try translating if they want (though canTranslate blocks 'unknown')
-            // Let's set it to detection.language and let canTranslate handle it
-            setSourceLanguage(detection.language);
-          } else {
+            // Only update state if still mounted
+            if (isMounted) {
+              // If detection returns 'unknown' but we have content, default to 'en'
+              // to allow user to try translating if they want (though canTranslate blocks 'unknown')
+              // Let's set it to detection.language and let canTranslate handle it
+              setSourceLanguage(detection.language);
+            }
+          } else if (isMounted) {
             // Too short to detect, assume English for English-language feeds
             setSourceLanguage("en");
           }
@@ -165,6 +170,10 @@ export function useTranslation(
 
     // Reset showing state when article changes
     setIsShowingTranslation(false);
+
+    return () => {
+      isMounted = false;
+    };
   }, [article]);
 
   // Auto-translate if enabled
