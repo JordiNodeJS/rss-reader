@@ -1381,8 +1381,10 @@ export function ArticleView({
             </div>
           </DialogHeader>
 
-          {/* AI Summary Panel */}
-          {showSummary && summaryHook.summary && (
+          {/* Main Scrollable Content */}
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
+            {/* AI Summary Panel */}
+            {showSummary && summaryHook.summary && (
             <div
               className={`mx-6 mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 spring-expand-container ${
                 isStreaming ? "streaming" : ""
@@ -1754,9 +1756,9 @@ export function ArticleView({
             </div>
           )}
 
-          {/* Article Content Area with Resize Controls */}
-          <div className="flex-1 min-h-0 flex flex-col">
-            <div className="flex items-center justify-end gap-2 px-6 py-2 border-t bg-muted/30">
+            {/* Article Content Area */}
+            <div className="flex flex-col">
+              <div className="sticky top-0 z-10 flex items-center justify-end gap-2 px-6 py-2 border-y bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <span className="text-xs text-muted-foreground mr-auto">Contenido del artículo</span>
               <Button
                 variant="ghost"
@@ -1779,8 +1781,8 @@ export function ArticleView({
               </Button>
             </div>
             <div 
-              className={`overflow-y-auto scrollbar-theme transition-all duration-300 ${
-                viewMode === "expanded" ? "flex-1" : "flex-1"
+              className={`transition-all duration-300 ${
+                viewMode === "expanded" ? "" : ""
               }`}
             >
               <FlipHtmlReveal
@@ -1791,6 +1793,7 @@ export function ArticleView({
                 className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
               />
             </div>
+          </div>
           </div>
 
           {/* Resize handles - only show in default mode */}
