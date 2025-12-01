@@ -38,7 +38,7 @@ export interface Article {
   // Summary fields (Chrome Summarizer API)
   summary?: string; // AI-generated summary
   summaryType?: "key-points" | "tldr" | "teaser" | "headline";
-  summaryLength?: "short" | "medium" | "long";
+  summaryLength?: "short" | "medium" | "long" | "extended";
   summarizedAt?: number; // Timestamp when summarized
 }
 
@@ -289,7 +289,7 @@ export const updateArticleSummary = async (
   id: number,
   summary: string,
   summaryType: "key-points" | "tldr" | "teaser" | "headline" = "tldr",
-  summaryLength: "short" | "medium" | "long" = "medium"
+  summaryLength: "short" | "medium" | "long" | "extended" = "medium"
 ) => {
   const db = await getDB();
   const article = await db.get("articles", id);

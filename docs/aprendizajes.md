@@ -335,4 +335,28 @@ Los aprendizajes extraídos son aplicables a cualquier proyecto que requiera scr
 ---
 
 _Documento generado el 24 de noviembre de 2025_
+
+## 13. Resumen con IA (Summarization)
+
+### Implementación y decisiones
+
+El proyecto implementa resúmenes con IA ejecutados localmente en el navegador usando **Transformers.js** como solución principal (fallback cross-browser). Se adoptó una política conservadora: la funcionalidad debe funcionar en la mayoría de navegadores sin dependencia de APIs propietarias.
+
+### Comportamiento y opciones
+
+- Longitudes soportadas: `short`, `medium`, `long` y `extended` (el modo `extended` produce resúmenes más detallados — 7-10 oraciones o 10+ puntos si se elige `key-points`).
+- Modelos: por defecto `distilbart-cnn-12-6` (balance calidad/velocidad). Opciones disponibles están en `src/lib/summarization-models.ts`.
+- Traducción: Los resúmenes se generan en inglés y, por defecto, se traducen a español con Chrome Translator cuando está disponible o se mantienen en inglés si la traducción falla.
+
+### Aprendizajes clave
+
+- **Degradación elegante**: Aunque Chrome incluye APIs de resumen nativas, usar Transformers.js como fallback garantiza compatibilidad y evita depender exclusivamente de Chrome.
+- **Tamaño del modelo vs UX**: Los modelos más grandes ofrecen resúmenes de mayor calidad, pero su descarga impacta en la primera interacción. Proveer indicadores de progreso y opción de cancelar descarga mejoró la experiencia.
+- **Caching**: Guardar resúmenes en IndexedDB reduce consumos de CPU/Red y acelera cargas futuras.
+
+### Recomendaciones
+
+- Añadir métricas de calidad de resumen (p. ej., ROUGE) para comparar modelos en tests E2E.
+- Permitir al usuario optar por el modelo que prefiera (p. ej., BART para mayor precisión o distilBART para rapidez).
+
 _Proyecto: RSS Reader Antigravity v0.1.0_

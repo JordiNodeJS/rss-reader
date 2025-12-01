@@ -425,13 +425,24 @@ function ArticleCard({
               : "Guardar"}
           </Button>
           <Button
-            variant="default"
+            variant={article.scrapedContent ? "default" : "outline"}
             size="sm"
-            className="flex-1 shadow-sm"
+            className={`flex-1 shadow-sm ${
+              article.scrapedContent ? "" : "border-dashed"
+            }`}
             onClick={() => onView(article)}
+            title={
+              article.scrapedContent
+                ? "Leer artículo completo guardado"
+                : "Ver extracto del RSS"
+            }
           >
-            <BookOpen className="w-4 h-4 mr-2" />
-            Leer
+            {article.scrapedContent ? (
+              <BookOpen className="w-4 h-4 mr-2" />
+            ) : (
+              <FileText className="w-4 h-4 mr-2" />
+            )}
+            {article.scrapedContent ? "Leer" : "Extracto"}
           </Button>
         </CardFooter>
       </Card>
@@ -581,13 +592,24 @@ function ArticleCard({
             : "Guardar"}
         </Button>
         <Button
-          variant="default"
+          variant={article.scrapedContent ? "default" : "outline"}
           size="sm"
-          className="flex-1 shadow-sm"
+          className={`flex-1 shadow-sm ${
+            article.scrapedContent ? "" : "border-dashed"
+          }`}
           onClick={() => onView(article)}
+          title={
+            article.scrapedContent
+              ? "Leer artículo completo guardado"
+              : "Ver extracto del RSS"
+          }
         >
-          <BookOpen className="w-4 h-4 mr-2" />
-          Leer
+          {article.scrapedContent ? (
+            <BookOpen className="w-4 h-4 mr-2" />
+          ) : (
+            <FileText className="w-4 h-4 mr-2" />
+          )}
+          {article.scrapedContent ? "Leer" : "Extracto"}
         </Button>
       </CardFooter>
     </Card>
@@ -685,7 +707,7 @@ export function ArticleList({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 md:p-6 pb-20">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6 p-4 md:p-6 pb-20">
       {safeArticles.map((article) => (
         <ArticleCard
           key={article.id || article.guid}

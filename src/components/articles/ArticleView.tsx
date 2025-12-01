@@ -45,6 +45,16 @@ import {
   ChevronDown,
   ChevronUp,
   Heart,
+  User,
+  Building2,
+  MapPin,
+  Tag,
+  MessageCircleQuestion,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  GitCompare,
+  Zap,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
@@ -489,6 +499,37 @@ export function ArticleView({
   const [showStopAnimation, setShowStopAnimation] = useState(false);
   const [isFavoriteAnimating, setIsFavoriteAnimating] = useState(false);
 
+  // New state for resizable view
+  const [viewMode, setViewMode] = useState<"default" | "expanded">("default");
+  
+  // Resizable modal state
+  const [modalSize, setModalSize] = useState({ width: 1152, height: 700 }); // Default: max-w-6xl ≈ 1152px
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartPos = useRef({ x: 0, y: 0 });
+  const resizeStartSize = useRef({ width: 0, height: 0 });
+  const resizeDirection = useRef<"both" | "x" | "y">("both");
+
+  // AI Features state
+  const [clickedButton, setClickedButton] = useState<string | null>(null);
+  // Track which specific button is currently generating
+  const [generatingButtonId, setGeneratingButtonId] = useState<string | null>(null);
+  const [showAIFeatures, setShowAIFeatures] = useState(false);
+  const [entities, setEntities] = useState<
+    Array<{
+      name: string;
+      type: "person" | "org" | "location" | "product" | "event";
+    }>
+  >([]);
+  const [sentiment, setSentiment] = useState<{
+    score: number;
+    label: "positive" | "negative" | "neutral";
+  } | null>(null);
+  const [qaItems, setQaItems] = useState<
+    Array<{ question: string; answer: string }>
+  >([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisType, setAnalysisType] = useState<string | null>(null);
+
   const handleToggleFavorite = () => {
     if (!article?.id || !onToggleFavorite) return;
     // Only animate when adding to favorites
@@ -498,6 +539,62 @@ export function ArticleView({
     }
     onToggleFavorite(article.id);
   };
+
+  // Resize handlers
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsResizing(true);
+      resizeDirection.current = "both";
+      resizeStartPos.current = { x: e.clientX, y: e.clientY };
+      resizeStartSize.current = { ...modalSize };
+    },
+    [modalSize]
+  );
+
+  const handleResizeMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
+      // Multiply by 2 because the dialog is centered (translate-x-[-50%] translate-y-[-50%])
+      // So increasing width by X expands it by X/2 on each side.
+      // To keep the edge under the mouse, we need to increase width by 2*X.
+      const deltaX = (e.clientX - resizeStartPos.current.x) * 2;
+      const deltaY = (e.clientY - resizeStartPos.current.y) * 2;
+      
+      setModalSize({
+        width: resizeDirection.current === "y" 
+          ? resizeStartSize.current.width
+          : Math.max(
+              600, // minimum width
+              Math.min(window.innerWidth - 40, resizeStartSize.current.width + deltaX)
+            ),
+        height: resizeDirection.current === "x"
+          ? resizeStartSize.current.height
+          : Math.max(
+              400, // minimum height
+              Math.min(window.innerHeight - 40, resizeStartSize.current.height + deltaY)
+            ),
+      });
+    },
+    [isResizing]
+  );
+
+  const handleResizeMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // Add/remove resize event listeners
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener("mousemove", handleResizeMouseMove);
+      window.addEventListener("mouseup", handleResizeMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleResizeMouseMove);
+        window.removeEventListener("mouseup", handleResizeMouseUp);
+      };
+    }
+  }, [isResizing, handleResizeMouseMove, handleResizeMouseUp]);
 
   // Streaming text store - external mutable state for useSyncExternalStore
   const streamStoreRef = useRef({
@@ -619,6 +716,8 @@ export function ArticleView({
   const handleClose = () => {
     setShowIframe(false);
     setShowSummary(false);
+    setViewMode("default"); // Reset view mode on close
+    setModalSize({ width: 1152, height: 700 }); // Reset modal size
     onClose();
   };
 
@@ -640,15 +739,264 @@ export function ArticleView({
       setShowStopAnimation(false);
     }
 
-    await summaryHook.summarize(useType, useLength, forceRegenerate);
-
-    // Show stop animation when regeneration completes
-    if (forceRegenerate) {
-      setIsRegenerating(false);
-      setShowStopAnimation(true);
-      // Clear stop animation after it plays
-      setTimeout(() => setShowStopAnimation(false), 600);
+    try {
+      await summaryHook.summarize(useType, useLength, forceRegenerate);
+    } finally {
+      // Clear generating state when done (success or error)
+      if (forceRegenerate) {
+        setIsRegenerating(false);
+        setGeneratingButtonId(null); // Stop specific button animation
+        setShowStopAnimation(true);
+        // Clear stop animation after it plays
+        setTimeout(() => setShowStopAnimation(false), 600);
+      }
     }
+  };
+
+  // Handle AI button click with animation
+  const handleAIButtonClick = (buttonId: string, callback: () => void) => {
+    setClickedButton(buttonId);
+    
+    // If this is a generation action, set the generating ID
+    if (["quick", "keypoints", "detailed", "extended"].includes(buttonId)) {
+      setGeneratingButtonId(buttonId);
+    }
+    
+    setTimeout(() => setClickedButton(null), 200);
+    callback();
+  };
+
+  // Simulated entity extraction (in real implementation, use NLP model)
+  const extractEntities = async () => {
+    if (!article) return;
+    setIsAnalyzing(true);
+    setAnalysisType("entities");
+
+    // Simulate NLP processing
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const content =
+      article.scrapedContent || article.content || article.contentSnippet || "";
+    const text = content.replace(/<[^>]*>/g, "");
+
+    // Simple heuristic entity extraction (would use NLP in production)
+    const words = text.split(/\s+/);
+    const extracted: Array<{
+      name: string;
+      type: "person" | "org" | "location" | "product" | "event";
+    }> = [];
+
+    // Look for capitalized words as potential entities
+    const capitalizedPattern = /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+$/;
+    const seen = new Set<string>();
+
+    words.forEach((word, i) => {
+      const cleanWord = word.replace(/[.,;:!?'"()]/g, "");
+      if (
+        capitalizedPattern.test(cleanWord) &&
+        cleanWord.length > 2 &&
+        !seen.has(cleanWord.toLowerCase())
+      ) {
+        seen.add(cleanWord.toLowerCase());
+        // Heuristics for type
+        const nextWord = words[i + 1]?.toLowerCase() || "";
+        let type: "person" | "org" | "location" | "product" | "event" =
+          "person";
+
+        if (
+          [
+            "inc",
+            "corp",
+            "ltd",
+            "company",
+            "co",
+            "group",
+            "technologies",
+            "labs",
+          ].some((s) => nextWord.includes(s))
+        ) {
+          type = "org";
+        } else if (
+          ["city", "state", "country", "street", "avenue", "plaza"].some((s) =>
+            nextWord.includes(s)
+          )
+        ) {
+          type = "location";
+        } else if (
+          ["model", "version", "series", "edition", "pro", "max", "plus"].some(
+            (s) => nextWord.includes(s)
+          )
+        ) {
+          type = "product";
+        }
+
+        if (extracted.length < 10) {
+          extracted.push({ name: cleanWord, type });
+        }
+      }
+    });
+
+    // Add some common tech entities if found
+    const techEntities = [
+      "Apple",
+      "Google",
+      "Microsoft",
+      "Amazon",
+      "Tesla",
+      "Samsung",
+      "iPhone",
+      "Android",
+      "Windows",
+      "MacBook",
+    ];
+    techEntities.forEach((entity) => {
+      if (
+        text.includes(entity) &&
+        !seen.has(entity.toLowerCase()) &&
+        extracted.length < 12
+      ) {
+        seen.add(entity.toLowerCase());
+        extracted.push({
+          name: entity,
+          type: entity.length > 5 ? "org" : "product",
+        });
+      }
+    });
+
+    setEntities(extracted);
+    setIsAnalyzing(false);
+    setShowAIFeatures(true);
+  };
+
+  // Simulated sentiment analysis
+  const analyzeSentiment = async () => {
+    if (!article) return;
+    setIsAnalyzing(true);
+    setAnalysisType("sentiment");
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const content =
+      article.scrapedContent || article.content || article.contentSnippet || "";
+    const text = content.replace(/<[^>]*>/g, "").toLowerCase();
+
+    // Simple keyword-based sentiment (would use ML in production)
+    const positiveWords = [
+      "great",
+      "excellent",
+      "amazing",
+      "fantastic",
+      "best",
+      "good",
+      "love",
+      "perfect",
+      "wonderful",
+      "beautiful",
+      "success",
+      "win",
+      "deal",
+      "save",
+      "discount",
+      "recommend",
+    ];
+    const negativeWords = [
+      "bad",
+      "terrible",
+      "awful",
+      "worst",
+      "hate",
+      "poor",
+      "fail",
+      "problem",
+      "issue",
+      "error",
+      "wrong",
+      "broken",
+      "expensive",
+      "overpriced",
+    ];
+
+    let score = 0;
+    positiveWords.forEach((word) => {
+      if (text.includes(word)) score += 1;
+    });
+    negativeWords.forEach((word) => {
+      if (text.includes(word)) score -= 1;
+    });
+
+    const normalizedScore = Math.max(-1, Math.min(1, score / 5));
+    const label: "positive" | "negative" | "neutral" =
+      normalizedScore > 0.2
+        ? "positive"
+        : normalizedScore < -0.2
+        ? "negative"
+        : "neutral";
+
+    setSentiment({ score: normalizedScore, label });
+    setIsAnalyzing(false);
+    setShowAIFeatures(true);
+  };
+
+  // Generate Q&A from article
+  const generateQA = async () => {
+    if (!article) return;
+    setIsAnalyzing(true);
+    setAnalysisType("qa");
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const content =
+      article.scrapedContent || article.content || article.contentSnippet || "";
+    const text = content.replace(/<[^>]*>/g, "");
+    const title = article.title || "";
+
+    // Generate contextual questions based on content
+    const questions: Array<{ question: string; answer: string }> = [];
+
+    // Question about main topic
+    questions.push({
+      question: `¿De qué trata este artículo?`,
+      answer: title || text.slice(0, 150) + "...",
+    });
+
+    // Question about relevance
+    if (
+      text.toLowerCase().includes("deal") ||
+      text.toLowerCase().includes("sale") ||
+      text.toLowerCase().includes("discount")
+    ) {
+      questions.push({
+        question: `¿Hay ofertas o descuentos mencionados?`,
+        answer: `Sí, el artículo menciona ofertas y promociones que podrían interesarte.`,
+      });
+    }
+
+    // Question about timing
+    if (article.pubDate) {
+      questions.push({
+        question: `¿Cuándo se publicó esta información?`,
+        answer: `Este artículo fue publicado el ${new Date(
+          article.pubDate
+        ).toLocaleDateString("es-ES", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}.`,
+      });
+    }
+
+    // Question about source
+    questions.push({
+      question: `¿Cuál es la fuente de esta noticia?`,
+      answer: `El artículo proviene de ${
+        article.feedTitle || "una fuente RSS"
+      } y puedes leer el contenido completo visitando el enlace original.`,
+    });
+
+    setQaItems(questions);
+    setIsAnalyzing(false);
+    setShowAIFeatures(true);
   };
 
   if (!article) return null;
@@ -683,85 +1031,124 @@ export function ArticleView({
       >
         <DialogContent
           id="dialog-article-view"
-          className="max-w-4xl max-h-[90vh] flex flex-col gap-0 overflow-hidden"
+          className={`flex flex-col gap-0 overflow-hidden p-0 ${
+            isResizing ? "transition-none" : "transition-all duration-300 ease-in-out"
+          } ${
+            viewMode === "expanded" 
+              ? "max-w-[98vw] h-[95vh] rounded-md" 
+              : ""
+          }`}
+          style={
+            viewMode === "default"
+              ? {
+                  width: `${modalSize.width}px`,
+                  height: `${modalSize.height}px`,
+                  maxWidth: "95vw",
+                  maxHeight: "92vh",
+                }
+              : undefined
+          }
         >
           <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <Badge variant="outline">
-                {new Date(article.pubDate).toLocaleDateString()}
-              </Badge>
-              {article.scrapedContent && (
-                <Badge variant="secondary">Disponible sin conexión</Badge>
-              )}
-              {article.isFavorite && (
-                <Badge
-                  variant="default"
-                  className="bg-red-500 hover:bg-red-600"
-                >
-                  <Heart className="w-3 h-3 mr-1 fill-current" />
-                  Favorito
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline">
+                  {new Date(article.pubDate).toLocaleDateString()}
                 </Badge>
-              )}
-              {translation.isShowingTranslation && (
-                <Badge
-                  variant="default"
-                  className="bg-blue-500 hover:bg-blue-600"
-                >
-                  <Languages className="w-3 h-3 mr-1" />
-                  Traducido al Español
-                </Badge>
-              )}
-              {summaryHook.hasCachedSummary && (
-                <Badge
-                  variant="default"
-                  className="bg-purple-500 hover:bg-purple-600"
-                >
-                  <Sparkles className="w-3 h-3 mr-1" />
-                  Resumen IA
-                </Badge>
-              )}
-              {translation.sourceLanguage !== "es" &&
-                !translation.isShowingTranslation && (
-                  <div className="flex items-center gap-1.5">
-                    <Languages className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <Select
-                      value={
-                        translation.sourceLanguage === "unknown"
-                          ? ""
-                          : translation.sourceLanguage
-                      }
-                      onValueChange={async (value) => {
-                        if (value && value !== translation.sourceLanguage) {
-                          await translation.setSourceLanguage(value);
-                        }
-                      }}
-                    >
-                      <SelectTrigger
-                        className="h-6 text-[10px] px-2 py-0 border-muted-foreground/30 bg-background hover:bg-muted/50 w-fit min-w-[110px] max-w-[140px]"
-                        title={
-                          translation.sourceLanguage === "unknown"
-                            ? "Selecciona el idioma del artículo"
-                            : "Cambiar idioma detectado"
-                        }
-                      >
-                        <SelectValue placeholder="Idioma desconocido">
-                          {translation.sourceLanguage === "unknown"
-                            ? "Seleccionar idioma"
-                            : getLanguageName(translation.sourceLanguage)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SUPPORTED_LANGUAGES.filter(
-                          (lang) => lang.code !== "es"
-                        ).map((lang) => (
-                          <SelectItem key={lang.code} value={lang.code}>
-                            {lang.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {article.scrapedContent && (
+                  <Badge variant="secondary">Disponible sin conexión</Badge>
                 )}
+                {article.isFavorite && (
+                  <Badge
+                    variant="default"
+                    className="bg-red-500 hover:bg-red-600"
+                  >
+                    <Heart className="w-3 h-3 mr-1 fill-current" />
+                    Favorito
+                  </Badge>
+                )}
+                {translation.isShowingTranslation && (
+                  <Badge
+                    variant="default"
+                    className="bg-blue-500 hover:bg-blue-600"
+                  >
+                    <Languages className="w-3 h-3 mr-1" />
+                    Traducido al Español
+                  </Badge>
+                )}
+                {summaryHook.hasCachedSummary && (
+                  <Badge
+                    variant="default"
+                    className="bg-purple-500 hover:bg-purple-600"
+                  >
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Resumen IA
+                  </Badge>
+                )}
+                {translation.sourceLanguage !== "es" &&
+                  !translation.isShowingTranslation && (
+                    <div className="flex items-center gap-1.5">
+                      <Languages className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <Select
+                        value={
+                          translation.sourceLanguage === "unknown"
+                            ? ""
+                            : translation.sourceLanguage
+                        }
+                        onValueChange={async (value) => {
+                          if (value && value !== translation.sourceLanguage) {
+                            await translation.setSourceLanguage(value);
+                          }
+                        }}
+                      >
+                        <SelectTrigger
+                          className="h-6 text-[10px] px-2 py-0 border-muted-foreground/30 bg-background hover:bg-muted/50 w-fit min-w-[110px] max-w-[140px]"
+                          title={
+                            translation.sourceLanguage === "unknown"
+                              ? "Selecciona el idioma del artículo"
+                              : "Cambiar idioma detectado"
+                          }
+                        >
+                          <SelectValue placeholder="Idioma desconocido">
+                            {translation.sourceLanguage === "unknown"
+                              ? "Seleccionar idioma"
+                              : getLanguageName(translation.sourceLanguage)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPPORTED_LANGUAGES.filter(
+                            (lang) => lang.code !== "es"
+                          ).map((lang) => (
+                            <SelectItem key={lang.code} value={lang.code}>
+                              {lang.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+              </div>
+
+              {/* Resize Toggle Button */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() =>
+                    setViewMode(viewMode === "default" ? "expanded" : "default")
+                  }
+                  title={
+                    viewMode === "default" ? "Expandir vista" : "Vista normal"
+                  }
+                >
+                  {viewMode === "default" ? (
+                    <Maximize2 className="h-4 w-4" />
+                  ) : (
+                    <Minimize2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
             <DialogTitle className="text-2xl font-bold leading-tight mb-3">
               <FlipTitleReveal
@@ -826,7 +1213,8 @@ export function ArticleView({
                 <>
                   <span className="text-muted-foreground">|</span>
                   {summaryHook.hasCachedSummary ||
-                  summaryHook.status === "completed" ? (
+                  summaryHook.status === "completed" ||
+                  isRegenerating ? (
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setShowSummary(!showSummary)}
@@ -993,8 +1381,10 @@ export function ArticleView({
             </div>
           </DialogHeader>
 
-          {/* AI Summary Panel */}
-          {showSummary && summaryHook.summary && (
+          {/* Main Scrollable Content */}
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
+            {/* AI Summary Panel */}
+            {showSummary && summaryHook.summary && (
             <div
               className={`mx-6 mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 spring-expand-container ${
                 isStreaming ? "streaming" : ""
@@ -1019,6 +1409,11 @@ export function ArticleView({
                       ? "Teaser"
                       : "Titular"}
                   </Badge>
+                  {summaryHook.summaryLength === "extended" && (
+                    <Badge variant="default" className="text-xs bg-purple-600">
+                      Extendido
+                    </Badge>
+                  )}
                   {/* Show local badge when using Transformers.js */}
                   {(summaryHook.activeBackend === "transformers" ||
                     (!summaryHook.isChromeAvailable &&
@@ -1066,46 +1461,388 @@ export function ArticleView({
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
                 <span className="text-xs text-muted-foreground">
                   Regenerar:
                 </span>
                 <button
-                  onClick={() => handleGenerateSummary("tldr", "short", true)}
-                  className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                  onClick={() =>
+                    handleAIButtonClick("quick", () =>
+                      handleGenerateSummary("tldr", "short", true)
+                    )
+                  }
+                  className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
+                    clickedButton === "quick" ? "clicked" : ""
+                  } ${
+                    generatingButtonId === "quick"
+                      ? "regenerating"
+                      : ""
+                  }`}
                   disabled={summaryHook.status === "summarizing"}
+                  title="Resumen rápido de 1-2 frases"
                 >
+                  <Zap className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
                   Rápido
                 </button>
                 <button
                   onClick={() =>
-                    handleGenerateSummary("key-points", "medium", true)
+                    handleAIButtonClick("keypoints", () =>
+                      handleGenerateSummary("key-points", "medium", true)
+                    )
                   }
-                  className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                  className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
+                    clickedButton === "keypoints" ? "clicked" : ""
+                  } ${
+                    generatingButtonId === "keypoints"
+                      ? "regenerating"
+                      : ""
+                  }`}
                   disabled={summaryHook.status === "summarizing"}
+                  title="Puntos clave en formato lista"
                 >
                   Puntos clave
                 </button>
                 <button
-                  onClick={() => handleGenerateSummary("tldr", "long", true)}
-                  className="text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                  onClick={() =>
+                    handleAIButtonClick("detailed", () =>
+                      handleGenerateSummary("tldr", "long", true)
+                    )
+                  }
+                  className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
+                    clickedButton === "detailed" ? "clicked" : ""
+                  } ${
+                    generatingButtonId === "detailed"
+                      ? "regenerating"
+                      : ""
+                  }`}
                   disabled={summaryHook.status === "summarizing"}
+                  title="Resumen detallado de 5 frases"
                 >
                   Detallado
                 </button>
+                <button
+                  onClick={() =>
+                    handleAIButtonClick("extended", () =>
+                      handleGenerateSummary("tldr", "extended", true)
+                    )
+                  }
+                  className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-500/30 transition-all ${
+                    clickedButton === "extended" ? "clicked" : ""
+                  } ${
+                    generatingButtonId === "extended"
+                      ? "regenerating"
+                      : ""
+                  }`}
+                  disabled={summaryHook.status === "summarizing"}
+                  title="Resumen extenso para comprender mejor la noticia (7-10 frases)"
+                  data-qa="extended-summary-button"
+                >
+                  <Sparkles className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                  Extendido
+                </button>
               </div>
+
+              {/* AI Analysis Features */}
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
+                <span className="text-xs text-muted-foreground">
+                  Análisis IA:
+                </span>
+                <button
+                  onClick={() =>
+                    handleAIButtonClick("entities", extractEntities)
+                  }
+                  className={`ai-button text-xs px-2 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition-all ${
+                    clickedButton === "entities" ? "clicked" : ""
+                  } ${
+                    isAnalyzing && analysisType === "entities"
+                      ? "opacity-50"
+                      : ""
+                  }`}
+                  disabled={isAnalyzing}
+                  title="Detectar personas, organizaciones y lugares mencionados"
+                >
+                  <Tag className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                  Entidades
+                </button>
+                <button
+                  onClick={() =>
+                    handleAIButtonClick("sentiment", analyzeSentiment)
+                  }
+                  className={`ai-button text-xs px-2 py-1 rounded bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 transition-all ${
+                    clickedButton === "sentiment" ? "clicked" : ""
+                  } ${
+                    isAnalyzing && analysisType === "sentiment"
+                      ? "opacity-50"
+                      : ""
+                  }`}
+                  disabled={isAnalyzing}
+                  title="Analizar el tono general del artículo"
+                >
+                  <TrendingUp className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                  Sentimiento
+                </button>
+                <button
+                  onClick={() => handleAIButtonClick("qa", generateQA)}
+                  className={`ai-button text-xs px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 transition-all ${
+                    clickedButton === "qa" ? "clicked" : ""
+                  } ${
+                    isAnalyzing && analysisType === "qa" ? "opacity-50" : ""
+                  }`}
+                  disabled={isAnalyzing}
+                  title="Generar preguntas y respuestas sobre el artículo"
+                >
+                  <MessageCircleQuestion className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                  Q&A
+                </button>
+                <button
+                  onClick={() =>
+                    handleAIButtonClick("compare", () =>
+                      setShowAIFeatures((prev) => !prev)
+                    )
+                  }
+                  className={`ai-button text-xs px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-all ${
+                    clickedButton === "compare" ? "clicked" : ""
+                  }`}
+                  title="Comparar con otros artículos del mismo día"
+                >
+                  <GitCompare className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                  Comparar
+                </button>
+                {isAnalyzing && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 ml-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Analizando...
+                  </span>
+                )}
+              </div>
+
+              {/* AI Analysis Results */}
+              {showAIFeatures &&
+                (entities.length > 0 || sentiment || qaItems.length > 0) && (
+                  <div className="mt-3 pt-3 border-t border-purple-500/20 space-y-3">
+                    {/* Entities */}
+                    {entities.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Tag className="w-3 h-3 text-blue-500" />
+                          <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                            Entidades detectadas
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {entities.map((entity, i) => (
+                            <span
+                              key={i}
+                              className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${
+                                entity.type === "person"
+                                  ? "entity-person"
+                                  : entity.type === "org"
+                                  ? "entity-org"
+                                  : entity.type === "location"
+                                  ? "entity-location"
+                                  : entity.type === "product"
+                                  ? "entity-product"
+                                  : "entity-event"
+                              }`}
+                              title={
+                                entity.type === "person"
+                                  ? "Persona"
+                                  : entity.type === "org"
+                                  ? "Organización"
+                                  : entity.type === "location"
+                                  ? "Lugar"
+                                  : entity.type === "product"
+                                  ? "Producto"
+                                  : "Evento"
+                              }
+                            >
+                              {entity.type === "person" && (
+                                <User className="w-2.5 h-2.5 inline mr-1" />
+                              )}
+                              {entity.type === "org" && (
+                                <Building2 className="w-2.5 h-2.5 inline mr-1" />
+                              )}
+                              {entity.type === "location" && (
+                                <MapPin className="w-2.5 h-2.5 inline mr-1" />
+                              )}
+                              {entity.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sentiment */}
+                    {sentiment && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          {sentiment.label === "positive" ? (
+                            <TrendingUp className="w-3 h-3 sentiment-positive" />
+                          ) : sentiment.label === "negative" ? (
+                            <TrendingDown className="w-3 h-3 sentiment-negative" />
+                          ) : (
+                            <Minus className="w-3 h-3 sentiment-neutral" />
+                          )}
+                          <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                            Análisis de sentimiento
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all duration-500 ${
+                                sentiment.label === "positive"
+                                  ? "bg-green-500"
+                                  : sentiment.label === "negative"
+                                  ? "bg-red-500"
+                                  : "bg-gray-400"
+                              }`}
+                              style={{
+                                width: `${
+                                  Math.abs(sentiment.score) * 50 + 50
+                                }%`,
+                              }}
+                            />
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${
+                              sentiment.label === "positive"
+                                ? "border-green-500/30 text-green-600"
+                                : sentiment.label === "negative"
+                                ? "border-red-500/30 text-red-600"
+                                : "border-gray-500/30 text-gray-600"
+                            }`}
+                          >
+                            {sentiment.label === "positive"
+                              ? "😊 Positivo"
+                              : sentiment.label === "negative"
+                              ? "😟 Negativo"
+                              : "😐 Neutral"}
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Q&A */}
+                    {qaItems.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <MessageCircleQuestion className="w-3 h-3 text-amber-500" />
+                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                            Preguntas frecuentes
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {qaItems.map((item, i) => (
+                            <div key={i} className="rounded-lg overflow-hidden">
+                              <div className="qa-question px-3 py-2">
+                                <span className="text-xs font-medium">
+                                  ❓ {item.question}
+                                </span>
+                              </div>
+                              <div className="qa-answer px-3 py-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {item.answer}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
           )}
 
-          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
-            <FlipHtmlReveal
-              originalHtml={originalContent}
-              translatedHtml={translatedContent}
-              showTranslation={translation.isShowingTranslation}
-              duration={1.2}
-              className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
-            />
+            {/* Article Content Area */}
+            <div className="flex flex-col">
+              <div className="sticky top-0 z-10 flex items-center justify-end gap-2 px-6 py-2 border-y bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <span className="text-xs text-muted-foreground mr-auto">Contenido del artículo</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setViewMode(viewMode === "default" ? "expanded" : "default")}
+                title={viewMode === "default" ? "Expandir contenido" : "Vista normal"}
+              >
+                {viewMode === "default" ? (
+                  <>
+                    <Maximize2 className="h-3 w-3 mr-1" />
+                    Expandir
+                  </>
+                ) : (
+                  <>
+                    <Minimize2 className="h-3 w-3 mr-1" />
+                    Normal
+                  </>
+                )}
+              </Button>
+            </div>
+            <div 
+              className={`transition-all duration-300 ${
+                viewMode === "expanded" ? "" : ""
+              }`}
+            >
+              <FlipHtmlReveal
+                originalHtml={originalContent}
+                translatedHtml={translatedContent}
+                showTranslation={translation.isShowingTranslation}
+                duration={1.2}
+                className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
+              />
+            </div>
           </div>
+          </div>
+
+          {/* Resize handles - only show in default mode */}
+          {viewMode === "default" && (
+            <>
+              {/* Corner resize handle (bottom-right) */}
+              <div
+                className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-center justify-center text-muted-foreground hover:text-foreground transition-all z-10 group"
+                onMouseDown={handleResizeMouseDown}
+                title="Arrastra para redimensionar"
+              >
+                <div className="absolute inset-0 bg-gradient-to-tl from-primary/20 to-transparent rounded-tl-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+                <GripVertical className="h-5 w-5 rotate-[-45deg] relative z-10 drop-shadow-sm" />
+              </div>
+
+              {/* Right edge resize handle */}
+              <div
+                className="absolute top-0 right-0 bottom-0 w-2 cursor-ew-resize hover:bg-primary/10 transition-colors z-10"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsResizing(true);
+                  resizeDirection.current = "x";
+                  resizeStartPos.current = { x: e.clientX, y: e.clientY };
+                  resizeStartSize.current = { ...modalSize };
+                }}
+                title="Arrastra para redimensionar horizontalmente"
+              />
+
+              {/* Bottom edge resize handle */}
+              <div
+                className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize hover:bg-primary/10 transition-colors z-10"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsResizing(true);
+                  resizeDirection.current = "y";
+                  resizeStartPos.current = { x: e.clientX, y: e.clientY };
+                  resizeStartSize.current = { ...modalSize };
+                }}
+                title="Arrastra para redimensionar verticalmente"
+              />
+
+              {/* Overlay to prevent content interaction during resize */}
+              {isResizing && (
+                <div className="absolute inset-0 z-[9] cursor-se-resize" />
+              )}
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
