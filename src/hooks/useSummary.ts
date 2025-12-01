@@ -23,7 +23,7 @@ import {
   SUMMARIZATION_MODELS,
   SummarizationModelKey,
 } from "@/lib/summarization";
-import { translateToSpanish } from "@/lib/translation";
+import { translateToSpanish, detectLanguage } from "@/lib/translation";
 
 // ============================================
 // Types
@@ -217,6 +217,23 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
           );
         }
 
+        // Detect language of the original article to determine if translation is needed
+        // The summarization model (DistilBART) is trained on English, so it will produce
+        // English summaries even for non-English content. We need to translate to Spanish.
+        let needsTranslation = translateSummary;
+        let detectedLanguage = "en";
+
+        try {
+          const detection = await detectLanguage(textContent);
+          detectedLanguage = detection.language;
+          // Always translate to Spanish unless it's already in Spanish AND translation is disabled
+          // If the article is in Spanish, the model still produces English output, so we need to translate
+          needsTranslation = translateSummary || !detection.isSpanish;
+        } catch {
+          // If language detection fails, assume translation is needed
+          needsTranslation = true;
+        }
+
         // Use Transformers.js for summarization
         setActiveBackend("transformers");
 
@@ -243,9 +260,11 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
           onProgress: handleTransformersProgress,
         });
         let resultSummary = result.summary;
+        let translationFailed = false;
 
-        // Translate summary to Spanish using Chrome Translator API
-        if (translateSummary && resultSummary) {
+        // Always translate summary to Spanish using Chrome Translator API
+        // The DistilBART model always produces English output regardless of input language
+        if (needsTranslation && resultSummary) {
           setStatus("summarizing");
           setMessage("Traduciendo resumen al español...");
           try {
@@ -260,13 +279,19 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
               "[useSummary] Failed to translate summary:",
               translateError
             );
-            // Keep original English summary if translation fails
+            translationFailed = true;
+            // Prefix the summary to indicate it's in English
+            resultSummary = `[Resumen en inglés - traducción no disponible]\n\n${resultSummary}`;
           }
         }
 
         setSummary(resultSummary);
         setStatus("completed");
-        setMessage("Resumen generado");
+        setMessage(
+          translationFailed
+            ? "Resumen generado (sin traducir)"
+            : "Resumen generado"
+        );
         setHasCachedSummary(true);
 
         // Cache in IndexedDB

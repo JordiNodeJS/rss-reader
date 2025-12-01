@@ -898,8 +898,8 @@ function SidebarContent({
                     monitor.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="mt-2">
-                  <pre className="whitespace-pre-wrap break-words max-w-full max-h-60 overflow-auto text-xs bg-muted p-2 rounded">
+                <div className="mt-2 overflow-hidden">
+                  <pre className="whitespace-pre-wrap break-all max-w-full max-h-60 overflow-x-auto overflow-y-auto text-xs bg-muted p-2 rounded w-full">
                     {JSON.stringify(getDBEvents(), null, 2)}
                   </pre>
                 </div>

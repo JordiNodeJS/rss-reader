@@ -501,7 +501,7 @@ export function ArticleView({
 
   // New state for resizable view
   const [viewMode, setViewMode] = useState<"default" | "expanded">("default");
-  
+
   // Resizable modal state
   const [modalSize, setModalSize] = useState({ width: 1152, height: 700 }); // Default: max-w-6xl ≈ 1152px
   const [isResizing, setIsResizing] = useState(false);
@@ -512,7 +512,9 @@ export function ArticleView({
   // AI Features state
   const [clickedButton, setClickedButton] = useState<string | null>(null);
   // Track which specific button is currently generating
-  const [generatingButtonId, setGeneratingButtonId] = useState<string | null>(null);
+  const [generatingButtonId, setGeneratingButtonId] = useState<string | null>(
+    null
+  );
   const [showAIFeatures, setShowAIFeatures] = useState(false);
   const [entities, setEntities] = useState<
     Array<{
@@ -561,20 +563,28 @@ export function ArticleView({
       // To keep the edge under the mouse, we need to increase width by 2*X.
       const deltaX = (e.clientX - resizeStartPos.current.x) * 2;
       const deltaY = (e.clientY - resizeStartPos.current.y) * 2;
-      
+
       setModalSize({
-        width: resizeDirection.current === "y" 
-          ? resizeStartSize.current.width
-          : Math.max(
-              600, // minimum width
-              Math.min(window.innerWidth - 40, resizeStartSize.current.width + deltaX)
-            ),
-        height: resizeDirection.current === "x"
-          ? resizeStartSize.current.height
-          : Math.max(
-              400, // minimum height
-              Math.min(window.innerHeight - 40, resizeStartSize.current.height + deltaY)
-            ),
+        width:
+          resizeDirection.current === "y"
+            ? resizeStartSize.current.width
+            : Math.max(
+                600, // minimum width
+                Math.min(
+                  window.innerWidth - 40,
+                  resizeStartSize.current.width + deltaX
+                )
+              ),
+        height:
+          resizeDirection.current === "x"
+            ? resizeStartSize.current.height
+            : Math.max(
+                400, // minimum height
+                Math.min(
+                  window.innerHeight - 40,
+                  resizeStartSize.current.height + deltaY
+                )
+              ),
       });
     },
     [isResizing]
@@ -756,12 +766,12 @@ export function ArticleView({
   // Handle AI button click with animation
   const handleAIButtonClick = (buttonId: string, callback: () => void) => {
     setClickedButton(buttonId);
-    
+
     // If this is a generation action, set the generating ID
     if (["quick", "keypoints", "detailed", "extended"].includes(buttonId)) {
       setGeneratingButtonId(buttonId);
     }
-    
+
     setTimeout(() => setClickedButton(null), 200);
     callback();
   };
@@ -1032,11 +1042,11 @@ export function ArticleView({
         <DialogContent
           id="dialog-article-view"
           className={`flex flex-col gap-0 overflow-hidden p-0 ${
-            isResizing ? "transition-none" : "transition-all duration-300 ease-in-out"
+            isResizing
+              ? "transition-none"
+              : "transition-all duration-300 ease-in-out"
           } ${
-            viewMode === "expanded" 
-              ? "max-w-[98vw] h-[95vh] rounded-md" 
-              : ""
+            viewMode === "expanded" ? "max-w-[98vw] h-[95vh] rounded-md" : ""
           }`}
           style={
             viewMode === "default"
@@ -1233,7 +1243,7 @@ export function ArticleView({
                           handleGenerateSummary(undefined, undefined, true)
                         }
                         className={`text-purple-400 hover:text-purple-500 cursor-pointer p-1 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors ${
-                          isRegenerating ? "animate-regenerate-spin" : ""
+                          isRegenerating ? "animate-spin" : ""
                         } ${
                           showStopAnimation
                             ? "animate-regenerate-stop text-green-500"
@@ -1385,415 +1395,429 @@ export function ArticleView({
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
             {/* AI Summary Panel */}
             {showSummary && summaryHook.summary && (
-            <div
-              className={`mx-6 mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 spring-expand-container ${
-                isStreaming ? "streaming" : ""
-              }`}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles
-                    className={`w-4 h-4 text-purple-500 ${
-                      isStreaming ? "animate-pulse" : ""
-                    }`}
-                  />
-                  <span className="font-medium text-sm text-purple-600 dark:text-purple-400">
-                    Resumen IA
+              <div
+                className={`mx-6 mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 spring-expand-container ${
+                  isStreaming ? "streaming" : ""
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles
+                      className={`w-4 h-4 text-purple-500 ${
+                        isStreaming ? "animate-pulse" : ""
+                      }`}
+                    />
+                    <span className="font-medium text-sm text-purple-600 dark:text-purple-400">
+                      Resumen IA
+                    </span>
+                    <Badge variant="outline" className="text-xs">
+                      {summaryHook.summaryType === "key-points"
+                        ? "Puntos clave"
+                        : summaryHook.summaryType === "tldr"
+                        ? "TL;DR"
+                        : summaryHook.summaryType === "teaser"
+                        ? "Teaser"
+                        : "Titular"}
+                    </Badge>
+                    {summaryHook.summaryLength === "extended" && (
+                      <Badge
+                        variant="default"
+                        className="text-xs bg-purple-600"
+                      >
+                        Extendido
+                      </Badge>
+                    )}
+                    {/* Show local badge when using Transformers.js */}
+                    {(summaryHook.activeBackend === "transformers" ||
+                      (!summaryHook.isChromeAvailable &&
+                        summaryHook.isTransformersAvailable)) && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] opacity-70"
+                        title="Resumen generado localmente y traducido al español"
+                      >
+                        local
+                      </Badge>
+                    )}
+                    {isStreaming && (
+                      <span className="text-xs text-purple-400 animate-pulse">
+                        escribiendo...
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowSummary(false)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  {summaryHook.summaryType === "key-points" ? (
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: displayedSummary
+                          .replace(/^[-•*]\s*/gm, "")
+                          .split("\n")
+                          .filter((line) => line.trim())
+                          .map((point) => `<li>${point.trim()}</li>`)
+                          .join(""),
+                      }}
+                      className="list-disc list-inside space-y-1"
+                    />
+                  ) : (
+                    <p className="text-foreground/90 leading-relaxed">
+                      {displayedSummary}
+                      {isStreaming && (
+                        <span className="inline-block w-0.5 h-4 bg-purple-500 ml-0.5 animate-blink align-middle" />
+                      )}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
+                  <span className="text-xs text-muted-foreground">
+                    Regenerar:
                   </span>
-                  <Badge variant="outline" className="text-xs">
-                    {summaryHook.summaryType === "key-points"
-                      ? "Puntos clave"
-                      : summaryHook.summaryType === "tldr"
-                      ? "TL;DR"
-                      : summaryHook.summaryType === "teaser"
-                      ? "Teaser"
-                      : "Titular"}
-                  </Badge>
-                  {summaryHook.summaryLength === "extended" && (
-                    <Badge variant="default" className="text-xs bg-purple-600">
-                      Extendido
-                    </Badge>
-                  )}
-                  {/* Show local badge when using Transformers.js */}
-                  {(summaryHook.activeBackend === "transformers" ||
-                    (!summaryHook.isChromeAvailable &&
-                      summaryHook.isTransformersAvailable)) && (
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] opacity-70"
-                      title="Resumen generado localmente y traducido al español"
-                    >
-                      local
-                    </Badge>
-                  )}
-                  {isStreaming && (
-                    <span className="text-xs text-purple-400 animate-pulse">
-                      escribiendo...
+                  <button
+                    onClick={() =>
+                      handleAIButtonClick("quick", () =>
+                        handleGenerateSummary("tldr", "short", true)
+                      )
+                    }
+                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
+                      clickedButton === "quick" ? "clicked" : ""
+                    } ${
+                      generatingButtonId === "quick"
+                        ? "regenerating-border"
+                        : ""
+                    }`}
+                    disabled={summaryHook.status === "summarizing"}
+                    title="Resumen rápido de 1-2 frases"
+                  >
+                    <Zap className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                    Rápido
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleAIButtonClick("keypoints", () =>
+                        handleGenerateSummary("key-points", "medium", true)
+                      )
+                    }
+                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
+                      clickedButton === "keypoints" ? "clicked" : ""
+                    } ${
+                      generatingButtonId === "keypoints"
+                        ? "regenerating-border"
+                        : ""
+                    }`}
+                    disabled={summaryHook.status === "summarizing"}
+                    title="Puntos clave en formato lista"
+                  >
+                    Puntos clave
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleAIButtonClick("detailed", () =>
+                        handleGenerateSummary("tldr", "long", true)
+                      )
+                    }
+                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
+                      clickedButton === "detailed" ? "clicked" : ""
+                    } ${
+                      generatingButtonId === "detailed"
+                        ? "regenerating-border"
+                        : ""
+                    }`}
+                    disabled={summaryHook.status === "summarizing"}
+                    title="Resumen detallado de 5 frases"
+                  >
+                    Detallado
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleAIButtonClick("extended", () =>
+                        handleGenerateSummary("tldr", "extended", true)
+                      )
+                    }
+                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-500/30 transition-all ${
+                      clickedButton === "extended" ? "clicked" : ""
+                    } ${
+                      generatingButtonId === "extended"
+                        ? "regenerating-border"
+                        : ""
+                    }`}
+                    disabled={summaryHook.status === "summarizing"}
+                    title="Resumen extenso para comprender mejor la noticia (7-10 frases)"
+                    data-qa="extended-summary-button"
+                  >
+                    <Sparkles className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                    Extendido
+                  </button>
+                </div>
+
+                {/* AI Analysis Features */}
+                <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
+                  <span className="text-xs text-muted-foreground">
+                    Análisis IA:
+                  </span>
+                  <button
+                    onClick={() =>
+                      handleAIButtonClick("entities", extractEntities)
+                    }
+                    className={`ai-button text-xs px-2 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition-all ${
+                      clickedButton === "entities" ? "clicked" : ""
+                    } ${
+                      isAnalyzing && analysisType === "entities"
+                        ? "opacity-50"
+                        : ""
+                    }`}
+                    disabled={isAnalyzing}
+                    title="Detectar personas, organizaciones y lugares mencionados"
+                  >
+                    <Tag className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                    Entidades
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleAIButtonClick("sentiment", analyzeSentiment)
+                    }
+                    className={`ai-button text-xs px-2 py-1 rounded bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 transition-all ${
+                      clickedButton === "sentiment" ? "clicked" : ""
+                    } ${
+                      isAnalyzing && analysisType === "sentiment"
+                        ? "opacity-50"
+                        : ""
+                    }`}
+                    disabled={isAnalyzing}
+                    title="Analizar el tono general del artículo"
+                  >
+                    <TrendingUp className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                    Sentimiento
+                  </button>
+                  <button
+                    onClick={() => handleAIButtonClick("qa", generateQA)}
+                    className={`ai-button text-xs px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 transition-all ${
+                      clickedButton === "qa" ? "clicked" : ""
+                    } ${
+                      isAnalyzing && analysisType === "qa" ? "opacity-50" : ""
+                    }`}
+                    disabled={isAnalyzing}
+                    title="Generar preguntas y respuestas sobre el artículo"
+                  >
+                    <MessageCircleQuestion className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                    Q&A
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleAIButtonClick("compare", () =>
+                        setShowAIFeatures((prev) => !prev)
+                      )
+                    }
+                    className={`ai-button text-xs px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-all ${
+                      clickedButton === "compare" ? "clicked" : ""
+                    }`}
+                    title="Comparar con otros artículos del mismo día"
+                  >
+                    <GitCompare className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
+                    Comparar
+                  </button>
+                  {isAnalyzing && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1 ml-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Analizando...
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => setShowSummary(false)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                {summaryHook.summaryType === "key-points" ? (
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: displayedSummary
-                        .replace(/^[-•*]\s*/gm, "")
-                        .split("\n")
-                        .filter((line) => line.trim())
-                        .map((point) => `<li>${point.trim()}</li>`)
-                        .join(""),
-                    }}
-                    className="list-disc list-inside space-y-1"
-                  />
-                ) : (
-                  <p className="text-foreground/90 leading-relaxed">
-                    {displayedSummary}
-                    {isStreaming && (
-                      <span className="inline-block w-0.5 h-4 bg-purple-500 ml-0.5 animate-blink align-middle" />
-                    )}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
-                <span className="text-xs text-muted-foreground">
-                  Regenerar:
-                </span>
-                <button
-                  onClick={() =>
-                    handleAIButtonClick("quick", () =>
-                      handleGenerateSummary("tldr", "short", true)
-                    )
-                  }
-                  className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
-                    clickedButton === "quick" ? "clicked" : ""
-                  } ${
-                    generatingButtonId === "quick"
-                      ? "regenerating"
-                      : ""
-                  }`}
-                  disabled={summaryHook.status === "summarizing"}
-                  title="Resumen rápido de 1-2 frases"
-                >
-                  <Zap className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
-                  Rápido
-                </button>
-                <button
-                  onClick={() =>
-                    handleAIButtonClick("keypoints", () =>
-                      handleGenerateSummary("key-points", "medium", true)
-                    )
-                  }
-                  className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
-                    clickedButton === "keypoints" ? "clicked" : ""
-                  } ${
-                    generatingButtonId === "keypoints"
-                      ? "regenerating"
-                      : ""
-                  }`}
-                  disabled={summaryHook.status === "summarizing"}
-                  title="Puntos clave en formato lista"
-                >
-                  Puntos clave
-                </button>
-                <button
-                  onClick={() =>
-                    handleAIButtonClick("detailed", () =>
-                      handleGenerateSummary("tldr", "long", true)
-                    )
-                  }
-                  className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
-                    clickedButton === "detailed" ? "clicked" : ""
-                  } ${
-                    generatingButtonId === "detailed"
-                      ? "regenerating"
-                      : ""
-                  }`}
-                  disabled={summaryHook.status === "summarizing"}
-                  title="Resumen detallado de 5 frases"
-                >
-                  Detallado
-                </button>
-                <button
-                  onClick={() =>
-                    handleAIButtonClick("extended", () =>
-                      handleGenerateSummary("tldr", "extended", true)
-                    )
-                  }
-                  className={`ai-button regenerate-button text-xs px-2 py-1 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-500/30 transition-all ${
-                    clickedButton === "extended" ? "clicked" : ""
-                  } ${
-                    generatingButtonId === "extended"
-                      ? "regenerating"
-                      : ""
-                  }`}
-                  disabled={summaryHook.status === "summarizing"}
-                  title="Resumen extenso para comprender mejor la noticia (7-10 frases)"
-                  data-qa="extended-summary-button"
-                >
-                  <Sparkles className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
-                  Extendido
-                </button>
-              </div>
 
-              {/* AI Analysis Features */}
-              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-purple-500/20">
-                <span className="text-xs text-muted-foreground">
-                  Análisis IA:
-                </span>
-                <button
-                  onClick={() =>
-                    handleAIButtonClick("entities", extractEntities)
-                  }
-                  className={`ai-button text-xs px-2 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition-all ${
-                    clickedButton === "entities" ? "clicked" : ""
-                  } ${
-                    isAnalyzing && analysisType === "entities"
-                      ? "opacity-50"
-                      : ""
-                  }`}
-                  disabled={isAnalyzing}
-                  title="Detectar personas, organizaciones y lugares mencionados"
-                >
-                  <Tag className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
-                  Entidades
-                </button>
-                <button
-                  onClick={() =>
-                    handleAIButtonClick("sentiment", analyzeSentiment)
-                  }
-                  className={`ai-button text-xs px-2 py-1 rounded bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 transition-all ${
-                    clickedButton === "sentiment" ? "clicked" : ""
-                  } ${
-                    isAnalyzing && analysisType === "sentiment"
-                      ? "opacity-50"
-                      : ""
-                  }`}
-                  disabled={isAnalyzing}
-                  title="Analizar el tono general del artículo"
-                >
-                  <TrendingUp className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
-                  Sentimiento
-                </button>
-                <button
-                  onClick={() => handleAIButtonClick("qa", generateQA)}
-                  className={`ai-button text-xs px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 transition-all ${
-                    clickedButton === "qa" ? "clicked" : ""
-                  } ${
-                    isAnalyzing && analysisType === "qa" ? "opacity-50" : ""
-                  }`}
-                  disabled={isAnalyzing}
-                  title="Generar preguntas y respuestas sobre el artículo"
-                >
-                  <MessageCircleQuestion className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
-                  Q&A
-                </button>
-                <button
-                  onClick={() =>
-                    handleAIButtonClick("compare", () =>
-                      setShowAIFeatures((prev) => !prev)
-                    )
-                  }
-                  className={`ai-button text-xs px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-all ${
-                    clickedButton === "compare" ? "clicked" : ""
-                  }`}
-                  title="Comparar con otros artículos del mismo día"
-                >
-                  <GitCompare className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
-                  Comparar
-                </button>
-                {isAnalyzing && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1 ml-2">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Analizando...
-                  </span>
-                )}
-              </div>
-
-              {/* AI Analysis Results */}
-              {showAIFeatures &&
-                (entities.length > 0 || sentiment || qaItems.length > 0) && (
-                  <div className="mt-3 pt-3 border-t border-purple-500/20 space-y-3">
-                    {/* Entities */}
-                    {entities.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Tag className="w-3 h-3 text-blue-500" />
-                          <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                            Entidades detectadas
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {entities.map((entity, i) => (
-                            <span
-                              key={i}
-                              className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${
-                                entity.type === "person"
-                                  ? "entity-person"
-                                  : entity.type === "org"
-                                  ? "entity-org"
-                                  : entity.type === "location"
-                                  ? "entity-location"
-                                  : entity.type === "product"
-                                  ? "entity-product"
-                                  : "entity-event"
-                              }`}
-                              title={
-                                entity.type === "person"
-                                  ? "Persona"
-                                  : entity.type === "org"
-                                  ? "Organización"
-                                  : entity.type === "location"
-                                  ? "Lugar"
-                                  : entity.type === "product"
-                                  ? "Producto"
-                                  : "Evento"
-                              }
-                            >
-                              {entity.type === "person" && (
-                                <User className="w-2.5 h-2.5 inline mr-1" />
-                              )}
-                              {entity.type === "org" && (
-                                <Building2 className="w-2.5 h-2.5 inline mr-1" />
-                              )}
-                              {entity.type === "location" && (
-                                <MapPin className="w-2.5 h-2.5 inline mr-1" />
-                              )}
-                              {entity.name}
+                {/* AI Analysis Results */}
+                {showAIFeatures &&
+                  (entities.length > 0 || sentiment || qaItems.length > 0) && (
+                    <div className="mt-3 pt-3 border-t border-purple-500/20 space-y-3">
+                      {/* Entities */}
+                      {entities.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Tag className="w-3 h-3 text-blue-500" />
+                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                              Entidades detectadas
                             </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sentiment */}
-                    {sentiment && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          {sentiment.label === "positive" ? (
-                            <TrendingUp className="w-3 h-3 sentiment-positive" />
-                          ) : sentiment.label === "negative" ? (
-                            <TrendingDown className="w-3 h-3 sentiment-negative" />
-                          ) : (
-                            <Minus className="w-3 h-3 sentiment-neutral" />
-                          )}
-                          <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                            Análisis de sentimiento
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className={`h-full transition-all duration-500 ${
-                                sentiment.label === "positive"
-                                  ? "bg-green-500"
-                                  : sentiment.label === "negative"
-                                  ? "bg-red-500"
-                                  : "bg-gray-400"
-                              }`}
-                              style={{
-                                width: `${
-                                  Math.abs(sentiment.score) * 50 + 50
-                                }%`,
-                              }}
-                            />
                           </div>
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] ${
-                              sentiment.label === "positive"
-                                ? "border-green-500/30 text-green-600"
-                                : sentiment.label === "negative"
-                                ? "border-red-500/30 text-red-600"
-                                : "border-gray-500/30 text-gray-600"
-                            }`}
-                          >
-                            {sentiment.label === "positive"
-                              ? "😊 Positivo"
-                              : sentiment.label === "negative"
-                              ? "😟 Negativo"
-                              : "😐 Neutral"}
-                          </Badge>
+                          <div className="flex flex-wrap gap-1.5">
+                            {entities.map((entity, i) => (
+                              <span
+                                key={i}
+                                className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${
+                                  entity.type === "person"
+                                    ? "entity-person"
+                                    : entity.type === "org"
+                                    ? "entity-org"
+                                    : entity.type === "location"
+                                    ? "entity-location"
+                                    : entity.type === "product"
+                                    ? "entity-product"
+                                    : "entity-event"
+                                }`}
+                                title={
+                                  entity.type === "person"
+                                    ? "Persona"
+                                    : entity.type === "org"
+                                    ? "Organización"
+                                    : entity.type === "location"
+                                    ? "Lugar"
+                                    : entity.type === "product"
+                                    ? "Producto"
+                                    : "Evento"
+                                }
+                              >
+                                {entity.type === "person" && (
+                                  <User className="w-2.5 h-2.5 inline mr-1" />
+                                )}
+                                {entity.type === "org" && (
+                                  <Building2 className="w-2.5 h-2.5 inline mr-1" />
+                                )}
+                                {entity.type === "location" && (
+                                  <MapPin className="w-2.5 h-2.5 inline mr-1" />
+                                )}
+                                {entity.name}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Q&A */}
-                    {qaItems.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <MessageCircleQuestion className="w-3 h-3 text-amber-500" />
-                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                            Preguntas frecuentes
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {qaItems.map((item, i) => (
-                            <div key={i} className="rounded-lg overflow-hidden">
-                              <div className="qa-question px-3 py-2">
-                                <span className="text-xs font-medium">
-                                  ❓ {item.question}
-                                </span>
-                              </div>
-                              <div className="qa-answer px-3 py-2">
-                                <span className="text-xs text-muted-foreground">
-                                  {item.answer}
-                                </span>
-                              </div>
+                      {/* Sentiment */}
+                      {sentiment && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            {sentiment.label === "positive" ? (
+                              <TrendingUp className="w-3 h-3 sentiment-positive" />
+                            ) : sentiment.label === "negative" ? (
+                              <TrendingDown className="w-3 h-3 sentiment-negative" />
+                            ) : (
+                              <Minus className="w-3 h-3 sentiment-neutral" />
+                            )}
+                            <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                              Análisis de sentimiento
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-500 ${
+                                  sentiment.label === "positive"
+                                    ? "bg-green-500"
+                                    : sentiment.label === "negative"
+                                    ? "bg-red-500"
+                                    : "bg-gray-400"
+                                }`}
+                                style={{
+                                  width: `${
+                                    Math.abs(sentiment.score) * 50 + 50
+                                  }%`,
+                                }}
+                              />
                             </div>
-                          ))}
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] ${
+                                sentiment.label === "positive"
+                                  ? "border-green-500/30 text-green-600"
+                                  : sentiment.label === "negative"
+                                  ? "border-red-500/30 text-red-600"
+                                  : "border-gray-500/30 text-gray-600"
+                              }`}
+                            >
+                              {sentiment.label === "positive"
+                                ? "😊 Positivo"
+                                : sentiment.label === "negative"
+                                ? "😟 Negativo"
+                                : "😐 Neutral"}
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-            </div>
-          )}
+                      )}
+
+                      {/* Q&A */}
+                      {qaItems.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <MessageCircleQuestion className="w-3 h-3 text-amber-500" />
+                            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                              Preguntas frecuentes
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {qaItems.map((item, i) => (
+                              <div
+                                key={i}
+                                className="rounded-lg overflow-hidden"
+                              >
+                                <div className="qa-question px-3 py-2">
+                                  <span className="text-xs font-medium">
+                                    ❓ {item.question}
+                                  </span>
+                                </div>
+                                <div className="qa-answer px-3 py-2">
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.answer}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+              </div>
+            )}
 
             {/* Article Content Area */}
             <div className="flex flex-col">
               <div className="sticky top-0 z-10 flex items-center justify-end gap-2 px-6 py-2 border-y bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <span className="text-xs text-muted-foreground mr-auto">Contenido del artículo</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={() => setViewMode(viewMode === "default" ? "expanded" : "default")}
-                title={viewMode === "default" ? "Expandir contenido" : "Vista normal"}
+                <span className="text-xs text-muted-foreground mr-auto">
+                  Contenido del artículo
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() =>
+                    setViewMode(viewMode === "default" ? "expanded" : "default")
+                  }
+                  title={
+                    viewMode === "default"
+                      ? "Expandir contenido"
+                      : "Vista normal"
+                  }
+                >
+                  {viewMode === "default" ? (
+                    <>
+                      <Maximize2 className="h-3 w-3 mr-1" />
+                      Expandir
+                    </>
+                  ) : (
+                    <>
+                      <Minimize2 className="h-3 w-3 mr-1" />
+                      Normal
+                    </>
+                  )}
+                </Button>
+              </div>
+              <div
+                className={`transition-all duration-300 ${
+                  viewMode === "expanded" ? "" : ""
+                }`}
               >
-                {viewMode === "default" ? (
-                  <>
-                    <Maximize2 className="h-3 w-3 mr-1" />
-                    Expandir
-                  </>
-                ) : (
-                  <>
-                    <Minimize2 className="h-3 w-3 mr-1" />
-                    Normal
-                  </>
-                )}
-              </Button>
+                <FlipHtmlReveal
+                  originalHtml={originalContent}
+                  translatedHtml={translatedContent}
+                  showTranslation={translation.isShowingTranslation}
+                  duration={1.2}
+                  className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
+                />
+              </div>
             </div>
-            <div 
-              className={`transition-all duration-300 ${
-                viewMode === "expanded" ? "" : ""
-              }`}
-            >
-              <FlipHtmlReveal
-                originalHtml={originalContent}
-                translatedHtml={translatedContent}
-                showTranslation={translation.isShowingTranslation}
-                duration={1.2}
-                className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
-              />
-            </div>
-          </div>
           </div>
 
           {/* Resize handles - only show in default mode */}
