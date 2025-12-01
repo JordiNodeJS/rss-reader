@@ -109,6 +109,9 @@
 - [ ] El resumen se genera localmente en el navegador (Transformers.js) y se guarda en IndexedDB cuando se solicite
 - [ ] Si el resumen se genera en inglés y la traducción automática está habilitada, se traduce a español
 - [ ] El usuario puede borrar el resumen cacheado
+- [ ] El usuario puede ver y limpiar modelos descargados en el diálogo "Caché de Modelos IA" (Traducción y Resumen)
+- [ ] El usuario ve progreso de descarga al generarse o bajar un modelo y puede cancelar la descarga
+- [ ] El usuario puede eliminar (limpiar) los modelos descargados para liberar espacio
 
 ### HU-007: Guardar artículo como favorito
 

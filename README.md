@@ -94,6 +94,7 @@ La aplicación puede generar resúmenes de artículos usando modelos que se ejec
 
 - `short`, `medium`, `long` y `extended` (más detallado, 7-10 oraciones o 10+ bullet points para 'key-points').
 - Por defecto el motor de resumen usa Transformers.js con `distilbart-cnn-12-6` y traduce automáticamente a español si procede.
+  > Para una guía de desarrolladores más exhaustiva sobre pre-carga, cache, y manejo de workers, ver `docs/summarization.md`.
 
 Si tu navegador soporta la API nativa (Chrome), puede haber integración con las APIs de resúmen nativo, aunque la aplicación utiliza Transformers.js como fallback y opción por defecto para asegurar compatibilidad cross-browser.
 
@@ -104,11 +105,18 @@ Si tu navegador soporta la API nativa (Chrome), puede haber integración con las
 3. Selecciona la longitud deseada (`short`, `medium`, `long`, `extended`)
 4. Observa el indicador de progreso y la opción para traducir a español (por defecto habilitada)
 
+### Ajustes y administración
+
+- Abre la barra lateral (Settings) y busca **Caché de Modelos IA** para comprobar los modelos descargados (Traducción + Resumen), limpiar cachés o gestionar modelos nativos de Chrome.
+- La precarga de modelos (preload) es compatible mediante la API `preloadSummarizationModel()` — útil en dispositivos con conexiones lentas para mejorar la primera interacción del usuario.
+- Para liberar recursos manualmente se expone `terminateSummarizationWorker()` que termina el worker dedicado a Transformers.js; se recomienda usarlo al eliminar modelos de la caché o cuando se quiera liberar memoria.
+- Los resúmenes se guardan opcionalmente en IndexedDB por artículo; usa la interfaz de la app para eliminar resúmenes cacheados por artículo o limpia el cache de modelos desde el gestor de caché.
+
 ## 🔖 Changelog (reciente)
 
 - **PR #6** — feat(articles): añadida imagen de placeholder y mejoras en el estado vacío (`public/empty-state-creative.png`, `src/components/articles/ArticleList.tsx`). Mergeado en `main` (commit `31c2882`).
 - **PR #7** — perf(theme): optimizaciones de rendimiento en `ThemeCarousel`, nueva utilidad `src/hooks/useAnimationPause.ts` y notas de rendimiento en `docs/performance-tasks.md`. Mergeado en `main` (commit `6f781d0`).
-- **PR #12** — feat(summarization): añadido `extended` summary length, mejoras en `useSummary` para soportar traducción automática y cacheado de resúmenes (Transformers.js por defecto). Mergeado en `feature/extended-summary`.
+- **PR #12** — feat(summarization): añadido `extended` summary length, mejoras en `useSummary` para soportar traducción automática y cacheado de resúmenes (Transformers.js por defecto). Añadido `CacheManager` (UI) para inspeccionar/limpiar modelos, funciones para pre-cargar (`preloadSummarizationModel`), consultar (`getSummarizationModelStatus`) y terminar el worker (`terminateSummarizationWorker`) para mejorar la fiabilidad. Mergeado en `feature/extended-summary`.
 
 ## 🧪 Tests E2E
 
