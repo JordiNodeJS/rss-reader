@@ -354,9 +354,40 @@ El proyecto implementa resúmenes con IA ejecutados localmente en el navegador u
 - **Tamaño del modelo vs UX**: Los modelos más grandes ofrecen resúmenes de mayor calidad, pero su descarga impacta en la primera interacción. Proveer indicadores de progreso y opción de cancelar descarga mejoró la experiencia.
 - **Caching**: Guardar resúmenes en IndexedDB reduce consumos de CPU/Red y acelera cargas futuras.
 
+- **Caching y Gestión de Modelos**: Además del cacheo de resúmenes por artículo en IndexedDB, los modelos de Transformers.js se guardan en la Cache API del navegador. Se exponen utilidades: `getCachedSummarizationModels()` y `clearSummarizationModelCache()` para inspeccionar y limpiar modelos.
+- **Prefetch / Preload**: Para mejorar la primera interacción en conexiones lentas, es posible guardar (preload) un modelo en memoria usando `preloadSummarizationModel()` — ideal para cargas iniciales controladas por la app.
+- **Worker Reliability / Gestión de Recursos**: La inferencia de Transformers.js se ejecuta dentro de un Web Worker que puede terminarse mediante `terminateSummarizationWorker()` para liberar memoria y limpiar pendientes; el gestor de caché invoca esta utilidad al borrar modelos para evitar fugas.
+
 ### Recomendaciones
 
 - Añadir métricas de calidad de resumen (p. ej., ROUGE) para comparar modelos en tests E2E.
 - Permitir al usuario optar por el modelo que prefiera (p. ej., BART para mayor precisión o distilBART para rapidez).
+
+### Ejemplo de uso (Desarrolladores)
+
+```ts
+import {
+  preloadSummarizationModel,
+  getSummarizationModelStatus,
+  clearSummarizationModelCache,
+  terminateSummarizationWorker,
+} from "@/lib/summarization";
+
+// Precargar modelo (opcional) con callback de progreso
+await preloadSummarizationModel("distilbart-cnn-12-6", (progress) => {
+  // progress: {status:'loading'|'loaded'|'error', progress: number, message?: string}
+  console.log("Carga modelo:", progress);
+});
+
+// Obtener estado de modelo
+const status = await getSummarizationModelStatus();
+console.log("Model status:", status);
+
+// Limpiar modelos descargados (cache)
+await clearSummarizationModelCache();
+
+// Terminar worker y liberar memoria
+terminateSummarizationWorker();
+```
 
 _Proyecto: RSS Reader Antigravity v0.1.0_
