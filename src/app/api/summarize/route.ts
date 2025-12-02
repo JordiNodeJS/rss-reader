@@ -4,11 +4,15 @@
  * Provides a free proxy to Google Gemini API for summarization.
  * Rate limited to 5 requests per hour per IP to prevent abuse.
  *
+ * Uses Upstash Redis for persistent rate limiting in production.
+ * Falls back to in-memory store for development.
+ *
  * @see docs/summarization-improvements-dec-2025.md
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Redis } from "@upstash/redis";
 
 // ============================================
 // Configuration
@@ -17,6 +21,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const GEMINI_MODEL = "gemini-2.0-flash-lite";
 const RATE_LIMIT_REQUESTS = 5;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_WINDOW_SECONDS = 60 * 60; // 1 hour in seconds
 
 // Length configuration for prompts
 const LENGTH_CONFIG = {
@@ -29,19 +34,37 @@ const LENGTH_CONFIG = {
 type SummaryLength = keyof typeof LENGTH_CONFIG;
 
 // ============================================
-// Rate Limiting (In-Memory)
+// Rate Limiting with Upstash Redis
 // ============================================
 
-// In production, use Redis or similar for distributed rate limiting
 interface RateLimitEntry {
   count: number;
   resetAt: number;
 }
 
+// Initialize Redis client if environment variables are set
+let redis: Redis | null = null;
+if (
+  process.env.UPSTASH_REDIS_REST_URL &&
+  process.env.UPSTASH_REDIS_REST_TOKEN
+) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  console.log("[API/summarize] Using Upstash Redis for rate limiting");
+} else {
+  console.log(
+    "[API/summarize] Using in-memory rate limiting (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for persistence)"
+  );
+}
+
+// Fallback in-memory store for development
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-// Clean up old entries periodically (every 10 minutes)
+// Clean up old entries periodically (only for in-memory store)
 setInterval(() => {
+  if (redis) return; // Redis handles TTL automatically
   const now = Date.now();
   for (const [ip, entry] of rateLimitStore.entries()) {
     if (entry.resetAt < now) {
@@ -66,12 +89,70 @@ function getClientIP(request: NextRequest): string {
   return "127.0.0.1";
 }
 
-function checkRateLimit(ip: string): {
+/**
+ * Check rate limit using Redis (persistent) or in-memory (fallback)
+ */
+async function checkRateLimit(ip: string): Promise<{
   allowed: boolean;
   remaining: number;
   resetAt: number;
-} {
+}> {
   const now = Date.now();
+  const rateLimitKey = `ratelimit:summarize:${ip}`;
+
+  // Use Redis if available
+  if (redis) {
+    try {
+      const entry = await redis.get<RateLimitEntry>(rateLimitKey);
+
+      // No entry or expired entry
+      if (!entry || entry.resetAt < now) {
+        const newEntry: RateLimitEntry = {
+          count: 1,
+          resetAt: now + RATE_LIMIT_WINDOW_MS,
+        };
+        // Set with TTL so Redis auto-cleans expired entries
+        await redis.set(rateLimitKey, newEntry, {
+          ex: RATE_LIMIT_WINDOW_SECONDS,
+        });
+        return {
+          allowed: true,
+          remaining: RATE_LIMIT_REQUESTS - 1,
+          resetAt: newEntry.resetAt,
+        };
+      }
+
+      // Entry exists and not expired - check limit
+      if (entry.count >= RATE_LIMIT_REQUESTS) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: entry.resetAt,
+        };
+      }
+
+      // Increment count
+      entry.count++;
+      const remainingTTL = Math.ceil((entry.resetAt - now) / 1000);
+      await redis.set(rateLimitKey, entry, {
+        ex: remainingTTL > 0 ? remainingTTL : 1,
+      });
+
+      return {
+        allowed: true,
+        remaining: RATE_LIMIT_REQUESTS - entry.count,
+        resetAt: entry.resetAt,
+      };
+    } catch (error) {
+      console.error(
+        "[API/summarize] Redis error, falling back to in-memory:",
+        error
+      );
+      // Fall through to in-memory store
+    }
+  }
+
+  // Fallback: in-memory rate limiting
   const entry = rateLimitStore.get(ip);
 
   // No entry or expired entry
@@ -176,7 +257,7 @@ export async function POST(request: NextRequest) {
 
   // Rate limiting
   const clientIP = getClientIP(request);
-  const rateLimit = checkRateLimit(clientIP);
+  const rateLimit = await checkRateLimit(clientIP);
 
   const headers = new Headers({
     "X-RateLimit-Limit": RATE_LIMIT_REQUESTS.toString(),
