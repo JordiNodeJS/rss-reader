@@ -13,6 +13,8 @@
  * - Modelos locales: BART/DistilBART (estables para summarization)
  * - mT5 base removido (genera tokens <extra_id_X> porque no está fine-tuned)
  * - Traducción automática a español con Chrome Translator API
+ * - NUEVO: Pre-traducción a inglés para modelos BART (mejora calidad)
+ *   Estrategia: Texto ES → Traducir EN → BART → Resumen EN → Traducir ES
  *
  * @see docs/summarization-improvements-dec-2025.md
  */
@@ -37,7 +39,11 @@ import {
   SUMMARIZATION_MODELS,
   SummarizationModelKey,
 } from "@/lib/summarization";
-import { translateToSpanish, detectLanguage } from "@/lib/translation";
+import {
+  translateToSpanish,
+  translateToEnglish,
+  detectLanguage,
+} from "@/lib/translation";
 import {
   summarizeWithGemini,
   isGeminiAvailable,
@@ -483,7 +489,13 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
       }
 
       // ============================================
-      // Provider: Transformers.js Local (mT5 multilingüe)
+      // Provider: Transformers.js Local (BART/DistilBART)
+      // ============================================
+      // Strategy for non-English text:
+      // 1. Detect language of input text
+      // 2. If not English, translate TO English first (BART only understands English)
+      // 3. Run BART summarization on English text
+      // 4. Translate summary back to Spanish
       // ============================================
       if (!isTransformersAvailable) {
         setError("Transformers.js no está disponible en este navegador");
@@ -494,20 +506,66 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
       try {
         setActiveBackend("transformers");
 
-        // Check if model supports Spanish natively
+        // Check if model supports Spanish natively (currently none do)
         const modelConfig = SUMMARIZATION_MODELS[modelId];
         const supportsSpanish = modelConfig?.supportsSpanish ?? false;
 
-        // Only translate if model doesn't support Spanish and translation is requested
-        let needsTranslation = translateSummary && !supportsSpanish;
+        // Detect source language
+        let textToSummarize = textContent;
+        let sourceLanguage = "en";
+        let needsPreTranslation = false;
+        let needsPostTranslation = false;
 
         if (!supportsSpanish) {
           try {
+            setStatus("summarizing");
+            setMessage("Detectando idioma del texto...");
             const detection = await detectLanguage(textContent);
-            needsTranslation = translateSummary || !detection.isSpanish;
+            sourceLanguage = detection.language;
+
+            // If text is NOT in English, we need to translate it first for BART
+            if (!detection.isEnglish) {
+              needsPreTranslation = true;
+              needsPostTranslation = translateSummary; // Also translate output back
+            } else {
+              // Text is already in English, just need to translate output if requested
+              needsPostTranslation = translateSummary;
+            }
           } catch {
-            // If language detection fails, assume translation is needed for non-Spanish models
-            needsTranslation = true;
+            // If language detection fails, assume Spanish and translate
+            needsPreTranslation = true;
+            needsPostTranslation = true;
+            sourceLanguage = "es";
+          }
+        }
+
+        // Step 1: Pre-translate to English if needed (for BART to understand)
+        if (needsPreTranslation) {
+          setStatus("summarizing");
+          setMessage(`Traduciendo texto a inglés para el modelo BART...`);
+          setProgress(10);
+
+          try {
+            const preTranslation = await translateToEnglish({
+              text: textContent,
+              sourceLanguage,
+              onProgress: (p) => {
+                setMessage(p.message);
+                setProgress(10 + Math.round(p.progress * 0.2)); // 10-30%
+              },
+            });
+            textToSummarize = preTranslation.translatedText;
+
+            console.log(
+              `[useSummary] Pre-translated ${sourceLanguage}→en for BART (${textContent.length} → ${textToSummarize.length} chars)`
+            );
+          } catch (preTranslateError) {
+            console.warn(
+              "[useSummary] Pre-translation failed, using original text:",
+              preTranslateError
+            );
+            // Fall back to original text - BART will do its best
+            textToSummarize = textContent;
           }
         }
 
@@ -524,30 +582,45 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
         const useModelId: SummarizationModelKey =
           useLength === "extended" ? "bart-large-cnn" : modelId;
 
+        // Step 2: Run BART summarization (now on English text)
+        setProgress(30);
         const result = await summarizeWithTransformers({
-          text: textContent,
+          text: textToSummarize,
           modelId: useModelId,
           maxLength,
           minLength,
-          onProgress: handleTransformersProgress,
+          onProgress: (p) => {
+            handleTransformersProgress(p);
+            // Map progress from 30-80%
+            if (p.status === "downloading") {
+              setProgress(30 + Math.round(p.progress * 0.3));
+            } else if (p.status === "summarizing") {
+              setProgress(60 + Math.round(p.progress * 0.2));
+            }
+          },
         });
         let resultSummary = result.summary;
         let translationFailed = false;
 
-        // Only translate if using non-Spanish model (like DistilBART)
-        if (needsTranslation && resultSummary) {
+        // Step 3: Post-translate summary back to Spanish if needed
+        if (needsPostTranslation && resultSummary) {
           setStatus("summarizing");
           setMessage("Traduciendo resumen al español...");
+          setProgress(85);
+
           try {
             const translationResult = await translateToSpanish({
               text: resultSummary,
               skipLanguageDetection: true,
               sourceLanguage: "en",
+              onProgress: (p) => {
+                setProgress(85 + Math.round(p.progress * 0.15)); // 85-100%
+              },
             });
             resultSummary = translationResult.translatedText;
           } catch (translateError) {
             console.warn(
-              "[useSummary] Failed to translate summary:",
+              "[useSummary] Failed to translate summary to Spanish:",
               translateError
             );
             translationFailed = true;
@@ -557,9 +630,12 @@ export function useSummary(options: UseSummaryOptions): UseSummaryReturn {
 
         setSummary(resultSummary);
         setStatus("completed");
+        setProgress(100);
         setMessage(
           supportsSpanish
             ? "Resumen generado en español"
+            : needsPreTranslation && !translationFailed
+            ? "Resumen generado (ES→EN→BART→ES)"
             : translationFailed
             ? "Resumen generado (sin traducir)"
             : "Resumen generado"

@@ -425,24 +425,21 @@ function ArticleCard({
               : "Guardar"}
           </Button>
           <Button
-            variant={article.scrapedContent ? "default" : "outline"}
+            variant="default"
             size="sm"
-            className={`flex-1 shadow-sm ${
-              article.scrapedContent ? "" : "border-dashed"
-            }`}
-            onClick={() => onView(article)}
-            title={
-              article.scrapedContent
-                ? "Leer artículo completo guardado"
-                : "Ver extracto del RSS"
-            }
+            className="flex-1 shadow-sm"
+            onClick={() => {
+              if (article.scrapedContent) {
+                onView(article);
+              } else {
+                onSaveClick(article);
+                onView(article);
+              }
+            }}
+            title="Leer artículo completo"
           >
-            {article.scrapedContent ? (
-              <BookOpen className="w-4 h-4 mr-2" />
-            ) : (
-              <FileText className="w-4 h-4 mr-2" />
-            )}
-            {article.scrapedContent ? "Leer" : "Extracto"}
+            <BookOpen className="w-4 h-4 mr-2" />
+            Leer
           </Button>
         </CardFooter>
       </Card>
@@ -592,24 +589,21 @@ function ArticleCard({
             : "Guardar"}
         </Button>
         <Button
-          variant={article.scrapedContent ? "default" : "outline"}
+          variant="default"
           size="sm"
-          className={`flex-1 shadow-sm ${
-            article.scrapedContent ? "" : "border-dashed"
-          }`}
-          onClick={() => onView(article)}
-          title={
-            article.scrapedContent
-              ? "Leer artículo completo guardado"
-              : "Ver extracto del RSS"
-          }
+          className="flex-1 shadow-sm"
+          onClick={() => {
+            if (article.scrapedContent) {
+              onView(article);
+            } else {
+              onSaveClick(article);
+              onView(article);
+            }
+          }}
+          title="Leer artículo completo"
         >
-          {article.scrapedContent ? (
-            <BookOpen className="w-4 h-4 mr-2" />
-          ) : (
-            <FileText className="w-4 h-4 mr-2" />
-          )}
-          {article.scrapedContent ? "Leer" : "Extracto"}
+          <BookOpen className="w-4 h-4 mr-2" />
+          Leer
         </Button>
       </CardFooter>
     </Card>

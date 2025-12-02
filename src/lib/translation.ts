@@ -465,11 +465,14 @@ const transformersLoadPromises: Map<string, unknown> = new Map();
 // Cache translators by "source-target" key
 const chromeTranslators: Map<string, Translator> = new Map();
 
-async function getChromeTranslator(
-  sourceLanguage: string = "en",
+/**
+ * Get a Chrome Translator for any source-target language pair
+ */
+async function getGenericChromeTranslator(
+  sourceLanguage: string,
+  targetLanguage: string,
   onProgress?: (progress: number) => void
 ): Promise<Translator | null> {
-  const targetLanguage = "es";
   const key = `${sourceLanguage}-${targetLanguage}`;
 
   // Check if already initialized
@@ -511,6 +514,36 @@ async function getChromeTranslator(
     );
     return null;
   }
+}
+
+async function getChromeTranslator(
+  sourceLanguage: string = "en",
+  onProgress?: (progress: number) => void
+): Promise<Translator | null> {
+  return getGenericChromeTranslator(sourceLanguage, "es", onProgress);
+}
+
+/**
+ * Get a Chrome Translator for translating TO English
+ */
+async function getEnglishTranslator(
+  sourceLanguage: string = "es",
+  onProgress?: (progress: number) => void
+): Promise<Translator | null> {
+  return getGenericChromeTranslator(sourceLanguage, "en", onProgress);
+}
+
+// Legacy getChromeTranslator implementation for backwards compatibility
+async function getChromeTranslatorLegacy(
+  sourceLanguage: string = "en",
+  onProgress?: (progress: number) => void
+): Promise<Translator | null> {
+  const targetLanguage = "es";
+  const key = `${sourceLanguage}-${targetLanguage}`;
+
+  // This legacy function is no longer used - kept for reference
+  // Use getGenericChromeTranslator instead
+  return getGenericChromeTranslator(sourceLanguage, targetLanguage, onProgress);
 }
 
 // ============================================
@@ -954,6 +987,145 @@ export async function translateToSpanish(
     `No hay proveedores de traducción disponibles. ` +
       `Chrome Translator API requiere Chrome 131+, o configura una API key de Gemini.`
   );
+}
+
+// ============================================
+// Translate to English (for BART pre-processing)
+// ============================================
+
+export interface TranslateToEnglishOptions {
+  text: string;
+  sourceLanguage?: string; // Auto-detect if not provided
+  onProgress?: (progress: TranslationProgress) => void;
+}
+
+export interface TranslateToEnglishResult {
+  translatedText: string;
+  sourceLanguage: string;
+  wasTranslated: boolean; // false if text was already in English
+}
+
+/**
+ * Translate text TO English using Chrome's native Translator API
+ *
+ * Used for BART/DistilBART pre-processing since these models only understand English.
+ *
+ * Strategy: Spanish text → English → BART summarization → English summary → Spanish
+ */
+export async function translateToEnglish(
+  options: TranslateToEnglishOptions
+): Promise<TranslateToEnglishResult> {
+  const { text, sourceLanguage: explicitSourceLanguage, onProgress } = options;
+
+  if (!text || text.trim().length === 0) {
+    throw new Error("No text provided for translation");
+  }
+
+  // Detect language first
+  onProgress?.({
+    status: "detecting",
+    progress: 0,
+    message: "Detectando idioma del texto...",
+  });
+
+  const detection = await detectLanguage(text);
+
+  // If already in English, skip translation
+  if (detection.isEnglish) {
+    onProgress?.({
+      status: "completed",
+      progress: 100,
+      message: "Texto ya está en inglés",
+    });
+    return {
+      translatedText: text,
+      sourceLanguage: "en",
+      wasTranslated: false,
+    };
+  }
+
+  const sourceLanguage = explicitSourceLanguage || detection.language || "es";
+
+  // Try Chrome Translator (es -> en or detected language -> en)
+  onProgress?.({
+    status: "downloading",
+    progress: 0,
+    message: `Preparando traducción ${sourceLanguage}→en...`,
+  });
+
+  const translator = await getEnglishTranslator(
+    sourceLanguage,
+    (downloadProgress) => {
+      onProgress?.({
+        status: "downloading",
+        progress: downloadProgress,
+        message: `Descargando modelo de traducción: ${downloadProgress}%`,
+      });
+    }
+  );
+
+  if (!translator) {
+    throw new Error(
+      `Chrome Translator no disponible para ${sourceLanguage}→en. ` +
+        `Asegúrate de usar Chrome 131+ con los modelos de traducción descargados.`
+    );
+  }
+
+  onProgress?.({
+    status: "translating",
+    progress: 0,
+    message: "Traduciendo a inglés para el modelo BART...",
+  });
+
+  // For long texts, split and translate in chunks
+  const chunks = splitIntoChunks(text);
+  const translatedChunks: string[] = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const translated = await translator.translate(chunks[i]);
+    const cleanedTranslation = cleanTranslationArtifacts(translated);
+    translatedChunks.push(cleanedTranslation);
+
+    onProgress?.({
+      status: "translating",
+      progress: Math.round(((i + 1) / chunks.length) * 100),
+      message: `Traduciendo a inglés... ${i + 1}/${chunks.length}`,
+    });
+  }
+
+  const result = translatedChunks.join(" ");
+  const cleanedResult = cleanTranslationArtifacts(result);
+
+  onProgress?.({
+    status: "completed",
+    progress: 100,
+    message: "Texto traducido a inglés",
+  });
+
+  return {
+    translatedText: cleanedResult,
+    sourceLanguage,
+    wasTranslated: true,
+  };
+}
+
+/**
+ * Check if translation to English is available
+ */
+export async function isTranslateToEnglishAvailable(
+  sourceLanguage: string = "es"
+): Promise<boolean> {
+  if (typeof Translator === "undefined") return false;
+
+  try {
+    const availability = await Translator.availability({
+      sourceLanguage,
+      targetLanguage: "en",
+    });
+    return availability !== "unavailable";
+  } catch {
+    return false;
+  }
 }
 
 // ============================================

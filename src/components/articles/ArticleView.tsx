@@ -68,6 +68,9 @@ import {
   Settings,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
+import ProxyRateLimitBadge from "@/components/ui/proxy-rate-limit-badge";
+import { ProviderBadgeDropdown } from "@/components/ui/provider-badge-dropdown";
+import { hasStoredApiKey } from "@/lib/summarization-gemini";
 
 interface ArticleViewProps {
   article: Article | null;
@@ -362,6 +365,8 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
                 <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
                   <AlertTriangle className="h-8 w-8 text-destructive" />
                 </div>
+
+                {/* NOTE: Proxy rate limit indicator for summary provider is shown elsewhere (below 'Regenerar' buttons) */}
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
                     {loadState === "blocked"
@@ -510,9 +515,16 @@ export function ArticleView({
   const [selectedModel, setSelectedModel] =
     useState<SummarizationModelKey>(DEFAULT_MODEL);
   const [showAISettings, setShowAISettings] = useState(false);
+  const [aiSettingsFocus, setAiSettingsFocus] = useState<null | "apiKey">(null);
+  const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showStopAnimation, setShowStopAnimation] = useState(false);
   const [isFavoriteAnimating, setIsFavoriteAnimating] = useState(false);
+
+  // Check for stored API key on mount
+  useEffect(() => {
+    setHasGeminiKey(hasStoredApiKey());
+  }, []);
 
   // New state for resizable view
   const [viewMode, setViewMode] = useState<"default" | "expanded">("default");
@@ -740,6 +752,8 @@ export function ArticleView({
     modelId: selectedModel,
     translateSummary: true, // Translate summaries to Spanish when using local model
   });
+
+  // Memoized timestamp placeholder removed; not required for rate limit UI
 
   // Streaming effect - updates external store, not React state
   useEffect(() => {
@@ -1161,43 +1175,22 @@ export function ArticleView({
                   </Badge>
                 )}
                 {summaryHook.hasCachedSummary && (
-                  <Badge
-                    variant="default"
-                    className={
-                      aiProvider === "gemini"
-                        ? "bg-blue-500 hover:bg-blue-600"
-                        : "bg-purple-500 hover:bg-purple-600"
-                    }
-                    title={
-                      aiProvider === "gemini"
-                        ? "Resumen generado con Gemini 2.5 Flash-Lite"
-                        : `Resumen generado localmente con ${
-                            selectedModel && SUMMARIZATION_MODELS[selectedModel]
-                              ? SUMMARIZATION_MODELS[selectedModel].name
-                              : selectedModel
-                          }`
-                    }
-                  >
-                    {aiProvider === "gemini" ? (
-                      <Cloud className="w-3 h-3 mr-1" />
-                    ) : (
-                      <Cpu className="w-3 h-3 mr-1" />
-                    )}
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    {aiProvider === "gemini" ? (
-                      "Gemini"
-                    ) : (
-                      <>
-                        Local
-                        {selectedModel &&
-                          SUMMARIZATION_MODELS[selectedModel] && (
-                            <span className="ml-2 text-xs opacity-80">
-                              ({SUMMARIZATION_MODELS[selectedModel].name})
-                            </span>
-                          )}
-                      </>
-                    )}
-                  </Badge>
+                  <ProviderBadgeDropdown
+                    provider={aiProvider}
+                    selectedModel={selectedModel}
+                    onProviderChange={setAiProvider}
+                    onModelChange={setSelectedModel}
+                    onOpenSettings={() => {
+                      setAiSettingsFocus(null);
+                      setShowAISettings(true);
+                    }}
+                    onRequestApiKey={() => {
+                      setAiSettingsFocus("apiKey");
+                      setShowAISettings(true);
+                    }}
+                    proxyRateLimit={summaryHook.proxyRateLimit}
+                    hasGeminiKey={hasGeminiKey}
+                  />
                 )}
                 {translation.sourceLanguage !== "es" &&
                   !translation.isShowingTranslation && (
@@ -1695,7 +1688,11 @@ export function ArticleView({
                         ? "regenerating-border"
                         : ""
                     }`}
-                    disabled={summaryHook.status === "summarizing"}
+                    disabled={
+                      summaryHook.status === "summarizing" ||
+                      (aiProvider === "proxy" &&
+                        summaryHook.proxyRateLimit?.remaining === 0)
+                    }
                     title="Resumen rápido de 1-2 frases"
                   >
                     <Zap className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
@@ -1717,7 +1714,11 @@ export function ArticleView({
                         ? "regenerating-border"
                         : ""
                     }`}
-                    disabled={summaryHook.status === "summarizing"}
+                    disabled={
+                      summaryHook.status === "summarizing" ||
+                      (aiProvider === "proxy" &&
+                        summaryHook.proxyRateLimit?.remaining === 0)
+                    }
                     title="Puntos clave en formato lista"
                   >
                     Puntos clave
@@ -1737,7 +1738,11 @@ export function ArticleView({
                         ? "regenerating-border"
                         : ""
                     }`}
-                    disabled={summaryHook.status === "summarizing"}
+                    disabled={
+                      summaryHook.status === "summarizing" ||
+                      (aiProvider === "proxy" &&
+                        summaryHook.proxyRateLimit?.remaining === 0)
+                    }
                     title="Resumen detallado de 5 frases"
                   >
                     Detallado
@@ -1757,7 +1762,11 @@ export function ArticleView({
                         ? "regenerating-border"
                         : ""
                     }`}
-                    disabled={summaryHook.status === "summarizing"}
+                    disabled={
+                      summaryHook.status === "summarizing" ||
+                      (aiProvider === "proxy" &&
+                        summaryHook.proxyRateLimit?.remaining === 0)
+                    }
                     title="Resumen extenso para comprender mejor la noticia (7-10 frases)"
                     data-qa="extended-summary-button"
                   >
@@ -2088,7 +2097,13 @@ export function ArticleView({
 
       {/* AI Settings Dialog */}
       {showAISettings && (
-        <Dialog open={showAISettings} onOpenChange={setShowAISettings}>
+        <Dialog
+          open={showAISettings}
+          onOpenChange={(open) => {
+            setShowAISettings(open);
+            if (!open) setAiSettingsFocus(null);
+          }}
+        >
           {/* Make dialog content scrollable on small screens to ensure the full
             configuration box is reachable on mobile devices */}
           <DialogContent className="w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[75vh] overflow-y-auto">
@@ -2108,6 +2123,7 @@ export function ArticleView({
               onModelChange={setSelectedModel}
               isTranslationAvailable={translation.canTranslate}
               compact={false}
+              focusApiKey={aiSettingsFocus === "apiKey"}
             />
           </DialogContent>
         </Dialog>

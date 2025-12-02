@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   AlertTriangle,
   Settings,
@@ -41,7 +41,7 @@ import {
 // Types
 // ============================================
 
-export type SummarizationProvider = "local" | "gemini";
+export type SummarizationProvider = "local" | "gemini" | "proxy" | "chrome";
 
 interface AIDisclaimerProps {
   /** Currently selected provider */
@@ -56,6 +56,7 @@ interface AIDisclaimerProps {
   isTranslationAvailable?: boolean;
   /** Compact mode for inline display */
   compact?: boolean;
+  focusApiKey?: boolean;
 }
 
 // ============================================
@@ -69,6 +70,7 @@ export function AIDisclaimer({
   onModelChange,
   isTranslationAvailable = true,
   compact = false,
+  focusApiKey = false,
 }: AIDisclaimerProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
@@ -166,6 +168,11 @@ export function AIDisclaimer({
                 </span>
               )}
             </>
+          ) : provider === "proxy" ? (
+            <>
+              <Cloud className="w-3 h-3 mr-1" />
+              Proxy
+            </>
           ) : (
             <>
               <Cloud className="w-3 h-3 mr-1" />
@@ -188,6 +195,7 @@ export function AIDisclaimer({
           onSaveApiKey={handleSaveApiKey}
           onClearApiKey={handleClearApiKey}
           isTranslationAvailable={isTranslationAvailable}
+          focusApiKey={focusApiKey}
         />
       </div>
     );
@@ -302,6 +310,7 @@ interface SettingsDialogProps {
   onSaveApiKey: () => void;
   onClearApiKey: () => void;
   isTranslationAvailable: boolean;
+  focusApiKey?: boolean;
 }
 
 function SettingsDialog({
@@ -319,7 +328,16 @@ function SettingsDialog({
   onSaveApiKey,
   onClearApiKey,
   isTranslationAvailable,
+  focusApiKey,
 }: SettingsDialogProps) {
+  const apiInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen && focusApiKey) {
+      // Use a small timeout to ensure the dialog is rendered before focusing.
+      setTimeout(() => apiInputRef.current?.focus(), 50);
+    }
+  }, [isOpen, focusApiKey]);
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       {/* Make dialog content scrollable on small screens to ensure the full
@@ -419,6 +437,46 @@ function SettingsDialog({
               </div>
             )}
 
+            {/* Proxy Option (Free) */}
+            <button
+              onClick={() => onProviderChange("proxy")}
+              className={`w-full p-3 rounded-lg border text-left transition-all ${
+                provider === "proxy"
+                  ? "border-emerald-500 bg-emerald-500/10"
+                  : "border-border hover:border-emerald-500/50 hover:bg-emerald-500/5"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <Cloud
+                  className={`w-5 h-5 mt-0.5 ${
+                    provider === "proxy"
+                      ? "text-emerald-500"
+                      : "text-muted-foreground"
+                  }`}
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">
+                      Proxy Gemini (Gratis)
+                    </span>
+                    {provider === "proxy" && (
+                      <Check className="w-4 h-4 text-emerald-500" />
+                    )}
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                    >
+                      5 usos/hora
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Usa la API del desarrollador. Gratis pero limitado a 5
+                    peticiones por hora. No requiere configuración.
+                  </p>
+                </div>
+              </div>
+            </button>
+
             {/* Gemini Option */}
             <button
               onClick={() => hasKey && onProviderChange("gemini")}
@@ -442,7 +500,7 @@ function SettingsDialog({
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm">
-                      Google Gemini (API)
+                      Google Gemini (API key propia)
                     </span>
                     {provider === "gemini" && (
                       <Check className="w-4 h-4 text-purple-500" />
@@ -454,8 +512,8 @@ function SettingsDialog({
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Usa Gemini 2.5 Flash-Lite. Ultra rápido y muy económico
-                    (~$0.10/millón tokens). Requiere API key.
+                    Usa Gemini 2.5 Flash-Lite con tu propia API key. Sin
+                    límites, ultra rápido y económico (~$0.10/millón tokens).
                   </p>
                 </div>
               </div>
@@ -488,6 +546,7 @@ function SettingsDialog({
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <input
+                    ref={apiInputRef}
                     type="password"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
