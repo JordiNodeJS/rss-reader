@@ -1,0 +1,98 @@
+---
+description: "Project-specific rules and architecture notes for RSS Reader Antigravity"
+globs: ["**/*"]
+alwaysApply: true
+---
+
+## Project Overview
+
+- **Stack**: Next.js 16 App Router + React 19, TypeScript strict, Tailwind + Shadcn UI, PWA with offline support.
+- **Core idea**: Modern RSS reader with **offline-first IndexedDB storage**, **server-side RSS/scraping proxies**, and **multi-provider AI summarization/translation** focused on Spanish content.
+- **Key entrypoints**: `src/app/layout.tsx` (root layout + theme bootstrapping), `src/app/page.tsx` + `src/app/page.client.tsx` (home shell), `src/components/layout/AppShell.tsx` (sidebar + layout), `src/components/articles/*` (article list/view).
+
+## Package & Tooling Rules
+
+- **Package manager**: Use **`pnpm` only** (never `npm` or `yarn`).
+  - Install deps: `pnpm install`
+  - Dev server: `pnpm dev`
+  - Lint/build: `pnpm lint`, `pnpm build`
+- **E2E tests** (Playwright): `pnpm dlx playwright install` then `pnpm run test:e2e` (script already configured in `package.json`).
+- When adding scripts or tools, prefer **`pnpm` / `pnpm dlx`** in all code and docs.
+
+## High-level Architecture & Data Flow
+
+- **App shell pattern**:
+  - Server component `src/app/page.tsx` reads UI cookies (e.g. `sidebar-width`) and passes props to **client** `page.client.tsx`.
+  - `HomeClient` uses `useFeeds()` and renders layout via `AppShell`, `ArticleList`, lazy-loaded `ArticleView`, `Footer`, and global `Toaster`.
+- **Offline data model**:
+  - All feeds/articles live in **IndexedDB**, wrapped by `src/lib/db.ts` and consumed via `src/hooks/useFeeds.ts`.
+  - `useFeeds` is the **single source of truth** for feed/article operations (add/remove feeds, scraping, favorites, clear cache, reordering).
+  - Feeds are also backed up to `localStorage` (`FEEDS_BACKUP_KEY`) for resilience; `useFeeds` restores from this backup if IndexedDB is wiped.
+- **Server-side integration**:
+  - **RSS fetching**: `/api/rss` parses remote feeds server-side to avoid CORS; client always calls this proxy (never fetch RSS directly from the browser).
+  - **Scraping**: `/api/scrape` extracts article HTML using Readability/Cheerio; `useFeeds.scrapeArticle` persists `scrapedContent` + optional translation.
+  - **Summarization proxy**: `/api/summarize` provides a rate-limited free Gemini proxy; used when provider is `"proxy"`.
+
+## Client Patterns & Error Handling
+
+- **useFeeds**:
+  - Uses a local `UserError` class to distinguish **user-facing errors** from developer errors: `UserError` messages are shown via `toast` and logged with `console.warn`; unexpected errors remain `console.error`.
+  - Always validates `content-type` before `res.json()` and logs **non-JSON** responses with a short snippet for debugging.
+  - Image extraction for RSS items uses `isValidImageUrl` and multiple fallbacks (`enclosure`, `media:*`, HTML content parsing) to support Spanish media feeds.
+  - When clearing DB (`clearCache`), it sets a flag to avoid logging this as an "unexpected" deletion in `db-monitor`.
+- **DB monitoring**:
+  - `ActivityStatusContext` + `useActivityStatus` expose coarse-grained activity tags (`"fetching-rss"`, `"scraping"`, `"saving"`, etc.) for UI feedback.
+  - `src/lib/db-monitor.ts` logs IndexedDB events (e.g. unexpected clears) and exposes them for inspection in the sidebar ("Ver eventos de BD").
+- **Article UX**:
+  - `ArticleList` enforces **safe arrays** (`safeArticles`) and uses dedicated helpers for feed titles, categories, date formatting, and language detection.
+  - When saving an article, it first **detects language** and, for non‑Spanish content, shows a dialog offering:
+    - **Guardar original** (no translation) or
+    - **Guardar traducido** (scrapes + runs translation pipeline).
+
+## AI Summarization & Translation
+
+- **Canonical hook**: `src/hooks/useSummary.ts` orchestrates all summarization backends and **must be used** by UI (e.g. `ArticleView`) instead of duplicating logic.
+  - Providers (`SummarizationProvider`): `"chrome"` (Chrome Summarizer API, Gemini Nano), `"proxy"` (free API via `/api/summarize`), `"gemini"` (user key), `"local"` (Transformers.js in browser).
+  - For local BART models, pipeline is **ES → EN (pre-translate) → BART → EN summary → ES (post-translate)**, with language detection and fallbacks already implemented.
+  - Summaries are cached per-article in IndexedDB via `updateArticleSummary` and reused if present unless `forceRegenerate` is true.
+- **Summarization service** (`src/lib/summarization.ts`):
+  - Wraps Chrome `Summarizer` API with availability checks, detailed error handling (including low disk space), and singleton caching of summarizer instances.
+  - Exports shared types (`SummarizationStatus`, `SummaryType`, `SummaryLength`) and helper text descriptions used across the UI.
+- **ArticleView behavior**:
+  - Uses `useSummary` + `useTranslation` + `FlipTextReveal` for animated title/body toggling between original and translated Spanish.
+  - Summary panel supports multiple presets (`quick`, `key-points`, `detailed`, `extended`) and **streams** text into the UI; do not bypass this by directly rendering `summaryHook.summary`.
+  - Additional "AI analysis" (entities/sentiment/Q&A) is currently **heuristic/simulated**; treat it as a UI experiment, not a canonical analysis API.
+- **Model caching**:
+  - `CacheManager` centralizes translation + summarization model cache inspection and clearing.
+  - It uses `translation` and `summarization` helpers to list models, and exposes **safe cache clearing** that never touches feeds/articles.
+
+## Theming & Layout
+
+- **Theme bootstrapping**:
+  - `src/app/layout.tsx` injects a **pre-React theme script** that:
+    - Reads `rss-reader-theme-config` from `localStorage`,
+    - Applies a `theme-<name>` class to `<html>`,
+    - Preloads the theme CSS (`/styles/themes/<name>.css`) and Google Fonts.
+  - This is critical to avoid FOUC/hydration mismatches; new themes must be wired into both this script and `src/lib/theme-loader.ts` (`THEME_FONTS` & loader helpers).
+- **Runtime theme loading**:
+  - `ThemeProvider` + `ThemeInitializer` wrap the app; `theme-loader.ts` handles dynamic `<link>` swapping and preloading (`preloadTheme`, `preloadAllThemes`).
+- **Sidebar & layout**:
+  - `AppShell` manages a **resizable sidebar**:
+    - Width persisted in both `localStorage` (`sidebar-width`) and a cookie read on the server.
+    - Resize logic must keep width between `SIDEBAR_CONFIG.MIN_WIDTH` and `MAX_WIDTH`.
+  - Feeds sidebar uses **DnD Kit** for drag-and-drop ordering; any new reordering behavior should reuse `reorderFeeds` in `useFeeds`.
+
+## Conventions for New Code
+
+- **Reuse existing layers**:
+  - For anything related to feeds/articles, go through `useFeeds` + `lib/db` instead of adding parallel state or storage.
+  - For AI/translation/summarization, plug into `useSummary`, `translation.ts`, and `summarization.ts` rather than creating new API shapes.
+- **Error & UX consistency**:
+  - Prefer `toast` for user-visible errors and maintain the `UserError` vs generic `Error` pattern from `useFeeds`.
+  - Follow existing Spanish copy and tone for user-facing strings (buttons, toasts, dialogs).
+- **Testing**:
+  - When changing data flows or AI behavior, add/adjust **CRHOME-DEVTOOLS flows** that cover:
+    - Adding feeds via presets and custom URLs.
+    - Saving/scraping with and without translation.
+    - Generating extended summaries and interacting with the CacheManager.
+
