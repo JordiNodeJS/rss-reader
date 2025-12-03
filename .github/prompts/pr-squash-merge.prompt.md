@@ -1,8 +1,28 @@
 ---
 name: pr-squash-merge
 description: "Squash y merge de Pull Request usando GitHub CLI. Guía para agentes automáticos que realizan merges con comprobaciones y limpieza de ramas."
-model: "Raptor mini (Preview)"
-tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'Context7/*', 'github-mpc/*', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'extensions', 'todos', 'runSubagent']
+model: GPT-5 mini (copilot)
+tools:
+  [
+    "edit",
+    "runNotebooks",
+    "search",
+    "new",
+    "runCommands",
+    "runTasks",
+    "github-mpc/*",
+    "usages",
+    "vscodeAPI",
+    "problems",
+    "changes",
+    "testFailure",
+    "openSimpleBrowser",
+    "fetch",
+    "githubRepo",
+    "extensions",
+    "todos",
+    "runSubagent",
+  ]
 argument-hint: "tags: pr, merge, gh; version: 1.0.0"
 ---
 
@@ -53,21 +73,25 @@ Estados de PR y acciones
 Flujo operativo
 
 1. **Verificación de estado**
+
    - Obtener estado de la PR: `gh pr view <pr-number> --json state,mergeable,mergeStateStatus,mergeStateStatus`
    - Verificar checks: `gh pr checks <pr-number>`
    - Verificar reviews: `gh pr review <pr-number> --list`
 
 2. **Manejo de conflictos**
+
    - Si `mergeStateStatus` es `DIRTY` o `CONFLICTING`: reportar conflictos
    - Si `mergeStateStatus` es `BEHIND`: actualizar rama base
    - Si `mergeStateStatus` es `CLEAN`: proceder al merge
 
 3. **Squash y merge**
+
    - Usar `gh pr merge <pr-number> --squash --delete-branch`
    - Verificar que el merge fue exitoso
    - Obtener hash del commit de merge
 
 4. **Limpieza post-merge**
+
    - Verificar que la rama remota fue eliminada
    - Eliminar rama local si procede: `git branch -D <branch>`
    - Cambiar a rama main: `git checkout main`
