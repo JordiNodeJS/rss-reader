@@ -1,23 +1,20 @@
 ---
 agent: agent
-description: "Website exploration for testing using Playwright MCP"
+description: "Website exploration for testing using chrome-devtools MPC"
 tools:
   [
     "changes",
     "search/codebase",
     "edit/editFiles",
     "fetch",
-    "findTestFiles",
     "problems",
     "runCommands",
     "runTasks",
-    "runTests",
     "search",
     "search/searchResults",
     "runCommands/terminalLastCommand",
     "runCommands/terminalSelection",
     "testFailure",
-    "playwright",
   ]
 model: GPT-5 mini (copilot)
 ---
@@ -28,7 +25,7 @@ Your goal is to explore the website and identify key functionalities.
 
 ## Specific Instructions
 
-1. Navigate to the provided URL using the Playwright MCP Server. If no URL is provided, ask the user to provide one.
+1. Navigate to the provided URL using the chrome-devtools MPC Server. Server dev is actually running. If no URL is provided, ask the user to provide one.
 2. Identify and interact with 3-5 core features or user flows.
 3. Document the user interactions, relevant UI elements (and their locators), and the expected outcomes.
 4. Close the browser context upon completion.
