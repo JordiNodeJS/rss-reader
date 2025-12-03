@@ -220,7 +220,8 @@ export function CacheManager() {
             <br />
             <span className="text-xs opacity-70">
               <strong>Traducciones:</strong> Chrome Translator API (nativa).{" "}
-              <strong>Resúmenes:</strong> Transformers.js (local).
+              <strong>Resúmenes:</strong> Transformers.js (local) (por defecto:
+              DistilBART CNN 12-6).
               <br />
               Los feeds y artículos NO se verán afectados al limpiar esta caché.
             </span>

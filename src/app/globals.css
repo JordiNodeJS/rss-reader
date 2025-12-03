@@ -679,20 +679,20 @@
 }
 
 /* ===== Regenerate Button Border Glow Animation ===== */
-@keyframes border-glow {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+/* Premium animated glowing border for regeneration buttons.
+   Creates a smooth, elegant light beam that travels around the button perimeter ONLY.
+   Uses CSS Houdini @property for smooth conic gradient animation.
+   Both layers use mask to ensure animation stays on the border, not the background. */
+
+/* CSS Custom Property for animating the gradient angle (Chrome/Edge/Safari 15.4+) */
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
 }
 
-/* Rotating border animation using conic gradient */
-@keyframes border-rotate {
+/* Smooth rotation for the light beam */
+@keyframes border-beam-rotate {
   0% {
     --border-angle: 0deg;
   }
@@ -701,42 +701,106 @@
   }
 }
 
-@property --border-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
+/* Subtle pulsing glow that syncs with the rotation */
+@keyframes glow-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .regenerating-border {
-  --border-angle: 0deg;
   position: relative;
-  background: transparent;
-  z-index: 0;
-  animation: border-rotate 1.5s linear infinite;
+  overflow: visible;
+  z-index: 1;
+  /* No content animation - only border pseudo-elements animate */
 }
 
+/* Outer glow layer - soft ambient light on border only */
 .regenerating-border::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  padding: 4px;
+  /* Subtle glow gradient - reduced opacity for softer effect */
+  background: conic-gradient(
+    from var(--border-angle, 0deg) at 50% 50%,
+    transparent 0deg,
+    transparent 70deg,
+    rgb(168 85 247 / 0.25) 100deg,
+    rgb(139 92 246 / 0.35) 130deg,
+    rgb(236 72 153 / 0.3) 160deg,
+    transparent 190deg,
+    transparent 360deg
+  );
+  /* Mask to show only the border glow, not the fill */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: border-beam-rotate 2.5s linear infinite,
+    glow-breathe 2.5s ease-in-out infinite;
+  z-index: -2;
+  pointer-events: none;
+  filter: blur(3px);
+}
+
+/* Inner sharp border beam - the main traveling light */
+.regenerating-border::after {
   content: "";
   position: absolute;
   inset: -2px;
   border-radius: inherit;
   padding: 2px;
+  /* Concentrated beam of light - subtle but visible */
   background: conic-gradient(
-    from var(--border-angle),
-    transparent 0%,
-    transparent 25%,
-    rgb(168 85 247) 50%,
-    rgb(139 92 246) 55%,
-    rgb(168 85 247) 60%,
-    transparent 75%,
-    transparent 100%
+    from var(--border-angle, 0deg) at 50% 50%,
+    transparent 0deg,
+    transparent 60deg,
+    rgb(168 85 247 / 0.15) 80deg,
+    rgb(168 85 247 / 0.4) 88deg,
+    rgb(255 255 255 / 0.7) 92deg,
+    rgb(236 72 153 / 0.5) 96deg,
+    rgb(139 92 246 / 0.35) 108deg,
+    rgb(59 130 246 / 0.2) 125deg,
+    transparent 145deg,
+    transparent 360deg
   );
+  /* Mask to show only the border, not the fill */
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
+  animation: border-beam-rotate 2.5s linear infinite;
   z-index: -1;
   pointer-events: none;
+}
+
+/* Fallback for browsers without @property support */
+@supports not (background: conic-gradient(from 0deg, red, blue)) {
+  .regenerating-border::before,
+  .regenerating-border::after {
+    display: none;
+  }
+
+  .regenerating-border {
+    animation: glow-pulse-fallback 1.5s ease-in-out infinite;
+    box-shadow: 0 0 4px rgb(168 85 247 / 0.35), 0 0 8px rgb(236 72 153 / 0.25);
+  }
+}
+
+@keyframes glow-pulse-fallback {
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgb(168 85 247 / 0.35), 0 0 8px rgb(236 72 153 / 0.25);
+  }
+  50% {
+    box-shadow: 0 0 6px rgb(236 72 153 / 0.45), 0 0 12px rgb(168 85 247 / 0.3);
+  }
 }
 
 /* Entity tag colors */

@@ -1,13 +1,20 @@
 /**
  * Translation Service
  *
- * Provides multi-language to Spanish translation using Chrome's native Translator API.
- * No fallback to Transformers.js - requires Chrome 131+ with built-in translation support.
+ * Provides multi-language to Spanish translation using:
+ * 1. Chrome's native Translator API (preferred, offline-capable)
+ * 2. Google Gemini API (fallback, requires API key)
  *
  * @see docs/research/ai-api-lang.md for detailed documentation
  */
 
 // Types are declared in src/types/chrome-ai.d.ts as ambient types
+
+import {
+  translateWithGemini,
+  getStoredApiKey as getGeminiApiKey,
+  isGeminiAvailable,
+} from "./summarization-gemini";
 
 // ============================================
 // Types
@@ -21,7 +28,7 @@ export type TranslationStatus =
   | "completed" // Translation successful
   | "error"; // Translation failed
 
-export type TranslationProvider = "chrome" | "transformers" | "none";
+export type TranslationProvider = "chrome" | "gemini" | "transformers" | "none";
 
 export interface TranslationProgress {
   status: TranslationStatus;
@@ -458,11 +465,14 @@ const transformersLoadPromises: Map<string, unknown> = new Map();
 // Cache translators by "source-target" key
 const chromeTranslators: Map<string, Translator> = new Map();
 
-async function getChromeTranslator(
-  sourceLanguage: string = "en",
+/**
+ * Get a Chrome Translator for any source-target language pair
+ */
+async function getGenericChromeTranslator(
+  sourceLanguage: string,
+  targetLanguage: string,
   onProgress?: (progress: number) => void
 ): Promise<Translator | null> {
-  const targetLanguage = "es";
   const key = `${sourceLanguage}-${targetLanguage}`;
 
   // Check if already initialized
@@ -505,6 +515,26 @@ async function getChromeTranslator(
     return null;
   }
 }
+
+async function getChromeTranslator(
+  sourceLanguage: string = "en",
+  onProgress?: (progress: number) => void
+): Promise<Translator | null> {
+  return getGenericChromeTranslator(sourceLanguage, "es", onProgress);
+}
+
+/**
+ * Get a Chrome Translator for translating TO English
+ */
+async function getEnglishTranslator(
+  sourceLanguage: string = "es",
+  onProgress?: (progress: number) => void
+): Promise<Translator | null> {
+  return getGenericChromeTranslator(sourceLanguage, "en", onProgress);
+}
+
+// Note: legacy translator helper removed — use `getGenericChromeTranslator`,
+// `getChromeTranslator` or `getEnglishTranslator` instead.
 
 // ============================================
 // Language Detection
@@ -778,15 +808,15 @@ async function translateWithChrome(
 export interface TranslateOptions {
   text: string;
   onProgress?: (progress: TranslationProgress) => void;
-  preferredProvider?: TranslationProvider; // Kept for API compatibility, but only 'chrome' is supported
+  preferredProvider?: TranslationProvider; // 'chrome' or 'gemini'
   skipLanguageDetection?: boolean; // Skip language detection if already verified
   sourceLanguage?: string; // Explicitly set source language
 }
 
 /**
- * Translate text to Spanish using Chrome's native Translator API
+ * Translate text to Spanish using Chrome's native Translator API or Gemini API
  *
- * Note: Only Chrome Translator API is supported. Requires Chrome 131+.
+ * Priority: Chrome Translator (if available) → Gemini API (if key stored)
  */
 export async function translateToSpanish(
   options: TranslateOptions
@@ -794,18 +824,16 @@ export async function translateToSpanish(
   const {
     text,
     onProgress,
+    preferredProvider,
     skipLanguageDetection = false,
     sourceLanguage: explicitSourceLanguage,
   } = options;
-
-  // translateToSpanish called (debug details removed)
 
   if (!text || text.trim().length === 0) {
     throw new Error("No text provided for translation");
   }
 
   let sourceLanguage = explicitSourceLanguage || "en";
-  // Using sourceLanguage for translation (debug removed)
 
   // Only detect language if not skipped and no explicit source language provided
   if (!skipLanguageDetection && !explicitSourceLanguage) {
@@ -832,45 +860,261 @@ export async function translateToSpanish(
     }
   }
 
-  // Use Chrome Translator API only
-  try {
-    const translatedText = await translateWithChrome(
-      text,
-      sourceLanguage,
-      onProgress
-    );
+  // Try Chrome Translator first (unless Gemini is explicitly preferred)
+  if (preferredProvider !== "gemini") {
+    try {
+      const translatedText = await translateWithChrome(
+        text,
+        sourceLanguage,
+        onProgress
+      );
 
+      onProgress?.({
+        status: "completed",
+        progress: 100,
+        message: "Translation completed",
+      });
+
+      return {
+        translatedText,
+        provider: "chrome",
+        sourceLanguage,
+        targetLanguage: "es",
+        timestamp: Date.now(),
+      };
+    } catch (chromeError) {
+      const chromeErrorMessage =
+        chromeError instanceof Error
+          ? chromeError.message
+          : String(chromeError);
+      console.warn(
+        `[Translation] Chrome Translator not available for ${sourceLanguage}->es:`,
+        chromeErrorMessage
+      );
+
+      // If Chrome fails and Gemini is not available, throw the Chrome error
+      if (!isGeminiAvailable()) {
+        onProgress?.({
+          status: "error",
+          progress: 0,
+          message: `Chrome Translator no disponible: ${chromeErrorMessage}`,
+        });
+
+        throw new Error(
+          `Chrome Translator API no disponible para ${sourceLanguage}→es. ` +
+            `Asegúrate de usar Chrome 131+ y que los modelos de traducción estén descargados, ` +
+            `o configura una API key de Gemini en Configuración de IA.`
+        );
+      }
+      // Fall through to Gemini
+    }
+  }
+
+  // Try Gemini API as fallback or if explicitly preferred
+  if (isGeminiAvailable()) {
+    const apiKey = getGeminiApiKey();
+    if (apiKey) {
+      try {
+        onProgress?.({
+          status: "translating",
+          progress: 10,
+          message: "Traduciendo con Gemini...",
+        });
+
+        const result = await translateWithGemini({
+          text,
+          sourceLanguage,
+          targetLanguage: "es",
+          apiKey,
+          onProgress: (geminiProgress) => {
+            onProgress?.({
+              status:
+                geminiProgress.status === "completed"
+                  ? "completed"
+                  : "translating",
+              progress: geminiProgress.progress,
+              message: geminiProgress.message,
+            });
+          },
+        });
+
+        onProgress?.({
+          status: "completed",
+          progress: 100,
+          message: "Traducción completada con Gemini",
+        });
+
+        return {
+          translatedText: result.translatedText,
+          provider: "gemini",
+          sourceLanguage: result.sourceLanguage,
+          targetLanguage: result.targetLanguage,
+          timestamp: Date.now(),
+        };
+      } catch (geminiError) {
+        const geminiErrorMessage =
+          geminiError instanceof Error
+            ? geminiError.message
+            : String(geminiError);
+        console.error(
+          "[Translation] Gemini translation failed:",
+          geminiErrorMessage
+        );
+
+        onProgress?.({
+          status: "error",
+          progress: 0,
+          message: `Error en traducción Gemini: ${geminiErrorMessage}`,
+        });
+
+        throw new Error(`Error al traducir con Gemini: ${geminiErrorMessage}`);
+      }
+    }
+  }
+
+  // No translation provider available
+  throw new Error(
+    `No hay proveedores de traducción disponibles. ` +
+      `Chrome Translator API requiere Chrome 131+, o configura una API key de Gemini.`
+  );
+}
+
+// ============================================
+// Translate to English (for BART pre-processing)
+// ============================================
+
+export interface TranslateToEnglishOptions {
+  text: string;
+  sourceLanguage?: string; // Auto-detect if not provided
+  onProgress?: (progress: TranslationProgress) => void;
+}
+
+export interface TranslateToEnglishResult {
+  translatedText: string;
+  sourceLanguage: string;
+  wasTranslated: boolean; // false if text was already in English
+}
+
+/**
+ * Translate text TO English using Chrome's native Translator API
+ *
+ * Used for BART/DistilBART pre-processing since these models only understand English.
+ *
+ * Strategy: Spanish text → English → BART summarization → English summary → Spanish
+ */
+export async function translateToEnglish(
+  options: TranslateToEnglishOptions
+): Promise<TranslateToEnglishResult> {
+  const { text, sourceLanguage: explicitSourceLanguage, onProgress } = options;
+
+  if (!text || text.trim().length === 0) {
+    throw new Error("No text provided for translation");
+  }
+
+  // Detect language first
+  onProgress?.({
+    status: "detecting",
+    progress: 0,
+    message: "Detectando idioma del texto...",
+  });
+
+  const detection = await detectLanguage(text);
+
+  // If already in English, skip translation
+  if (detection.isEnglish) {
     onProgress?.({
       status: "completed",
       progress: 100,
-      message: "Translation completed",
+      message: "Texto ya está en inglés",
     });
-
     return {
-      translatedText,
-      provider: "chrome",
-      sourceLanguage,
-      targetLanguage: "es",
-      timestamp: Date.now(),
+      translatedText: text,
+      sourceLanguage: "en",
+      wasTranslated: false,
     };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(
-      `[Translation] Chrome Translator API failed for ${sourceLanguage}->es:`,
-      errorMessage
+  }
+
+  const sourceLanguage = explicitSourceLanguage || detection.language || "es";
+
+  // Try Chrome Translator (es -> en or detected language -> en)
+  onProgress?.({
+    status: "downloading",
+    progress: 0,
+    message: `Preparando traducción ${sourceLanguage}→en...`,
+  });
+
+  const translator = await getEnglishTranslator(
+    sourceLanguage,
+    (downloadProgress) => {
+      onProgress?.({
+        status: "downloading",
+        progress: downloadProgress,
+        message: `Descargando modelo de traducción: ${downloadProgress}%`,
+      });
+    }
+  );
+
+  if (!translator) {
+    throw new Error(
+      `Chrome Translator no disponible para ${sourceLanguage}→en. ` +
+        `Asegúrate de usar Chrome 131+ con los modelos de traducción descargados.`
     );
+  }
+
+  onProgress?.({
+    status: "translating",
+    progress: 0,
+    message: "Traduciendo a inglés para el modelo BART...",
+  });
+
+  // For long texts, split and translate in chunks
+  const chunks = splitIntoChunks(text);
+  const translatedChunks: string[] = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const translated = await translator.translate(chunks[i]);
+    const cleanedTranslation = cleanTranslationArtifacts(translated);
+    translatedChunks.push(cleanedTranslation);
 
     onProgress?.({
-      status: "error",
-      progress: 0,
-      message: `Chrome Translator no disponible: ${errorMessage}`,
+      status: "translating",
+      progress: Math.round(((i + 1) / chunks.length) * 100),
+      message: `Traduciendo a inglés... ${i + 1}/${chunks.length}`,
     });
+  }
 
-    throw new Error(
-      `Chrome Translator API no disponible para ${sourceLanguage}→es. ` +
-        `Asegúrate de usar Chrome 131+ y que los modelos de traducción estén descargados. ` +
-        `Puedes gestionarlos en chrome://on-device-translation-internals/`
-    );
+  const result = translatedChunks.join(" ");
+  const cleanedResult = cleanTranslationArtifacts(result);
+
+  onProgress?.({
+    status: "completed",
+    progress: 100,
+    message: "Texto traducido a inglés",
+  });
+
+  return {
+    translatedText: cleanedResult,
+    sourceLanguage,
+    wasTranslated: true,
+  };
+}
+
+/**
+ * Check if translation to English is available
+ */
+export async function isTranslateToEnglishAvailable(
+  sourceLanguage: string = "es"
+): Promise<boolean> {
+  if (typeof Translator === "undefined") return false;
+
+  try {
+    const availability = await Translator.availability({
+      sourceLanguage,
+      targetLanguage: "en",
+    });
+    return availability !== "unavailable";
+  } catch {
+    return false;
   }
 }
 
@@ -880,10 +1124,10 @@ export async function translateToSpanish(
 
 /**
  * Check which translation providers are available
- * Note: Only Chrome Translator API is supported now
  */
 export async function getAvailableProviders(): Promise<{
   chrome: boolean;
+  gemini: boolean;
   transformers: boolean;
 }> {
   const chromeAvailable =
@@ -895,8 +1139,17 @@ export async function getAvailableProviders(): Promise<{
 
   return {
     chrome: chromeAvailable,
+    gemini: isGeminiAvailable(),
     transformers: false, // Transformers.js no longer used for translation
   };
+}
+
+/**
+ * Check if Chrome Translator API is potentially available
+ * This is a synchronous check that doesn't verify model availability
+ */
+export function isChromeTranslatorAvailable(): boolean {
+  return typeof Translator !== "undefined";
 }
 
 /**

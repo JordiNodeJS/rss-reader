@@ -99,6 +99,8 @@ terminateSummarizationWorker();
 - UI principal: `src/components/articles/ArticleView.tsx` usa `useSummary` con opciones como `translateSummary` y `summaryLength`.
 - Admin UI: `src/components/CacheManager.tsx` — panel para listar/limpiar modelos descargados (Traducción + Resumen) y ver su tamaño.
 
+Nota sobre la UI: El badge de proveedor en `ArticleView` muestra el proveedor actual — `Gemini` o `Local` — y cuando `Local` está seleccionado ahora también muestra el nombre del modelo local elegido (por ejemplo "Local (DistilBART CNN 12-6)"). Puedes cambiar el modelo desde "Configurar IA" (Settings -> Modelo local) o desde el diálogo de la app.
+
 ### Ejemplo: uso en `useSummary`
 
 ```tsx
@@ -183,7 +185,16 @@ summaryHook
 - `bart-large` / `bart-large-cnn`: Mejor calidad, mayor tiempo y espacio
 - Otros (NLLB / custom): valores para multilenguaje con mayor espacio de disco
 
-El archivo `src/lib/summarization-models.ts` describe los modelos y tamaños. Para tests o desarrollo, usar `distilbart-cnn-12-6`.
+El archivo `src/lib/summarization-models.ts` describe los modelos y tamaños. El valor por defecto es `distilbart-cnn-12-6` (ver `DEFAULT_MODEL`), y aparece en la UI cuando el proveedor `Local` está activo. Para tests o desarrollo, usar `distilbart-cnn-12-6`.
+
+### Cambiar el modelo local por defecto
+
+Si deseas cambiar el modelo local por defecto (por ejemplo, usar la versión `distilbart-cnn-6-6` por rendimiento), actualiza la constante `DEFAULT_MODEL` en `src/lib/summarization-models.ts` y/o añade un `selectedModel` por defecto en el componente `ArticleView` o en los ajustes de usuario (UI):
+
+1. Edita `src/lib/summarization-models.ts` y cambia `DEFAULT_MODEL` por la clave del modelo deseado.
+2. El usuario puede cambiar el modelo en la UI: `Configurar IA -> Modelo local`.
+
+Nota: El modelo se descargará la primera vez que se use y se cacheará en la Cache API. Considera añadir `preloadSummarizationModel()` si quieres pre-cachear en onboarding o en el prefered user flow.
 
 ---
 

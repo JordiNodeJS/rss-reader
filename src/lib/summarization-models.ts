@@ -3,6 +3,12 @@
  *
  * Shared types and constants for summarization functionality.
  * This file is safe to import from both server and client contexts.
+ *
+ * UPDATED: Diciembre 2025
+ * - Modelos cambiados a multilingües para mejor soporte de español
+ * - mT5 y mBART soportan español nativamente sin necesidad de traducción
+ *
+ * @see docs/summarization-improvements-dec-2025.md
  */
 
 // ============================================
@@ -23,6 +29,7 @@ export interface WorkerRequest {
     modelId?: string;
     maxLength?: number;
     minLength?: number;
+    targetLanguage?: string; // For multilingual models
   };
 }
 
@@ -56,32 +63,57 @@ export interface ModelStatus {
 // Available Models (ordered by size/speed)
 // ============================================
 
+/**
+ * Modelos multilingües para summarization
+ *
+ * NOTA: Los modelos mT5 y mBART requieren más recursos pero
+ * producen resúmenes directamente en español sin traducción.
+ *
+ * Para comparación:
+ * - DistilBART (anterior): Solo inglés, requiere traducción posterior
+ * - mT5/mBART: Multilingüe, español nativo
+ */
 export const SUMMARIZATION_MODELS = {
-  // Smallest, fastest (~60MB) - Good for quick summaries
+  // DistilBART - Modelo rápido y estable para summarization
+  // Genera en inglés, luego se traduce con Chrome Translator API
   "distilbart-cnn-6-6": {
     id: "Xenova/distilbart-cnn-6-6",
-    name: "DistilBART CNN 6-6",
-    size: "~60MB",
-    description: "Fast and lightweight summarization model",
+    name: "DistilBART CNN 6-6 (Rápido)",
+    size: "~90MB",
+    description: "Modelo compacto y rápido - Resumen en inglés + traducción",
     maxInputLength: 1024,
+    languages: ["en"],
+    supportsSpanish: false, // Requiere traducción posterior
+    pipelineTask: "summarization",
   },
-  // Medium size (~125MB) - Better quality
+  // DistilBART 12-6 - Mejor calidad
   "distilbart-cnn-12-6": {
     id: "Xenova/distilbart-cnn-12-6",
-    name: "DistilBART CNN 12-6",
+    name: "DistilBART CNN 12-6 (Calidad)",
     size: "~125MB",
-    description: "Balanced quality and speed",
+    description: "Mejor calidad de resumen - Resumen en inglés + traducción",
     maxInputLength: 1024,
+    languages: ["en"],
+    supportsSpanish: false, // Requiere traducción posterior
+    pipelineTask: "summarization",
   },
-  // Larger (~270MB) - Best quality for English
+  // BART Large CNN - Máxima calidad (más lento)
   "bart-large-cnn": {
     id: "Xenova/bart-large-cnn",
-    name: "BART Large CNN",
-    size: "~270MB",
-    description: "High quality English summarization",
+    name: "BART Large CNN (Premium)",
+    size: "~500MB",
+    description: "Máxima calidad de resumen - Para textos importantes",
     maxInputLength: 1024,
+    languages: ["en"],
+    supportsSpanish: false, // Requiere traducción posterior
+    pipelineTask: "summarization",
   },
 } as const;
 
 export type SummarizationModelKey = keyof typeof SUMMARIZATION_MODELS;
-export const DEFAULT_MODEL: SummarizationModelKey = "distilbart-cnn-12-6";
+
+// Default: DistilBART 6-6 por ser rápido y estable
+export const DEFAULT_MODEL: SummarizationModelKey = "distilbart-cnn-6-6";
+
+// Modelo recomendado para mejor calidad
+export const RECOMMENDED_MODEL: SummarizationModelKey = "distilbart-cnn-12-6";
