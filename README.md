@@ -153,3 +153,10 @@ MIT
 Esta aplicaci√≥n fue creada como parte de un proyecto de aprendizaje en [webcode.es](https://webcode.es), explorando el futuro del desarrollo con IA.
 
 Para consultas o soporte, contacta a: <info@webcode.es>.
+
+## Ì¥ê Upstash (Redis)
+
+Se ha a√±adido documentaci√≥n detallada en `docs/upstash-setup.md` con los pasos para crear una cuenta en Upstash, generar la base de datos Redis y configurar las variables de entorno (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`).
+
+(En este proyecto se ha utilizado la cuenta: `frontend.flipoeyewear@gmail.com`)
+

@@ -10,9 +10,16 @@ import {
 } from "react";
 import { Article } from "@/lib/db";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useSummary } from "@/hooks/useSummary";
-import { SummaryType, SummaryLength } from "@/lib/summarization";
+import { useSummary, SummarizationProvider } from "@/hooks/useSummary";
+import {
+  SummaryType,
+  SummaryLength,
+  SummarizationModelKey,
+  DEFAULT_MODEL,
+  SUMMARIZATION_MODELS,
+} from "@/lib/summarization";
 import { SummaryDiagnostics } from "./SummaryDiagnostics";
+import { AIDisclaimer } from "@/components/AIDisclaimer";
 import { FlipTitleReveal, FlipHtmlReveal } from "@/components/FlipTextReveal";
 import { ShimmerLoadingInline } from "@/components/ui/shimmer-loading";
 import {
@@ -55,8 +62,13 @@ import {
   Minus,
   GitCompare,
   Zap,
+  Link,
+  Settings,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
+// ProxyRateLimitBadge removed: not used in this component
+import { ProviderBadgeDropdown } from "@/components/ui/provider-badge-dropdown";
+import { hasStoredApiKey } from "@/lib/summarization-gemini";
 
 interface ArticleViewProps {
   article: Article | null;
@@ -351,6 +363,8 @@ function IframeViewer({ url, onClose }: IframeViewerProps) {
                 <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
                   <AlertTriangle className="h-8 w-8 text-destructive" />
                 </div>
+
+                {/* NOTE: Proxy rate limit indicator for summary provider is shown elsewhere (below 'Regenerar' buttons) */}
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
                     {loadState === "blocked"
@@ -495,12 +509,27 @@ export function ArticleView({
   const [showSummary, setShowSummary] = useState(false);
   const [summaryType, setSummaryType] = useState<SummaryType>("tldr");
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("medium");
+  const [aiProvider, setAiProvider] = useState<SummarizationProvider>("local");
+  const [selectedModel, setSelectedModel] =
+    useState<SummarizationModelKey>(DEFAULT_MODEL);
+  const [showAISettings, setShowAISettings] = useState(false);
+  const [aiSettingsFocus, setAiSettingsFocus] = useState<null | "apiKey">(null);
+  const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showStopAnimation, setShowStopAnimation] = useState(false);
   const [isFavoriteAnimating, setIsFavoriteAnimating] = useState(false);
 
+  // Check for stored API key on mount
+  useEffect(() => {
+    setHasGeminiKey(hasStoredApiKey());
+  }, []);
+
   // New state for resizable view
   const [viewMode, setViewMode] = useState<"default" | "expanded">("default");
+
+  // State for hiding title on mobile scroll
+  const [isTitleHidden, setIsTitleHidden] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Resizable modal state
   const [modalSize, setModalSize] = useState({ width: 1152, height: 700 }); // Default: max-w-6xl ≈ 1152px
@@ -606,6 +635,58 @@ export function ArticleView({
     }
   }, [isResizing, handleResizeMouseMove, handleResizeMouseUp]);
 
+  // Handle scroll to hide/show title on mobile
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let lastScrollY = 0;
+    let scrollContainer: HTMLDivElement | null = null;
+
+    const handleScroll = () => {
+      if (!scrollContainer) return;
+      const currentScrollY = scrollContainer.scrollTop;
+      // Only apply on mobile (check window width)
+      if (window.innerWidth <= 768) {
+        // Hide title when scrolling down past threshold, show when at top
+        if (currentScrollY > 60 && currentScrollY > lastScrollY) {
+          setIsTitleHidden(true);
+        } else if (currentScrollY < 30) {
+          setIsTitleHidden(false);
+        }
+      } else {
+        setIsTitleHidden(false);
+      }
+      lastScrollY = currentScrollY;
+    };
+
+    // Also handle window resize to update visibility when switching between mobile/desktop
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setIsTitleHidden(false);
+      }
+    };
+
+    // Use a small timeout to ensure the DOM is ready after dialog opens
+    const timeoutId = setTimeout(() => {
+      scrollContainer = scrollContainerRef.current;
+      if (scrollContainer) {
+        scrollContainer.addEventListener("scroll", handleScroll, {
+          passive: true,
+        });
+      }
+    }, 50);
+
+    window.addEventListener("resize", handleResize, { passive: true });
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (scrollContainer) {
+        scrollContainer.removeEventListener("scroll", handleScroll);
+      }
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isOpen]);
+
   // Streaming text store - external mutable state for useSyncExternalStore
   const streamStoreRef = useRef({
     text: "",
@@ -665,8 +746,12 @@ export function ArticleView({
     type: summaryType,
     length: summaryLength,
     cacheSummaries: true,
+    provider: aiProvider,
+    modelId: selectedModel,
     translateSummary: true, // Translate summaries to Spanish when using local model
   });
+
+  // Memoized timestamp placeholder removed; not required for rate limit UI
 
   // Streaming effect - updates external store, not React state
   useEffect(() => {
@@ -728,6 +813,7 @@ export function ArticleView({
     setShowSummary(false);
     setViewMode("default"); // Reset view mode on close
     setModalSize({ width: 1152, height: 700 }); // Reset modal size
+    setIsTitleHidden(false); // Reset title visibility
     onClose();
   };
 
@@ -1087,13 +1173,22 @@ export function ArticleView({
                   </Badge>
                 )}
                 {summaryHook.hasCachedSummary && (
-                  <Badge
-                    variant="default"
-                    className="bg-purple-500 hover:bg-purple-600"
-                  >
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    Resumen IA
-                  </Badge>
+                  <ProviderBadgeDropdown
+                    provider={aiProvider}
+                    selectedModel={selectedModel}
+                    onProviderChange={setAiProvider}
+                    onModelChange={setSelectedModel}
+                    onOpenSettings={() => {
+                      setAiSettingsFocus(null);
+                      setShowAISettings(true);
+                    }}
+                    onRequestApiKey={() => {
+                      setAiSettingsFocus("apiKey");
+                      setShowAISettings(true);
+                    }}
+                    proxyRateLimit={summaryHook.proxyRateLimit}
+                    hasGeminiKey={hasGeminiKey}
+                  />
                 )}
                 {translation.sourceLanguage !== "es" &&
                   !translation.isShowingTranslation && (
@@ -1160,7 +1255,13 @@ export function ArticleView({
                 </Button>
               </div>
             </div>
-            <DialogTitle className="text-2xl font-bold leading-tight mb-3">
+            <DialogTitle
+              className={`text-2xl font-bold leading-tight mb-3 transition-all duration-300 md:max-h-none md:opacity-100 md:mb-3 ${
+                isTitleHidden
+                  ? "max-h-0 opacity-0 mb-0 overflow-hidden"
+                  : "max-h-[200px] opacity-100"
+              }`}
+            >
               <FlipTitleReveal
                 originalTitle={originalTitle}
                 translatedTitle={translatedTitle}
@@ -1174,16 +1275,24 @@ export function ArticleView({
                 {new Date(article.pubDate).toLocaleDateString()}
               </DialogDescription>
             </VisuallyHidden>
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Favorite button */}
-              {onToggleFavorite && (
-                <>
+            {/* Action buttons - collapsible on mobile */}
+            <div
+              className={`flex items-center gap-2 flex-wrap transition-all duration-300 md:max-h-none md:opacity-100 md:mb-2 ${
+                isTitleHidden
+                  ? "max-h-0 opacity-0 mb-0 overflow-hidden"
+                  : "max-h-[100px] opacity-100 mb-2"
+              }`}
+            >
+              {/* Mobile: Compact icon buttons */}
+              <div className="flex md:hidden items-center gap-1">
+                {/* Favorite button - always visible */}
+                {onToggleFavorite && (
                   <button
                     onClick={handleToggleFavorite}
-                    className={`flex items-center gap-1 cursor-pointer text-sm transition-colors heart-button ${
+                    className={`p-2 rounded-full transition-colors heart-button ${
                       article.isFavorite
-                        ? "text-red-500 hover:text-red-600"
-                        : "text-muted-foreground hover:text-red-500"
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                     } ${isFavoriteAnimating ? "animate-burst" : ""}`}
                     title={
                       article.isFavorite
@@ -1196,29 +1305,83 @@ export function ArticleView({
                         article.isFavorite ? "fill-current" : ""
                       } ${isFavoriteAnimating ? "animate-heart-pop" : ""}`}
                     />
-                    {article.isFavorite ? "Favorito" : "Añadir a favoritos"}
                   </button>
-                  <span className="text-muted-foreground">|</span>
-                </>
-              )}
-              <button
-                onClick={handleVisitOriginal}
-                className="text-primary hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                Ver original <ExternalLink className="w-3 h-3" />
-              </button>
-              <span className="text-muted-foreground">|</span>
-              <a
-                href={article.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 text-sm"
-              >
-                Abrir en pestaña nueva <ExternalLink className="w-3 h-3" />
-              </a>
+                )}
+                {/* View original */}
+                <button
+                  onClick={handleVisitOriginal}
+                  className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  title="Ver original"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+                {/* Open in new tab */}
+                <a
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  title="Abrir en pestaña nueva"
+                >
+                  <Link className="w-4 h-4" />
+                </a>
+              </div>
 
+              {/* Desktop: Full text buttons */}
+              <div className="hidden md:flex items-center gap-2 flex-wrap">
+                {onToggleFavorite && (
+                  <>
+                    <button
+                      onClick={handleToggleFavorite}
+                      className={`flex items-center gap-1 cursor-pointer text-sm transition-colors heart-button ${
+                        article.isFavorite
+                          ? "text-red-500 hover:text-red-600"
+                          : "text-muted-foreground hover:text-red-500"
+                      } ${isFavoriteAnimating ? "animate-burst" : ""}`}
+                      title={
+                        article.isFavorite
+                          ? "Quitar de favoritos"
+                          : "Añadir a favoritos"
+                      }
+                    >
+                      <Heart
+                        className={`w-4 h-4 ${
+                          article.isFavorite ? "fill-current" : ""
+                        } ${isFavoriteAnimating ? "animate-heart-pop" : ""}`}
+                      />
+                      {article.isFavorite ? "Favorito" : "Añadir a favoritos"}
+                    </button>
+                    <span className="text-muted-foreground">|</span>
+                  </>
+                )}
+                <button
+                  onClick={handleVisitOriginal}
+                  className="text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  Ver original <ExternalLink className="w-3 h-3" />
+                </button>
+                <span className="text-muted-foreground">|</span>
+                <a
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 text-sm"
+                >
+                  Abrir en pestaña nueva <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* AI Summary & Translation controls - compact bar that hides on mobile scroll */}
+            <div
+              className={`flex items-center gap-2 flex-wrap text-sm transition-all duration-300 md:max-h-none md:opacity-100 ${
+                isTitleHidden
+                  ? "max-h-0 opacity-0 overflow-hidden"
+                  : "max-h-[100px] opacity-100"
+              }`}
+            >
               {/* AI Summary controls */}
-              {summaryHook.isChromeAvailable ||
+              {summaryHook.isGeminiAvailable ||
               summaryHook.isTransformersAvailable ? (
                 <>
                   <span className="text-muted-foreground">|</span>
@@ -1282,22 +1445,40 @@ export function ArticleView({
                       disabled={!summaryHook.canSummarize}
                       title={
                         summaryHook.isTransformersAvailable &&
-                        !summaryHook.isChromeAvailable
+                        !summaryHook.isGeminiAvailable
                           ? "Resumen generado localmente y traducido al español"
+                          : summaryHook.isGeminiAvailable
+                          ? "Resumen generado con Google Gemini"
                           : undefined
                       }
                       data-qa="article-generate-button"
                     >
                       <Sparkles className="w-3 h-3" />
                       Generar resumen con IA
-                      {summaryHook.isTransformersAvailable &&
-                        !summaryHook.isChromeAvailable && (
-                          <span className="text-[10px] opacity-70 ml-1">
-                            (local)
-                          </span>
-                        )}
+                      {aiProvider === "local" && (
+                        <span className="text-[10px] opacity-70 ml-1">
+                          (local
+                          {selectedModel && SUMMARIZATION_MODELS[selectedModel]
+                            ? `: ${SUMMARIZATION_MODELS[selectedModel].name}`
+                            : ""}
+                          )
+                        </span>
+                      )}
+                      {aiProvider === "gemini" && (
+                        <span className="text-[10px] opacity-70 ml-1">
+                          (gemini)
+                        </span>
+                      )}
                     </button>
                   )}
+                  {/* AI Settings Button */}
+                  <button
+                    onClick={() => setShowAISettings(true)}
+                    className="text-muted-foreground hover:text-purple-500 p-1 rounded transition-colors"
+                    title="Configurar proveedor de IA"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
                 </>
               ) : (
                 // Show info when API is not available
@@ -1392,7 +1573,10 @@ export function ArticleView({
           </DialogHeader>
 
           {/* Main Scrollable Content */}
-          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-theme">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 min-h-0 overflow-y-auto scrollbar-theme"
+          >
             {/* AI Summary Panel */}
             {showSummary && summaryHook.summary && (
               <div
@@ -1427,17 +1611,26 @@ export function ArticleView({
                         Extendido
                       </Badge>
                     )}
-                    {/* Show local badge when using Transformers.js */}
-                    {(summaryHook.activeBackend === "transformers" ||
-                      (!summaryHook.isChromeAvailable &&
-                        summaryHook.isTransformersAvailable)) && (
+                    {/* Show provider badge */}
+                    {summaryHook.activeBackend === "gemini" ? (
                       <Badge
                         variant="secondary"
                         className="text-[10px] opacity-70"
-                        title="Resumen generado localmente y traducido al español"
+                        title="Resumen generado con Google Gemini"
                       >
-                        local
+                        gemini
                       </Badge>
+                    ) : (
+                      (summaryHook.activeBackend === "transformers" ||
+                        summaryHook.isTransformersAvailable) && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] opacity-70"
+                          title="Resumen generado localmente y traducido al español"
+                        >
+                          local
+                        </Badge>
+                      )
                     )}
                     {isStreaming && (
                       <span className="text-xs text-purple-400 animate-pulse">
@@ -1484,14 +1677,20 @@ export function ArticleView({
                         handleGenerateSummary("tldr", "short", true)
                       )
                     }
-                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
-                      clickedButton === "quick" ? "clicked" : ""
-                    } ${
+                    className={`ai-button text-xs px-2 py-1 rounded transition-all ${
+                      summaryHook.summaryLength === "short"
+                        ? "bg-purple-500/30 ring-2 ring-purple-500/50 text-purple-700 dark:text-purple-300 font-medium"
+                        : "bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                    } ${clickedButton === "quick" ? "clicked" : ""} ${
                       generatingButtonId === "quick"
                         ? "regenerating-border"
                         : ""
                     }`}
-                    disabled={summaryHook.status === "summarizing"}
+                    disabled={
+                      summaryHook.status === "summarizing" ||
+                      (aiProvider === "proxy" &&
+                        summaryHook.proxyRateLimit?.remaining === 0)
+                    }
                     title="Resumen rápido de 1-2 frases"
                   >
                     <Zap className="w-3 h-3 inline mr-1 ai-sparkle-icon" />
@@ -1503,14 +1702,21 @@ export function ArticleView({
                         handleGenerateSummary("key-points", "medium", true)
                       )
                     }
-                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
-                      clickedButton === "keypoints" ? "clicked" : ""
-                    } ${
+                    className={`ai-button text-xs px-2 py-1 rounded transition-all ${
+                      summaryHook.summaryType === "key-points" &&
+                      summaryHook.summaryLength === "medium"
+                        ? "bg-purple-500/30 ring-2 ring-purple-500/50 text-purple-700 dark:text-purple-300 font-medium"
+                        : "bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                    } ${clickedButton === "keypoints" ? "clicked" : ""} ${
                       generatingButtonId === "keypoints"
                         ? "regenerating-border"
                         : ""
                     }`}
-                    disabled={summaryHook.status === "summarizing"}
+                    disabled={
+                      summaryHook.status === "summarizing" ||
+                      (aiProvider === "proxy" &&
+                        summaryHook.proxyRateLimit?.remaining === 0)
+                    }
                     title="Puntos clave en formato lista"
                   >
                     Puntos clave
@@ -1521,14 +1727,20 @@ export function ArticleView({
                         handleGenerateSummary("tldr", "long", true)
                       )
                     }
-                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-all ${
-                      clickedButton === "detailed" ? "clicked" : ""
-                    } ${
+                    className={`ai-button text-xs px-2 py-1 rounded transition-all ${
+                      summaryHook.summaryLength === "long"
+                        ? "bg-purple-500/30 ring-2 ring-purple-500/50 text-purple-700 dark:text-purple-300 font-medium"
+                        : "bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                    } ${clickedButton === "detailed" ? "clicked" : ""} ${
                       generatingButtonId === "detailed"
                         ? "regenerating-border"
                         : ""
                     }`}
-                    disabled={summaryHook.status === "summarizing"}
+                    disabled={
+                      summaryHook.status === "summarizing" ||
+                      (aiProvider === "proxy" &&
+                        summaryHook.proxyRateLimit?.remaining === 0)
+                    }
                     title="Resumen detallado de 5 frases"
                   >
                     Detallado
@@ -1539,14 +1751,20 @@ export function ArticleView({
                         handleGenerateSummary("tldr", "extended", true)
                       )
                     }
-                    className={`ai-button text-xs px-2 py-1 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-500/30 transition-all ${
-                      clickedButton === "extended" ? "clicked" : ""
-                    } ${
+                    className={`ai-button text-xs px-2 py-1 rounded border transition-all ${
+                      summaryHook.summaryLength === "extended"
+                        ? "bg-purple-500/40 ring-2 ring-purple-500/60 text-purple-700 dark:text-purple-200 font-semibold border-purple-500/50"
+                        : "bg-purple-500/20 hover:bg-purple-500/30 text-purple-700 dark:text-purple-300 font-medium border-purple-500/30"
+                    } ${clickedButton === "extended" ? "clicked" : ""} ${
                       generatingButtonId === "extended"
                         ? "regenerating-border"
                         : ""
                     }`}
-                    disabled={summaryHook.status === "summarizing"}
+                    disabled={
+                      summaryHook.status === "summarizing" ||
+                      (aiProvider === "proxy" &&
+                        summaryHook.proxyRateLimit?.remaining === 0)
+                    }
                     title="Resumen extenso para comprender mejor la noticia (7-10 frases)"
                     data-qa="extended-summary-button"
                   >
@@ -1873,6 +2091,40 @@ export function ArticleView({
       {/* Iframe viewer overlay - shown when user clicks "Visit Original" */}
       {showIframe && (
         <IframeViewer url={article.link} onClose={() => setShowIframe(false)} />
+      )}
+
+      {/* AI Settings Dialog */}
+      {showAISettings && (
+        <Dialog
+          open={showAISettings}
+          onOpenChange={(open) => {
+            setShowAISettings(open);
+            if (!open) setAiSettingsFocus(null);
+          }}
+        >
+          {/* Make dialog content scrollable on small screens to ensure the full
+            configuration box is reachable on mobile devices */}
+          <DialogContent className="w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[75vh] overflow-y-auto">
+            <DialogHeader className="sticky top-0 bg-background/50 backdrop-blur-sm z-10">
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-500" />
+                Configuración de IA
+              </DialogTitle>
+              <DialogDescription>
+                Elige cómo generar los resúmenes de artículos
+              </DialogDescription>
+            </DialogHeader>
+            <AIDisclaimer
+              provider={aiProvider}
+              onProviderChange={setAiProvider}
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
+              isTranslationAvailable={translation.canTranslate}
+              compact={false}
+              focusApiKey={aiSettingsFocus === "apiKey"}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );

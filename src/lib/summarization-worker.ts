@@ -2,10 +2,15 @@
  * Summarization Web Worker
  *
  * Runs Transformers.js summarization off the main thread for better performance.
- * Uses smaller models like distilbart-cnn-6-6 for efficient summarization.
+ * Uses BART/DistilBART models for high-quality summarization.
  *
  * IMPORTANT: This file should ONLY be loaded as a Web Worker.
  * Do not import this file directly - use summarization-transformers.ts instead.
+ *
+ * UPDATED: Diciembre 2025
+ * - Vuelve a usar modelos BART (estables para summarization)
+ * - mT5 base genera tokens <extra_id_X> porque no está fine-tuned
+ * - La traducción a español se hace con Chrome Translator API
  *
  * @see https://huggingface.co/docs/transformers.js
  */
@@ -33,7 +38,7 @@ env.allowLocalModels = false;
 type SummarizationPipelineType = any;
 
 class SummarizationPipelineSingleton {
-  static task = "summarization";
+  static task = "summarization" as const;
   static modelId: string | null = null;
   static instance: SummarizationPipelineType | null = null;
   static isLoading = false;
@@ -58,8 +63,7 @@ class SummarizationPipelineSingleton {
     this.modelId = modelConfig.id;
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.instance = await pipeline("summarization" as any, modelConfig.id, {
+      this.instance = await pipeline(this.task, modelConfig.id, {
         dtype: "q8", // Use quantized model for smaller size
         progress_callback: (data: WorkerProgressData) => {
           progressCallback?.(data);
@@ -145,26 +149,25 @@ self.addEventListener("message", async (event: MessageEvent<WorkerRequest>) => {
         // Signal ready
         sendProgress({ status: "ready" });
 
-        // Perform summarization with improved parameters to reduce repetition
+        // Run summarization with BART/DistilBART models
         const result = await summarizer(data.text, {
           max_length: data.maxLength || 150,
           min_length: data.minLength || 30,
           do_sample: false,
-          // Add repetition penalty to avoid word repetition
-          // 1.0 = no penalty, higher values penalize repeated words more
           repetition_penalty: 1.2,
-          // Prevent repeating n-grams (sequences of words)
-          // Prevents the model from repeating sequences of 3 words
           no_repeat_ngram_size: 3,
-          // Use beam search for better quality (slower but produces better summaries)
           num_beams: 4,
-          // Stop generation when all beams reach the end-of-sequence token
           early_stopping: true,
         });
 
         // Result is an array, get first item
         const summaryResult = Array.isArray(result) ? result[0] : result;
-        sendResult(summaryResult as SummarizationResult);
+
+        const normalizedResult: SummarizationResult = {
+          summary_text: summaryResult.summary_text || "",
+        };
+
+        sendResult(normalizedResult);
         break;
       }
 

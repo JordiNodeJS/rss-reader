@@ -370,10 +370,12 @@ export async function getCachedSummarizationModels(): Promise<
     const models: Array<{ name: string; size: number; url: string }> = [];
 
     for (const request of keys) {
-      // Filter for summarization model files
+      // Filter for summarization model files (including new multilingual models)
       if (
         request.url.includes("distilbart") ||
         request.url.includes("bart-large") ||
+        request.url.includes("mt5") ||
+        request.url.includes("mbart") ||
         request.url.includes("summarization")
       ) {
         const response = await cache.match(request);
@@ -413,6 +415,8 @@ export async function clearSummarizationModelCache(): Promise<void> {
       if (
         request.url.includes("distilbart") ||
         request.url.includes("bart-large") ||
+        request.url.includes("mt5") ||
+        request.url.includes("mbart") ||
         request.url.includes("summarization")
       ) {
         await cache.delete(request);
