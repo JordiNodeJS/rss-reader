@@ -54,8 +54,6 @@ import {
   Heart,
   User,
   Building2,
-  Cpu,
-  Cloud,
   MapPin,
   Tag,
   MessageCircleQuestion,
@@ -68,7 +66,7 @@ import {
   Settings,
 } from "lucide-react";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
-import ProxyRateLimitBadge from "@/components/ui/proxy-rate-limit-badge";
+// ProxyRateLimitBadge removed: not used in this component
 import { ProviderBadgeDropdown } from "@/components/ui/provider-badge-dropdown";
 import { hasStoredApiKey } from "@/lib/summarization-gemini";
 

@@ -38,7 +38,7 @@ env.allowLocalModels = false;
 type SummarizationPipelineType = any;
 
 class SummarizationPipelineSingleton {
-  static task: "summarization" = "summarization";
+  static task = "summarization" as const;
   static modelId: string | null = null;
   static instance: SummarizationPipelineType | null = null;
   static isLoading = false;

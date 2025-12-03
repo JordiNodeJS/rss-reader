@@ -533,18 +533,8 @@ async function getEnglishTranslator(
   return getGenericChromeTranslator(sourceLanguage, "en", onProgress);
 }
 
-// Legacy getChromeTranslator implementation for backwards compatibility
-async function getChromeTranslatorLegacy(
-  sourceLanguage: string = "en",
-  onProgress?: (progress: number) => void
-): Promise<Translator | null> {
-  const targetLanguage = "es";
-  const key = `${sourceLanguage}-${targetLanguage}`;
-
-  // This legacy function is no longer used - kept for reference
-  // Use getGenericChromeTranslator instead
-  return getGenericChromeTranslator(sourceLanguage, targetLanguage, onProgress);
-}
+// Note: legacy translator helper removed — use `getGenericChromeTranslator`,
+// `getChromeTranslator` or `getEnglishTranslator` instead.
 
 // ============================================
 // Language Detection
