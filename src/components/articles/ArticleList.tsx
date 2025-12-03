@@ -258,7 +258,7 @@ async function getArticleLanguage(
 interface ArticleCardProps {
   article: Article;
   feeds: Feed[];
-  onSaveClick: (article: Article) => void;
+  onSaveClick: (article: Article, openViewAfterSave?: boolean) => void;
   onUnsaveClick: (article: Article) => void;
   onView: (article: Article) => void;
   onToggleFavorite: (article: Article) => void;
@@ -596,8 +596,8 @@ function ArticleCard({
             if (article.scrapedContent) {
               onView(article);
             } else {
-              onSaveClick(article);
-              onView(article);
+              // Pass true to open viewer after dialog is resolved
+              onSaveClick(article, true);
             }
           }}
           title="Leer artículo completo"
@@ -625,9 +625,17 @@ export function ArticleList({
   const [articleToSave, setArticleToSave] = useState<Article | null>(null);
   const [isCheckingLanguage, setIsCheckingLanguage] = useState(false);
   const [detectedLanguage, setDetectedLanguage] = useState<string>("en");
+  // State to track if user wants to view article after save dialog
+  const [pendingViewArticle, setPendingViewArticle] = useState<Article | null>(
+    null
+  );
 
   // Handle save button click - check language and show dialog if English
-  const handleSaveClick = async (article: Article) => {
+  // openViewAfterSave: if true, the article viewer will open after user confirms dialog
+  const handleSaveClick = async (
+    article: Article,
+    openViewAfterSave = false
+  ) => {
     if (article.scrapedContent) return; // Already saved
 
     setIsCheckingLanguage(true);
@@ -646,9 +654,17 @@ export function ArticleList({
       // Show dialog for foreign articles
       setDetectedLanguage(detection.language);
       setSaveDialogOpen(true);
+      // If user clicked "Leer", save reference to open view after dialog closes
+      if (openViewAfterSave) {
+        setPendingViewArticle(article);
+      }
     } else {
       // Save directly for Spanish or unknown articles
       onScrape(article.id!, article.link, false);
+      // Open view immediately if requested
+      if (openViewAfterSave) {
+        onView(article);
+      }
     }
   };
 
@@ -656,6 +672,11 @@ export function ArticleList({
   const handleSaveOriginal = () => {
     if (articleToSave) {
       onScrape(articleToSave.id!, articleToSave.link, false);
+      // Open article view if user clicked "Leer"
+      if (pendingViewArticle) {
+        onView(pendingViewArticle);
+        setPendingViewArticle(null);
+      }
     }
     setSaveDialogOpen(false);
     setArticleToSave(null);
@@ -665,6 +686,11 @@ export function ArticleList({
   const handleSaveWithTranslation = () => {
     if (articleToSave) {
       onScrape(articleToSave.id!, articleToSave.link, true);
+      // Open article view if user clicked "Leer"
+      if (pendingViewArticle) {
+        onView(pendingViewArticle);
+        setPendingViewArticle(null);
+      }
     }
     setSaveDialogOpen(false);
     setArticleToSave(null);
@@ -749,6 +775,7 @@ export function ArticleList({
               onClick={() => {
                 setSaveDialogOpen(false);
                 setArticleToSave(null);
+                setPendingViewArticle(null);
               }}
             >
               Cancelar
