@@ -8,6 +8,7 @@ import { ActivityStatusProvider } from "@/contexts/ActivityStatusContext";
 // Ver el script themeScript que precarga las fuentes de Google Fonts
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://rss.webcode.es/"),
   title: {
     default: "RSS Reader - Modern & Retro Style",
     template: "%s | RSS Reader",
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   description:
     "A modern, retro-arcade styled RSS reader with offline support, themes, and AI integration.",
   applicationName: "RSS Reader",
-  authors: [{ name: "JordiNodeJS" }],
+  authors: [{ name: "JordiNodeJS", url: "https://github.com/JordiNodeJS" }],
   keywords: [
     "RSS",
     "Reader",
@@ -27,6 +28,9 @@ export const metadata: Metadata = {
     "React",
     "Retro",
     "Arcade",
+    "AI",
+    "Summarization",
+    "Local-first",
   ],
   creator: "JordiNodeJS",
   publisher: "JordiNodeJS",
@@ -35,14 +39,25 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "RSS Reader - Modern & Retro Style",
     description:
       "A modern, retro-arcade styled RSS reader with offline support.",
-    url: "https://rss-reader-antigravity.vercel.app",
+    url: "https://rss.webcode.es/",
     siteName: "RSS Reader",
     locale: "en_US",
     type: "website",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "RSS Reader Preview",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -50,10 +65,22 @@ export const metadata: Metadata = {
     description:
       "A modern, retro-arcade styled RSS reader with offline support.",
     creator: "@JordiNodeJS",
+    images: ["/twitter-image.png"],
   },
   icons: {
     icon: "/icon.png",
     apple: "/icon.png",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 

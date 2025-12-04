@@ -11,5 +11,33 @@ export default async function Page() {
     ? Math.min(Math.max(parsed, 240), 600)
     : undefined;
 
-  return <HomeClient initialSidebarWidth={initialSidebarWidth} />;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "RSS Reader Antigravity",
+    applicationCategory: "NewsApplication",
+    operatingSystem: "Any",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    description:
+      "A modern, retro-arcade styled RSS reader with offline support, themes, and AI integration.",
+    author: {
+      "@type": "Person",
+      name: "JordiNodeJS",
+      url: "https://github.com/JordiNodeJS",
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <HomeClient initialSidebarWidth={initialSidebarWidth} />
+    </>
+  );
 }
