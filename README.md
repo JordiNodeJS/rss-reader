@@ -4,7 +4,8 @@
 
 Este proyecto no es solo un lector RSS moderno y capaz de funcionar sin conexión; es el resultado de un experimento de aprendizaje colaborativo entre un desarrollador humano y un ecosistema de agentes de IA avanzados, editores de código de próxima generación y modelos de lenguaje de vanguardia.
 
-📚 **[Ver Reporte de Aprendizajes](docs/aprendizajes.md)** - Análisis detallado de la arquitectura técnica, desafíos de implementación y lecciones clave de este proyecto.
+📚 **[Ver Documentación de Desarrollo](docs/README.md)** - Guía completa para desarrolladores, arquitectura y aprendizajes.
+📚 **[Ver Reporte de Aprendizajes](docs/project-management/aprendizajes.md)** - Análisis detallado de la arquitectura técnica, desafíos de implementación y lecciones clave de este proyecto.
 
 ![Home Light](public/screenshots/home-populated-light.webp)
 
@@ -154,9 +155,8 @@ Esta aplicación fue creada como parte de un proyecto de aprendizaje en [webcode
 
 Para consultas o soporte, contacta a: <info@webcode.es>.
 
-## ��� Upstash (Redis)
+## ��� Upstash (Redis)
 
 Se ha añadido documentación detallada en `docs/upstash-setup.md` con los pasos para crear una cuenta en Upstash, generar la base de datos Redis y configurar las variables de entorno (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`).
 
 (En este proyecto se ha utilizado la cuenta: `frontend.flipoeyewear@gmail.com`)
-
