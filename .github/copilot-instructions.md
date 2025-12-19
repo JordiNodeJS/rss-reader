@@ -48,5 +48,14 @@ Brief: Next.js 16 + React 19 offline-first RSS reader. Client is UI + IndexedDB;
 - Feed presets / UI: `src/components/layout/AppShell.tsx` (`DEFAULT_FEEDS`).
 - Summarization config: `src/lib/summarization-models.ts` & `src/lib/summarization-transformers.ts`.
 - DB schema: `src/lib/db.ts` (`DB_VERSION`, stores, indexes).
-
+**Testing UI Changes (Important):**
+- When making logic or functionality changes, **use chrome-devtools MCP** to test the interface in a real browser.
+- Browser automation detects runtime errors, hydration issues, and client-side problems that curl cannot catch.
+- Use `mcp_chrome-devtoo_take_snapshot` to get the page state and find interactive elements by `uid`.
+- Use `mcp_chrome-devtoo_click`, `mcp_chrome-devtoo_fill` to interact with the UI.
+- Check console messages with `mcp_chrome-devtoo_list_console_messages` for errors.
 If you'd like, I can add a DB migration template, a scraper test checklist, or a summarizer worker test harness — tell me which and I’ll add it.
+**Next.js debugging (next-devtools):**
+- Use Next.js DevTools to detect and fix common Next.js errors (browser extension).
+- Install the extension, open DevTools and select the "Next" tab to review warnings about routes, SSR/hydration, server/client boundaries, and props.
+- Use it together with chrome-devtools MCP when testing the UI in a real browser to locate and reproduce bugs during development (`pnpm dev`).

@@ -509,9 +509,37 @@ export function ArticleView({
   const [showSummary, setShowSummary] = useState(false);
   const [summaryType, setSummaryType] = useState<SummaryType>("tldr");
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("medium");
+
+  // AI Provider state with localStorage persistence
   const [aiProvider, setAiProvider] = useState<SummarizationProvider>("local");
+
+  // Selected model with localStorage persistence
   const [selectedModel, setSelectedModel] =
     useState<SummarizationModelKey>(DEFAULT_MODEL);
+
+  // Load saved preferences from localStorage on mount (client-side only)
+  useEffect(() => {
+    try {
+      const savedProvider = localStorage.getItem("ai-provider-preference");
+      console.log("[ArticleView] useEffect - loading from localStorage:", {
+        savedProvider,
+        currentAiProvider: aiProvider,
+      });
+      if (
+        savedProvider &&
+        ["local", "proxy", "gemini", "chrome"].includes(savedProvider)
+      ) {
+        console.log("[ArticleView] Setting aiProvider to:", savedProvider);
+        setAiProvider(savedProvider as SummarizationProvider);
+      }
+      const savedModel = localStorage.getItem("ai-model-preference");
+      if (savedModel && savedModel in SUMMARIZATION_MODELS) {
+        setSelectedModel(savedModel as SummarizationModelKey);
+      }
+    } catch (e) {
+      console.error("[ArticleView] localStorage error:", e);
+    }
+  }, []);
   const [showAISettings, setShowAISettings] = useState(false);
   const [aiSettingsFocus, setAiSettingsFocus] = useState<null | "apiKey">(null);
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
@@ -522,6 +550,29 @@ export function ArticleView({
   // Check for stored API key on mount
   useEffect(() => {
     setHasGeminiKey(hasStoredApiKey());
+  }, []);
+
+  // Handler to change AI provider and persist to localStorage
+  const handleAiProviderChange = useCallback(
+    (provider: SummarizationProvider) => {
+      setAiProvider(provider);
+      try {
+        localStorage.setItem("ai-provider-preference", provider);
+      } catch {
+        /* ignore */
+      }
+    },
+    []
+  );
+
+  // Handler to change model and persist to localStorage
+  const handleModelChange = useCallback((model: SummarizationModelKey) => {
+    setSelectedModel(model);
+    try {
+      localStorage.setItem("ai-model-preference", model);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // New state for resizable view
@@ -1172,24 +1223,22 @@ export function ArticleView({
                     Traducido al Español
                   </Badge>
                 )}
-                {summaryHook.hasCachedSummary && (
-                  <ProviderBadgeDropdown
-                    provider={aiProvider}
-                    selectedModel={selectedModel}
-                    onProviderChange={setAiProvider}
-                    onModelChange={setSelectedModel}
-                    onOpenSettings={() => {
-                      setAiSettingsFocus(null);
-                      setShowAISettings(true);
-                    }}
-                    onRequestApiKey={() => {
-                      setAiSettingsFocus("apiKey");
-                      setShowAISettings(true);
-                    }}
-                    proxyRateLimit={summaryHook.proxyRateLimit}
-                    hasGeminiKey={hasGeminiKey}
-                  />
-                )}
+                <ProviderBadgeDropdown
+                  provider={aiProvider}
+                  selectedModel={selectedModel}
+                  onProviderChange={handleAiProviderChange}
+                  onModelChange={handleModelChange}
+                  onOpenSettings={() => {
+                    setAiSettingsFocus(null);
+                    setShowAISettings(true);
+                  }}
+                  onRequestApiKey={() => {
+                    setAiSettingsFocus("apiKey");
+                    setShowAISettings(true);
+                  }}
+                  proxyRateLimit={summaryHook.proxyRateLimit}
+                  hasGeminiKey={hasGeminiKey}
+                />
                 {translation.sourceLanguage !== "es" &&
                   !translation.isShowingTranslation && (
                     <div className="flex items-center gap-1.5">
@@ -1467,6 +1516,16 @@ export function ArticleView({
                       {aiProvider === "gemini" && (
                         <span className="text-[10px] opacity-70 ml-1">
                           (gemini)
+                        </span>
+                      )}
+                      {aiProvider === "proxy" && (
+                        <span className="text-[10px] opacity-70 ml-1">
+                          (proxy gratis)
+                        </span>
+                      )}
+                      {aiProvider === "chrome" && (
+                        <span className="text-[10px] opacity-70 ml-1">
+                          (chrome ai)
                         </span>
                       )}
                     </button>
@@ -2116,13 +2175,25 @@ export function ArticleView({
             </DialogHeader>
             <AIDisclaimer
               provider={aiProvider}
-              onProviderChange={setAiProvider}
+              onProviderChange={handleAiProviderChange}
               selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
+              onModelChange={handleModelChange}
               isTranslationAvailable={translation.canTranslate}
               compact={false}
               focusApiKey={aiSettingsFocus === "apiKey"}
             />
+            {/* Footer with Accept button */}
+            <div className="sticky bottom-0 pt-4 pb-2 bg-background/80 backdrop-blur-sm border-t mt-4">
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="default"
+                  onClick={() => setShowAISettings(false)}
+                  className="min-w-[100px]"
+                >
+                  Aceptar
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       )}

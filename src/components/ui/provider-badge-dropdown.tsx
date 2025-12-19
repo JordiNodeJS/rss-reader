@@ -22,6 +22,7 @@ import {
   SUMMARIZATION_MODELS,
   type SummarizationModelKey,
 } from "@/lib/summarization-models";
+import { RATE_LIMIT_REQUESTS } from "@/lib/constants";
 import type { SummarizationProvider } from "@/hooks/useSummary";
 
 interface ProviderBadgeDropdownProps {
@@ -60,10 +61,10 @@ export function ProviderBadgeDropdown({
         return (
           <>
             <Cloud className="w-3 h-3 mr-1" />
-            Proxy
+            Proxy Gratis
             {proxyRateLimit && (
               <span className="ml-1 text-[10px] opacity-80">
-                ({proxyRateLimit.remaining}/5)
+                ({proxyRateLimit.remaining}/{RATE_LIMIT_REQUESTS})
               </span>
             )}
           </>
@@ -163,9 +164,9 @@ export function ProviderBadgeDropdown({
           <div className="flex items-center gap-2">
             <Cloud className="w-3 h-3 text-emerald-500" />
             <span className="text-xs">
-              Proxy Gemini
+              Proxy Gemini (Gratis)
               <span className="ml-1 text-[10px] text-muted-foreground">
-                (gratis, 5/hora)
+                {RATE_LIMIT_REQUESTS} usos por hora
               </span>
             </span>
           </div>
@@ -178,7 +179,7 @@ export function ProviderBadgeDropdown({
                     : "text-emerald-500"
                 }`}
               >
-                {proxyRateLimit.remaining}/5
+                {proxyRateLimit.remaining}/{RATE_LIMIT_REQUESTS}
               </span>
             )}
             {provider === "proxy" && (
