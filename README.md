@@ -89,6 +89,30 @@ pnpm dev
 
 Abre `http://localhost:3000` en tu navegador.
 
+### Windows — Developer Mode (Turbopack y módulos nativos)
+
+Si usas Windows y trabajas con módulos nativos (por ejemplo `sharp` o `jsdom`), Turbopack puede necesitar crear enlaces simbólicos. Si ves errores FATAL relacionados con symlinks, habilita Developer Mode y reinstala dependencias:
+
+- Abrir PowerShell como administrador y ejecutar:
+
+```powershell
+Set-ItemProperty -Path HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock -Name AllowDevelopmentWithoutDevLicense -Value 1
+```
+
+- Eliminar `node_modules` e instalar de nuevo:
+
+```bash
+rm -rf node_modules && pnpm install
+```
+
+- Reiniciar el servidor de desarrollo:
+
+```bash
+pnpm dev
+```
+
+Esto suele resolver los errores de Turbopack en Windows y permite usar `sharp`/`jsdom` sin ejecutar procesos como administrador.
+
 ## 🧠 Resumen con IA
 
 La aplicación puede generar resúmenes de artículos usando modelos que se ejecutan localmente en el navegador (Transformers.js). Las opciones disponibles incluyen diferentes longitudes de resumen:
