@@ -8,6 +8,8 @@ export interface Feed {
   description?: string;
   icon?: string;
   addedAt: number;
+  lastUpdatedAt?: number; // Last successful refresh timestamp
+  isUpdating?: boolean; // Currently being refreshed (transient state)
   order?: number; // Display order
   isFavorite?: boolean; // User-marked favorite feed
 }

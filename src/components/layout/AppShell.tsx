@@ -22,6 +22,7 @@ import {
   Pencil,
   Star,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 import {
   Collapsible,
@@ -459,6 +460,7 @@ interface SortableFeedItemProps {
   openEditDialog: (feed: Feed) => void;
   removeFeed: (id: number) => void;
   toggleFavorite: (id: number) => void;
+  refreshFeed: (feedId: number) => void;
 }
 
 function SortableFeedItem({
@@ -468,6 +470,7 @@ function SortableFeedItem({
   openEditDialog,
   removeFeed,
   toggleFavorite,
+  refreshFeed,
 }: SortableFeedItemProps) {
   const {
     attributes,
@@ -495,7 +498,7 @@ function SortableFeedItem({
     >
       <Button
         variant={selectedFeedId === feed.id ? "secondary" : "ghost"}
-        className="w-full justify-start text-sm font-normal pr-24 overflow-hidden cursor-grab active:cursor-grabbing"
+        className="w-full justify-start text-sm font-normal pr-32 overflow-hidden cursor-grab active:cursor-grabbing"
         onClick={() => setSelectedFeedId(feed.id!)}
       >
         {feed.isFavorite && (
@@ -507,6 +510,20 @@ function SortableFeedItem({
         />
       </Button>
       <div className="absolute right-5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (feed.id) refreshFeed(feed.id);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          title="Actualizar feed"
+          disabled={feed.isUpdating}
+        >
+          <RefreshCw className={`w-3 h-3 ${feed.isUpdating ? 'animate-spin' : ''}`} />
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -561,6 +578,8 @@ interface SidebarContentProps {
   clearCache: () => Promise<void>;
   reorderFeeds: (feeds: Feed[]) => Promise<void>;
   toggleFeedFavorite: (id: number) => Promise<void>;
+  refreshFeed: (feedId: number) => Promise<void>;
+  refreshAllFeeds: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -574,6 +593,8 @@ function SidebarContent({
   clearCache,
   reorderFeeds,
   toggleFeedFavorite,
+  refreshFeed,
+  refreshAllFeeds,
   isLoading,
 }: SidebarContentProps) {
   const [newFeedUrl, setNewFeedUrl] = useState("");
@@ -668,7 +689,7 @@ function SidebarContent({
             </h1>
           </div>
 
-          <div className="px-4 mb-4">
+          <div className="px-4 mb-4 space-y-2">
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full gap-2" size="sm">
@@ -756,6 +777,18 @@ function SidebarContent({
                 </div>
               </DialogContent>
             </Dialog>
+            
+            {/* Refresh All Feeds button */}
+            <Button 
+              variant=\"outline\" 
+              className=\"w-full gap-2\" 
+              size=\"sm\"
+              onClick={refreshAllFeeds}
+              disabled={isLoading || feeds.length === 0}
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Actualizando...' : 'Actualizar todos'}
+            </Button>
           </div>
 
           <div className="space-y-1 px-2 py-2">
@@ -809,6 +842,7 @@ function SidebarContent({
                               openEditDialog={openEditDialog}
                               removeFeed={removeFeed}
                               toggleFavorite={toggleFeedFavorite}
+                              refreshFeed={refreshFeed}
                             />
                           ))}
                       </SortableContext>
@@ -854,6 +888,7 @@ function SidebarContent({
                             openEditDialog={openEditDialog}
                             removeFeed={removeFeed}
                             toggleFavorite={toggleFeedFavorite}
+                            refreshFeed={refreshFeed}
                           />
                         ))}
                     </SortableContext>
@@ -1007,6 +1042,8 @@ export function AppShell({
   const {
     feeds,
     addNewFeed,
+    refreshFeed,
+    refreshAllFeeds,
     removeFeed,
     updateFeedTitle,
     selectedFeedId,
@@ -1201,6 +1238,8 @@ export function AppShell({
             clearCache={clearCache}
             reorderFeeds={reorderFeeds}
             toggleFeedFavorite={toggleFeedFavorite}
+            refreshFeed={refreshFeed}
+            refreshAllFeeds={refreshAllFeeds}
             isLoading={isLoading}
           />
           {/* Resize Indicator */}
@@ -1256,6 +1295,8 @@ export function AppShell({
                 clearCache={clearCache}
                 reorderFeeds={reorderFeeds}
                 toggleFeedFavorite={toggleFeedFavorite}
+                refreshFeed={refreshFeed}
+                refreshAllFeeds={refreshAllFeeds}
                 isLoading={isLoading}
               />
             </div>

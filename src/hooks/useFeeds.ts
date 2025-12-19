@@ -394,6 +394,164 @@ export function useFeeds() {
     clearActivity();
   };
 
+  // Refresh a single feed by fetching new articles from its RSS URL
+  const refreshFeed = async (feedId: number) => {
+    const feed = feeds.find((f) => f.id === feedId);
+    if (!feed) {
+      toast.error("Feed no encontrado");
+      return;
+    }
+
+    // Mark feed as updating
+    await updateFeed(feedId, { isUpdating: true });
+    await refreshFeeds();
+
+    setActivity("fetching-rss", `Actualizando ${feed.customTitle || feed.title}`);
+    
+    try {
+      // Fetch latest RSS data
+      const res = await fetch(`/api/rss?url=${encodeURIComponent(feed.url)}`);
+      
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new UserError("Respuesta del servidor inválida");
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        console.error("Failed to parse server response:", parseError);
+        throw new Error("Error al procesar respuesta del servidor");
+      }
+
+      if (!res.ok) {
+        const errorMsg = data.details || data.error || "Error al actualizar feed";
+        throw new UserError(errorMsg);
+      }
+
+      // Add new articles (existing ones will be skipped by DB unique constraint)
+      let newArticlesCount = 0;
+      let skippedCount = 0;
+      
+      if (data.items && data.items.length > 0) {
+        setActivity("saving", "Guardando artículos nuevos");
+        
+        for (const item of data.items) {
+          try {
+            await addArticle({
+              feedId: Number(feedId),
+              feedTitle: feed.customTitle || feed.title,
+              guid: item.guid || item.link || item.title,
+              title: item.title,
+              link: item.link,
+              pubDate: item.pubDate || new Date().toISOString(),
+              image: extractImage(item),
+              content: item.content,
+              contentSnippet: item.contentSnippet,
+              categories: extractCategories(item),
+              isRead: false,
+              isSaved: false,
+              fetchedAt: Date.now(),
+            });
+            newArticlesCount++;
+          } catch (articleError) {
+            // Article likely already exists (duplicate guid/link)
+            skippedCount++;
+          }
+        }
+      }
+
+      // Update feed's lastUpdatedAt timestamp
+      await updateFeed(feedId, { 
+        lastUpdatedAt: Date.now(),
+        isUpdating: false 
+      });
+
+      // Show success message
+      if (newArticlesCount > 0) {
+        toast.success(`${newArticlesCount} artículo(s) nuevo(s) añadido(s)`);
+      } else {
+        toast.info("Feed actualizado (sin artículos nuevos)");
+      }
+
+      await refreshFeeds();
+      await refreshArticles();
+    } catch (error) {
+      // Clear updating flag on error
+      await updateFeed(feedId, { isUpdating: false });
+      await refreshFeeds();
+
+      if (error instanceof UserError) {
+        console.warn(error.message);
+      } else {
+        console.error(error);
+      }
+      
+      const errorMsg = error instanceof Error ? error.message : "Error al actualizar feed";
+      toast.error(errorMsg);
+      setActivity("error", errorMsg);
+      setTimeout(() => clearActivity(), 3000);
+    } finally {
+      clearActivity();
+    }
+  };
+
+  // Refresh all feeds with rate limiting to avoid overwhelming the proxy
+  const refreshAllFeeds = async () => {
+    if (feeds.length === 0) {
+      toast.info("No hay feeds para actualizar");
+      return;
+    }
+
+    setIsLoading(true);
+    setActivity("fetching-rss", `Actualizando ${feeds.length} feed(s)`);
+
+    let successCount = 0;
+    let errorCount = 0;
+    const DELAY_BETWEEN_REQUESTS = 500; // 500ms between requests to avoid rate limiting
+
+    try {
+      for (let i = 0; i < feeds.length; i++) {
+        const feed = feeds[i];
+        if (!feed.id) continue;
+
+        setActivity(
+          "fetching-rss",
+          `Actualizando ${i + 1}/${feeds.length}: ${feed.customTitle || feed.title}`
+        );
+
+        try {
+          await refreshFeed(feed.id);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.warn(`Failed to refresh feed ${feed.id}:`, error);
+        }
+
+        // Add delay between requests to avoid overwhelming the server
+        if (i < feeds.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+        }
+      }
+
+      // Show final summary
+      if (errorCount === 0) {
+        toast.success(`Todos los feeds actualizados (${successCount}/${feeds.length})`);
+      } else {
+        toast.warning(
+          `Actualización completada: ${successCount} exitoso(s), ${errorCount} error(es)`
+        );
+      }
+    } catch (error) {
+      console.error("Error during refresh all:", error);
+      toast.error("Error al actualizar feeds");
+    } finally {
+      setIsLoading(false);
+      clearActivity();
+    }
+  };
+
   const removeFeed = async (id: number) => {
     await deleteFeed(id);
     toast.success("Feed eliminado");
@@ -690,6 +848,8 @@ export function useFeeds() {
     articles,
     isLoading,
     addNewFeed,
+    refreshFeed,
+    refreshAllFeeds,
     removeFeed,
     updateFeedTitle,
     selectedFeedId,

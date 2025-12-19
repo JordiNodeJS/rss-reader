@@ -46,3 +46,8 @@ Brief: Next.js 16 + React 19 offline-first RSS reader. Client-side IndexedDB sto
 - **DB Schema**: [src/lib/db.ts](src/lib/db.ts) (Bump `DB_VERSION` for migrations)
 - **UI Shell**: [src/components/layout/AppShell.tsx](src/components/layout/AppShell.tsx)
 - **AI Models**: [src/lib/summarization-models.ts](src/lib/summarization-models.ts)
+
+**AI Agent Memory & Strategy:**
+
+- **Long-Term Memory**: Use the `.agent/` and `.cursor/` folders to store strategies, plans, and tasks for long-term memory in agent mode.
+- **Documentation**: The `docs/` folder can also be used to organize AI-related strategies, research, and project management notes. Subfolders like `docs/project-management/`, `docs/research/`, and `docs/standards/` are ideal for this purpose.
