@@ -780,9 +780,9 @@ function SidebarContent({
             
             {/* Refresh All Feeds button */}
             <Button 
-              variant=\"outline\" 
-              className=\"w-full gap-2\" 
-              size=\"sm\"
+              variant="outline" 
+              className="w-full gap-2" 
+              size="sm"
               onClick={refreshAllFeeds}
               disabled={isLoading || feeds.length === 0}
             >
