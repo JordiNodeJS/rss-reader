@@ -23,7 +23,7 @@ import {
 // Configuration
 // ============================================
 
-const GEMINI_MODEL = "gemini-2.0-flash-lite";
+const GEMINI_MODEL = "gemini-2.5-flash-lite";
 
 // Length configuration for prompts
 const LENGTH_CONFIG = {
