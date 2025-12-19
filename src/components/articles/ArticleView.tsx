@@ -523,7 +523,6 @@ export function ArticleView({
       const savedProvider = localStorage.getItem("ai-provider-preference");
       console.log("[ArticleView] useEffect - loading from localStorage:", {
         savedProvider,
-        currentAiProvider: aiProvider,
       });
       if (
         savedProvider &&
