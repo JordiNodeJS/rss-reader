@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RATE_LIMIT_REQUESTS } from "@/lib/constants";
 import {
   Dialog,
   DialogContent,
@@ -466,11 +467,12 @@ function SettingsDialog({
                       variant="secondary"
                       className="text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
                     >
-                      5 usos/hora
+                      {RATE_LIMIT_REQUESTS} usos/hora
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Usa la API del desarrollador. Gratis pero limitado a 5
+                    Usa la API del desarrollador. Gratis pero limitado a{" "}
+                    {RATE_LIMIT_REQUESTS}
                     peticiones por hora. No requiere configuración.
                   </p>
                 </div>

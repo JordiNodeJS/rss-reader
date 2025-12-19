@@ -13,15 +13,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Redis } from "@upstash/redis";
+import {
+  RATE_LIMIT_REQUESTS,
+  RATE_LIMIT_WINDOW_MS,
+  RATE_LIMIT_WINDOW_SECONDS,
+} from "@/lib/constants";
 
 // ============================================
 // Configuration
 // ============================================
 
-const GEMINI_MODEL = "gemini-2.0-flash-lite";
-const RATE_LIMIT_REQUESTS = 5;
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const RATE_LIMIT_WINDOW_SECONDS = 60 * 60; // 1 hour in seconds
+const GEMINI_MODEL = "gemini-2.5-flash-lite";
 
 // Length configuration for prompts
 const LENGTH_CONFIG = {
@@ -245,6 +247,8 @@ function validateRequest(body: unknown):
 // ============================================
 
 export async function POST(request: NextRequest) {
+  console.log("[API/summarize] === NEW REQUEST ===", new Date().toISOString());
+
   // Check API key is configured
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -301,6 +305,11 @@ export async function POST(request: NextRequest) {
   }
 
   const { text, length } = validation.data;
+  console.log("[API/summarize] Request validated:", {
+    textLength: text.length,
+    summaryLength: length,
+    textPreview: text.slice(0, 100) + "...",
+  });
 
   // Generate summary with Gemini
   try {
@@ -326,9 +335,18 @@ ${text.slice(0, 15000)}
 
 Resumen:`;
 
+    console.log("[API/summarize] Calling Gemini API with model:", GEMINI_MODEL);
+    console.log("[API/summarize] Prompt length:", prompt.length, "chars");
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const summary = response.text().trim();
+
+    console.log("[API/summarize] ✓ Success! Summary length:", summary.length);
+    console.log(
+      "[API/summarize] Tokens used:",
+      response.usageMetadata?.totalTokenCount
+    );
 
     return NextResponse.json(
       {
@@ -340,11 +358,40 @@ Resumen:`;
       { status: 200, headers }
     );
   } catch (error) {
-    console.error("[API/summarize] Gemini error:", error);
+    console.error("[API/summarize] === GEMINI ERROR ===");
+    console.error("[API/summarize] Error object:", error);
+    console.error("[API/summarize] Error type:", error?.constructor?.name);
+
+    // Log full error details if available
+    if (error && typeof error === "object") {
+      console.error(
+        "[API/summarize] Error details:",
+        JSON.stringify(error, null, 2)
+      );
+    }
 
     // User-friendly error messages
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
+    console.error("[API/summarize] Error message:", errorMessage);
+
+    // Check for rate limit / quota exceeded (429 errors)
+    if (
+      errorMessage.includes("429") ||
+      errorMessage.includes("Too Many Requests") ||
+      errorMessage.includes("RESOURCE_EXHAUSTED")
+    ) {
+      const retryMatch = errorMessage.match(/retry in (\d+)/i);
+      const retryAfter = retryMatch ? parseInt(retryMatch[1]) : 60;
+      return NextResponse.json(
+        {
+          error: "Cuota de Gemini agotada temporalmente",
+          message: `La API de Google Gemini está limitada. Intenta de nuevo en ${retryAfter} segundos.`,
+          retryAfter,
+        },
+        { status: 429, headers }
+      );
+    }
 
     if (errorMessage.includes("API_KEY_INVALID")) {
       return NextResponse.json(
