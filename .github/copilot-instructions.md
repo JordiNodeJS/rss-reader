@@ -1,61 +1,48 @@
-## RSS Reader Antigravity — Copilot / AI Agent Quick Guide
+## RSS Reader Antigravity — AI Agent Guide
 
-Brief: Next.js 16 + React 19 offline-first RSS reader. Client is UI + IndexedDB; server hosts all external fetches, scraping and node-only libs.
+Brief: Next.js 16 + React 19 offline-first RSS reader. Client-side IndexedDB storage with server-side RSS/scraping proxies. Focused on Spanish media.
 
 **Quick Commands:**
-- `pnpm install`
-- `pnpm dev` (dev server at http://localhost:3000)
+
+- `pnpm install` / `pnpm dev` (http://localhost:3000)
 - `pnpm build && pnpm start`
 - `pnpm lint`
-- `pnpm dlx playwright install` && `pnpm dlx playwright test` (E2E)
+- `pnpm rebuild sharp` (Fix binary errors on Windows)
 
-**Big Picture:**
-- App Router (Next.js 16). Server code and Node-native libs live in API routes under `src/app/api/*` to avoid client bundling and CORS problems.
-- Client uses IndexedDB via `src/lib/db.ts` (DB-first). UI state flows through hooks in `src/hooks/*` and contexts in `src/contexts/*`.
+**Big Picture Architecture:**
 
-**Critical Files (read first):**
-- `src/hooks/useFeeds.ts` — feed lifecycle, `useFeeds.addNewFeed(url)` flow, `UserError` for user-facing faults.
-- `src/lib/db.ts` — IndexedDB schema, `DB_VERSION`, migrations, helpers (`addFeed`, `addArticle`, `getFromIndex`).
-- `src/app/api/rss/route.ts` — RSS parsing proxy (uses `rss-parser`).
-- `src/app/api/scrape/route.ts` — scraper pipeline: Readability → Cheerio → sanitization → image optimization (`sharp`).
-- `src/lib/summarization*.ts` — summarization entrypoints and fallbacks (Chrome Summarizer → Transformers worker).
-- `src/components/layout/AppShell.tsx` — UI shell, `DEFAULT_FEEDS`, theme handling.
+- **App Router (Next.js 16)**: Server components (e.g., [src/app/page.tsx](src/app/page.tsx)) read cookies/headers and pass props to client components (e.g., [src/app/page.client.tsx](src/app/page.client.tsx)).
+- **Offline-First**: All data lives in **IndexedDB** ([src/lib/db.ts](src/lib/db.ts)). [src/hooks/useFeeds.ts](src/hooks/useFeeds.ts) is the **single source of truth** for all feed/article operations.
+- **Server Proxies**: All external fetches (RSS, Scraping) MUST go through `/api/*` routes to avoid CORS and bundle Node-only libs (e.g., `sharp`, `jsdom`).
+- **Theme Bootstrapping**: [src/app/layout.tsx](src/app/layout.tsx) injects a pre-React script to apply themes from `localStorage` to `<html>` to prevent FOUC.
 
-**Project-Specific Conventions:**
-- Always use `pnpm` (see `.cursor/rules/00-package-manager.md`). Use `pnpm dlx` instead of `npx`.
-- DB-first: use `src/lib/db.ts` helpers; avoid raw IndexedDB access elsewhere.
-- Error handling: throw `UserError` for expected/user-facing issues (log with `console.warn`). Use `Error` + `console.error` for developer-level faults.
-- Long-running tasks: report via `ActivityStatusContext` / `useActivityStatus()` (types: `fetching-rss`, `scraping`, `translating`).
+**Critical Files & Patterns:**
 
-**Scraping & Summarization Rules (concrete):**
-- Scraper order: `extractWithReadability` → `extractWithCheerio` → generic selectors. See `src/app/api/scrape/route.ts`.
-- Images: converted to WebP (max 1200px, ~80% quality) in `scrape/route.ts` via `sharp` — change rules only there.
-- Summaries: prefer Chrome Summarizer (`Summarizer.availability()`), fallback to Transformers.js worker; cache on article records (`summary`, `summaryType`, `summaryLength`, `summarizedAt`).
+- **Feed Lifecycle**: `useFeeds.addNewFeed(url)` -> `/api/rss` -> `db.ts` storage.
+- **Scraping**: `/api/scrape` uses `Readability` -> `Cheerio` fallback -> `sharp` (WebP conversion).
+- **AI Summarization**: Use [src/hooks/useSummary.ts](src/hooks/useSummary.ts). Supports Chrome Summarizer (Nano), Gemini Proxy, and local Transformers.js.
+- **Error Handling**: Throw `UserError` (from `useFeeds.ts`) for expected faults (shown via `toast`). Use `Error` for developer faults.
+- **Activity Tracking**: Report long-running tasks via `useActivityStatus()` (e.g., `fetching-rss`, `scraping`).
+- **Monitoring**: [src/lib/db-monitor.ts](src/lib/db-monitor.ts) logs IndexedDB events (e.g., unexpected deletions) for debugging in the sidebar.
 
-**Common Workflows & Examples:**
-- Add feed: component → `useFeeds.addNewFeed(url)` → server `/api/rss?url=...` → `src/lib/db.ts` stores feed + articles.
-- Quick API checks:
-  - `curl "http://localhost:3000/api/rss?url=https://example.com/feed"`
-  - `curl "http://localhost:3000/api/scrape?url=https://example.com/article"`
-- DB migration: bump `DB_VERSION` in `src/lib/db.ts` and implement `upgrade()` logic there.
+**Project Conventions:**
 
-**Platform / CI Notes:**
-- `sharp` is native — CI must support native builds. On Windows dev: `pnpm rebuild sharp` if you get binary errors.
-- Node 22.x expected (see `engines` in `package.json`).
+- **pnpm Only**: Never use `npm` or `yarn`. Use `pnpm dlx` for one-off tools.
+- **Spanish Focus**: User-facing strings and scraper rules are optimized for Spanish news outlets.
+- **DB Resilience**: Feeds are backed up to `localStorage` (`FEEDS_BACKUP_KEY`) and restored if IndexedDB is cleared.
+- **Theme System**: Themes are CSS files in `public/styles/themes/`. Managed via [src/lib/theme-loader.ts](src/lib/theme-loader.ts).
 
-**Where To Make Changes (common edit points):**
-- Scraper & sanitize rules: `src/app/api/scrape/route.ts` (security review required for sanitize changes).
-- Feed presets / UI: `src/components/layout/AppShell.tsx` (`DEFAULT_FEEDS`).
-- Summarization config: `src/lib/summarization-models.ts` & `src/lib/summarization-transformers.ts`.
-- DB schema: `src/lib/db.ts` (`DB_VERSION`, stores, indexes).
-**Testing UI Changes (Important):**
-- When making logic or functionality changes, **use chrome-devtools MCP** to test the interface in a real browser.
-- Browser automation detects runtime errors, hydration issues, and client-side problems that curl cannot catch.
-- Use `mcp_chrome-devtoo_take_snapshot` to get the page state and find interactive elements by `uid`.
-- Use `mcp_chrome-devtoo_click`, `mcp_chrome-devtoo_fill` to interact with the UI.
-- Check console messages with `mcp_chrome-devtoo_list_console_messages` for errors.
-If you'd like, I can add a DB migration template, a scraper test checklist, or a summarizer worker test harness — tell me which and I’ll add it.
-**Next.js debugging (next-devtools):**
-- Use Next.js DevTools to detect and fix common Next.js errors (browser extension).
-- Install the extension, open DevTools and select the "Next" tab to review warnings about routes, SSR/hydration, server/client boundaries, and props.
-- Use it together with chrome-devtools MCP when testing the UI in a real browser to locate and reproduce bugs during development (`pnpm dev`).
+**Testing & Debugging:**
+
+- **UI Testing**: Use **chrome-devtools MCP** for real browser testing (detects hydration/runtime errors).
+- **Next.js Diagnostics**: Use **next-devtools MCP** to inspect routes, SSR boundaries, and compilation errors.
+- **API Checks**:
+  - `curl "http://localhost:3000/api/rss?url=..."`
+  - `curl "http://localhost:3000/api/scrape?url=..."`
+
+**Where To Edit:**
+
+- **Scraper Rules**: [src/app/api/scrape/route.ts](src/app/api/scrape/route.ts)
+- **DB Schema**: [src/lib/db.ts](src/lib/db.ts) (Bump `DB_VERSION` for migrations)
+- **UI Shell**: [src/components/layout/AppShell.tsx](src/components/layout/AppShell.tsx)
+- **AI Models**: [src/lib/summarization-models.ts](src/lib/summarization-models.ts)

@@ -1422,7 +1422,7 @@ export function ArticleView({
 
             {/* AI Summary & Translation controls - compact bar that hides on mobile scroll */}
             <div
-              className={`flex items-center gap-2 flex-wrap text-sm transition-all duration-300 md:max-h-none md:opacity-100 ${
+              className={`flex items-center gap-1.5 sm:gap-2 flex-wrap text-xs sm:text-sm transition-all duration-300 md:max-h-none md:opacity-100 ${
                 isTitleHidden
                   ? "max-h-0 opacity-0 overflow-hidden"
                   : "max-h-[200px] opacity-100"
@@ -1436,17 +1436,19 @@ export function ArticleView({
                   {summaryHook.hasCachedSummary ||
                   summaryHook.status === "completed" ||
                   isRegenerating ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
                       <button
                         onClick={() => setShowSummary(!showSummary)}
-                        className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm font-medium"
+                        className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-0.5 sm:gap-1 cursor-pointer text-xs sm:text-sm font-medium"
                       >
-                        <Sparkles className="w-3 h-3" />
-                        {showSummary ? "Ocultar resumen" : "Ver resumen"}
+                        <Sparkles className="w-3 h-3 flex-shrink-0" />
+                        <span className="whitespace-nowrap">
+                          {showSummary ? "Ocultar resumen" : "Ver resumen"}
+                        </span>
                         {showSummary ? (
-                          <ChevronUp className="w-3 h-3" />
+                          <ChevronUp className="w-3 h-3 flex-shrink-0" />
                         ) : (
-                          <ChevronDown className="w-3 h-3" />
+                          <ChevronDown className="w-3 h-3 flex-shrink-0" />
                         )}
                       </button>
                       <button
@@ -1487,10 +1489,10 @@ export function ArticleView({
                       </button>
                     </span>
                   ) : (
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                       <button
                         onClick={() => handleGenerateSummary()}
-                        className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm flex-wrap"
+                        className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-0.5 sm:gap-1 cursor-pointer text-xs sm:text-sm flex-wrap"
                         disabled={!summaryHook.canSummarize}
                         title={
                           summaryHook.isTransformersAvailable &&
@@ -1502,14 +1504,17 @@ export function ArticleView({
                         }
                         data-qa="article-generate-button"
                       >
-                        <span className="flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" />
-                          <span>Generar resumen con IA</span>
+                        <span className="flex items-center gap-0.5 sm:gap-1">
+                          <Sparkles className="w-3 h-3 flex-shrink-0" />
+                          <span className="whitespace-nowrap">
+                            Generar resumen con IA
+                          </span>
                         </span>
                         {aiProvider === "local" && (
                           <span className="text-[10px] opacity-70 ml-1 whitespace-nowrap">
                             (local
-                            {selectedModel && SUMMARIZATION_MODELS[selectedModel]
+                            {selectedModel &&
+                            SUMMARIZATION_MODELS[selectedModel]
                               ? `: ${SUMMARIZATION_MODELS[selectedModel].name}`
                               : ""}
                             )
