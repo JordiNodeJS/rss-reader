@@ -1425,7 +1425,7 @@ export function ArticleView({
               className={`flex items-center gap-2 flex-wrap text-sm transition-all duration-300 md:max-h-none md:opacity-100 ${
                 isTitleHidden
                   ? "max-h-0 opacity-0 overflow-hidden"
-                  : "max-h-[100px] opacity-100"
+                  : "max-h-[200px] opacity-100"
               }`}
             >
               {/* AI Summary controls */}
@@ -1487,56 +1487,60 @@ export function ArticleView({
                       </button>
                     </span>
                   ) : (
-                    <button
-                      onClick={() => handleGenerateSummary()}
-                      className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm"
-                      disabled={!summaryHook.canSummarize}
-                      title={
-                        summaryHook.isTransformersAvailable &&
-                        !summaryHook.isGeminiAvailable
-                          ? "Resumen generado localmente y traducido al español"
-                          : summaryHook.isGeminiAvailable
-                          ? "Resumen generado con Google Gemini"
-                          : undefined
-                      }
-                      data-qa="article-generate-button"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      Generar resumen con IA
-                      {aiProvider === "local" && (
-                        <span className="text-[10px] opacity-70 ml-1">
-                          (local
-                          {selectedModel && SUMMARIZATION_MODELS[selectedModel]
-                            ? `: ${SUMMARIZATION_MODELS[selectedModel].name}`
-                            : ""}
-                          )
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => handleGenerateSummary()}
+                        className="text-purple-500 hover:text-purple-600 hover:underline flex items-center gap-1 cursor-pointer text-sm flex-wrap"
+                        disabled={!summaryHook.canSummarize}
+                        title={
+                          summaryHook.isTransformersAvailable &&
+                          !summaryHook.isGeminiAvailable
+                            ? "Resumen generado localmente y traducido al español"
+                            : summaryHook.isGeminiAvailable
+                            ? "Resumen generado con Google Gemini"
+                            : undefined
+                        }
+                        data-qa="article-generate-button"
+                      >
+                        <span className="flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          <span>Generar resumen con IA</span>
                         </span>
-                      )}
-                      {aiProvider === "gemini" && (
-                        <span className="text-[10px] opacity-70 ml-1">
-                          (gemini)
-                        </span>
-                      )}
-                      {aiProvider === "proxy" && (
-                        <span className="text-[10px] opacity-70 ml-1">
-                          (proxy gratis)
-                        </span>
-                      )}
-                      {aiProvider === "chrome" && (
-                        <span className="text-[10px] opacity-70 ml-1">
-                          (chrome ai)
-                        </span>
-                      )}
-                    </button>
+                        {aiProvider === "local" && (
+                          <span className="text-[10px] opacity-70 ml-1 whitespace-nowrap">
+                            (local
+                            {selectedModel && SUMMARIZATION_MODELS[selectedModel]
+                              ? `: ${SUMMARIZATION_MODELS[selectedModel].name}`
+                              : ""}
+                            )
+                          </span>
+                        )}
+                        {aiProvider === "gemini" && (
+                          <span className="text-[10px] opacity-70 ml-1 whitespace-nowrap">
+                            (gemini)
+                          </span>
+                        )}
+                        {aiProvider === "proxy" && (
+                          <span className="text-[10px] opacity-70 ml-1 whitespace-nowrap">
+                            (proxy gratis)
+                          </span>
+                        )}
+                        {aiProvider === "chrome" && (
+                          <span className="text-[10px] opacity-70 ml-1 whitespace-nowrap">
+                            (chrome ai)
+                          </span>
+                        )}
+                      </button>
+                      {/* AI Settings Button */}
+                      <button
+                        onClick={() => setShowAISettings(true)}
+                        className="text-muted-foreground hover:text-purple-500 p-1 rounded transition-colors flex-shrink-0"
+                        title="Configurar proveedor de IA"
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
-                  {/* AI Settings Button */}
-                  <button
-                    onClick={() => setShowAISettings(true)}
-                    className="text-muted-foreground hover:text-purple-500 p-1 rounded transition-colors"
-                    title="Configurar proveedor de IA"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                  </button>
                 </>
               ) : (
                 // Show info when API is not available
@@ -1678,9 +1682,24 @@ export function ArticleView({
                       >
                         gemini
                       </Badge>
+                    ) : summaryHook.activeBackend === "proxy" ? (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] opacity-70"
+                        title="Resumen generado con API proxy gratuita"
+                      >
+                        proxy
+                      </Badge>
+                    ) : summaryHook.activeBackend === "chrome" ? (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] opacity-70"
+                        title="Resumen generado con Chrome AI (Gemini Nano)"
+                      >
+                        chrome ai
+                      </Badge>
                     ) : (
-                      (summaryHook.activeBackend === "transformers" ||
-                        summaryHook.isTransformersAvailable) && (
+                      summaryHook.activeBackend === "transformers" && (
                         <Badge
                           variant="secondary"
                           className="text-[10px] opacity-70"
