@@ -2114,7 +2114,7 @@ export function ArticleView({
                   translatedHtml={translatedContent}
                   showTranslation={translation.isShowingTranslation}
                   duration={1.2}
-                  className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[800px] prose-img:w-auto prose-img:object-contain prose-img:mx-auto"
+                  className="prose prose-zinc dark:prose-invert max-w-none px-6 py-6 pr-8 break-words prose-img:max-h-[600px] prose-img:w-auto prose-img:max-w-[95%] md:prose-img:max-w-[70%] lg:prose-img:max-w-[55%] prose-img:object-contain prose-img:mx-auto prose-img:block prose-img:rounded-xl prose-img:shadow-md"
                 />
               </div>
             </div>
