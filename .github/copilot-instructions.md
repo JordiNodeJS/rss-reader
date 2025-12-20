@@ -20,7 +20,8 @@ Brief: Next.js 16 + React 19 offline-first RSS reader. Client-side IndexedDB sto
 
 - **Feed Lifecycle**: `useFeeds.addNewFeed(url)` -> `/api/rss` -> `db.ts` storage.
 - **Scraping**: `/api/scrape` uses `Readability` -> `Cheerio` fallback -> `sharp` (WebP conversion).
-- **AI Summarization**: Use [src/hooks/useSummary.ts](src/hooks/useSummary.ts). Supports Chrome Summarizer (Nano), Gemini Proxy, and local Transformers.js.
+- **AI Summarization**: Use [src/hooks/useSummary.ts](src/hooks/useSummary.ts). Supports Chrome Summarizer (Nano), Google Gemini API (Cloud), and local Transformers.js.
+- **AI Disclaimer**: [src/components/AIDisclaimer.tsx](src/components/AIDisclaimer.tsx) manages user consent and API key settings for AI features.
 - **Error Handling**: Throw `UserError` (from `useFeeds.ts`) for expected faults (shown via `toast`). Use `Error` for developer faults.
 - **Activity Tracking**: Report long-running tasks via `useActivityStatus()` (e.g., `fetching-rss`, `scraping`).
 - **Monitoring**: [src/lib/db-monitor.ts](src/lib/db-monitor.ts) logs IndexedDB events (e.g., unexpected deletions) for debugging in the sidebar.
@@ -31,6 +32,7 @@ Brief: Next.js 16 + React 19 offline-first RSS reader. Client-side IndexedDB sto
 - **Spanish Focus**: User-facing strings and scraper rules are optimized for Spanish news outlets.
 - **DB Resilience**: Feeds are backed up to `localStorage` (`FEEDS_BACKUP_KEY`) and restored if IndexedDB is cleared.
 - **Theme System**: Themes are CSS files in `public/styles/themes/`. Managed via [src/lib/theme-loader.ts](src/lib/theme-loader.ts).
+- **Memory Leaks**: Always check for component unmounts in async effects (e.g., `if (!mounted) return`) or use abort controllers.
 
 **Testing & Debugging:**
 
@@ -45,4 +47,10 @@ Brief: Next.js 16 + React 19 offline-first RSS reader. Client-side IndexedDB sto
 - **Scraper Rules**: [src/app/api/scrape/route.ts](src/app/api/scrape/route.ts)
 - **DB Schema**: [src/lib/db.ts](src/lib/db.ts) (Bump `DB_VERSION` for migrations)
 - **UI Shell**: [src/components/layout/AppShell.tsx](src/components/layout/AppShell.tsx)
-- **AI Models**: [src/lib/summarization-models.ts](src/lib/summarization-models.ts)
+- **AI Models**: [src/lib/summarization-models.ts](src/lib/summarization-models.ts) and [src/lib/summarization-gemini.ts](src/lib/summarization-gemini.ts)
+
+**AI Agent Memory & Strategy:**
+
+- **Long-Term Memory**: Use the `.agent/` and `.cursor/` folders to store strategies, plans, and tasks for long-term memory in agent mode.
+- **Documentation**: The `docs/` folder can also be used to organize AI-related strategies, research, and project management notes. Subfolders like `docs/project-management/`, `docs/research/`, and `docs/standards/` are ideal for this purpose.
+- **Learning Log**: Record all key learnings and insights in `docs/project-management/aprendizajes.md` to maintain a historical record of lessons learned during development.

@@ -22,19 +22,27 @@ Esta guía describe las API públicas y los patrones de uso para la funcionalida
 
 - Resúmenes locales usando Transformers.js (por defecto) como fallback cross-browser
 - Integración con la API nativa de Chrome (cuando está disponible)
+- Integración con Google Gemini API (requiere API Key)
 - Longitudes: `short`, `medium`, `long`, `extended` (más detallado)
 - Tipos: `tldr`, `key-points`, `teaser`, `headline`
 
-Todo el comportamiento y utilidades principales están expuestos desde `src/lib/summarization.ts` y `src/lib/summarization-transformers.ts`.
+Todo el comportamiento y utilidades principales están expuestos desde `src/lib/summarization.ts`, `src/lib/summarization-transformers.ts` y `src/lib/summarization-gemini.ts`.
 
 ---
 
-## Arquitectura: Chrome vs Transformers.js
+## Arquitectura: Chrome vs Transformers.js vs Gemini
 
 - Chrome Summarizer API (Gemini Nano / Built-in AI)
 
   - Alta calidad, modelo gestionado por Chrome, streaming nativo y descarga gestionada por navegador.
   - Uso recomendado: si `Translator` / `Summarizer` es detectado (Chrome 138+, API disponible) se intenta usar primero.
+
+- Google Gemini API (Cloud)
+
+  - Máxima calidad y contexto.
+  - Requiere API Key configurada por el usuario.
+  - Funciona en cualquier navegador.
+  - Ideal para resúmenes complejos o cuando el hardware local es limitado.
 
 - Transformers.js fallback
   - Cross-browser: funciona en Chrome, Firefox, Edge y Safari.

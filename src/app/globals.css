@@ -210,7 +210,28 @@
 
 /* Custom styles for article content images */
 .prose img {
-  @apply my-6 rounded-lg;
+  @apply my-6 rounded-xl shadow-md;
+  /* Responsive max-width constraints */
+  max-width: 95%;
+  max-height: 600px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 768px) {
+  .prose img {
+    max-width: 70%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .prose img {
+    max-width: 55%;
+  }
 }
 
 .prose figure {
