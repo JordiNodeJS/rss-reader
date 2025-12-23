@@ -21,6 +21,7 @@ Entiende cómo funciona el sistema por dentro.
 
 Documentación detallada de características específicas.
 
+- **[Funcionalidades Completas](features/funcionalidades.md)**: Catálogo exhaustivo de todas las funcionalidades de la app.
 - [Sistema de Resúmenes (IA)](features/summarization.md): Cómo funciona la integración con Chrome AI y Transformers.js.
 - [Configuración Upstash](features/upstash-setup.md): Detalles sobre la integración con Upstash (Rate Limiting/Redis).
 
@@ -36,7 +37,7 @@ Reglas del juego para mantener la calidad del código.
 Historial, tareas y lecciones aprendidas.
 
 - [Aprendizajes](project-management/aprendizajes.md): Reporte de lecciones clave del desarrollo.
-- [Historias de Usuario](project-management/user-stories.md): Definición funcional del producto.
+- **[Historias de Usuario](project-management/user-stories.md)**: Especificación completa de funcionalidades desde la perspectiva del usuario (40+ historias).
 - [Progreso de Tareas (Dic 2025)](project-management/task-progress-dec-2025.md): Log de trabajo.
 - [Tareas de Rendimiento](project-management/performance-tasks.md): Lista de optimizaciones pendientes o realizadas.
 
