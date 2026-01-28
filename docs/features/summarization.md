@@ -33,14 +33,16 @@ Todo el comportamiento y utilidades principales están expuestos desde `src/lib/
 ## Arquitectura: Chrome vs Transformers.js vs Gemini
 
 - Chrome Summarizer API (Gemini Nano / Built-in AI)
-
   - Alta calidad, modelo gestionado por Chrome, streaming nativo y descarga gestionada por navegador.
   - Uso recomendado: si `Translator` / `Summarizer` es detectado (Chrome 138+, API disponible) se intenta usar primero.
 
 - Google Gemini API (Cloud)
-
   - Máxima calidad y contexto.
-  - Requiere API Key configurada por el usuario.
+  - Requiere API Key configurada por el usuario o vía servidor (proxy).
+  - **Cuenta Asociada (Google Cloud/AI Studio):**
+    - **Nombre:** rss-reader
+    - **ID del proyecto:** gen-lang-client-0389507106
+    - **Número del proyecto:** 614765996314
   - Funciona en cualquier navegador.
   - Ideal para resúmenes complejos o cuando el hardware local es limitado.
 
@@ -141,22 +143,18 @@ summaryHook
 ## E2E / QA — Qué probar
 
 1. Generación de resumen básica
-
    - Generar `short`, `medium`, `long`, `extended` en un artículo; validar que el tamaño y el tipo concuerdan con la longitud solicitada.
    - Para `extended`, validar que se generan 7–10 oraciones o ~10+ bullet points si se solicita `key-points`.
 
 2. Cache y persistencia
-
    - Generar un resumen y verificar que se guarda en IndexedDB para el `article` asociado.
    - Limpiar la caché desde `CacheManager` y verificar que la lista se actualiza y los modelos desaparecen.
 
 3. Precarga (Preload)
-
    - Usa `preloadSummarizationModel()` y valida que el primer resumen posterior sea más rápido y que `getSummarizationModelStatus()` refleje `isLoaded`.
    - Cancela/aborta una descarga (si la UI lo expone) y valida que la descarga se detenga.
 
 4. Worker lifecycle
-
    - Verificar que la terminación del worker (`terminateSummarizationWorker`) libera memoria y que `getSummarizationModelStatus()` retorna `isLoaded` false.
    - `clearSummarizationModelCache()` debe terminar el worker internamente.
 
